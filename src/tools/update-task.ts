@@ -14,10 +14,10 @@ export const UpdateTaskArgsSchema = z.object({
   delete: z.boolean().optional().describe("Set to true to delete the task"),
 });
 
-export function handleUpdateTask(args: UpdateTaskInput, service: TaskService): McpToolResponse {
+export async function handleUpdateTask(args: UpdateTaskInput, service: TaskService): Promise<McpToolResponse> {
   if (args.delete) {
-    const deletedTask = service.update(args);
+    const deletedTask = await service.update(args);
     return jsonResponse({ deleted: true, id: args.id, task: deletedTask });
   }
-  return jsonResponse(service.update(args));
+  return jsonResponse(await service.update(args));
 }

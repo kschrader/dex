@@ -134,5 +134,8 @@ ${bold}EXAMPLE:${reset}
   });
 } else {
   const storage = createStorageEngine(storagePath);
-  runCli(filteredArgs, { storage });
+  runCli(filteredArgs, { storage }).catch((err) => {
+    console.error("Error:", err);
+    process.exit(1);
+  });
 }

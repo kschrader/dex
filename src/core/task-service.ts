@@ -23,8 +23,8 @@ export class TaskService {
     }
   }
 
-  create(input: CreateTaskInput): Task {
-    const store = this.storage.read();
+  async create(input: CreateTaskInput): Promise<Task> {
+    const store = await this.storage.readAsync();
     const now = new Date().toISOString();
 
     let parentId: string | null = null;
@@ -51,17 +51,17 @@ export class TaskService {
     };
 
     store.tasks.push(task);
-    this.storage.write(store);
+    await this.storage.writeAsync(store);
 
     return task;
   }
 
-  update(input: UpdateTaskInput): Task {
+  async update(input: UpdateTaskInput): Promise<Task> {
     if (input.delete) {
-      return this.delete(input.id);
+      return await this.delete(input.id);
     }
 
-    const store = this.storage.read();
+    const store = await this.storage.readAsync();
     const index = store.tasks.findIndex((t) => t.id === input.id);
 
     if (index === -1) {
@@ -110,7 +110,7 @@ export class TaskService {
 
     task.updated_at = now;
     store.tasks[index] = task;
-    this.storage.write(store);
+    await this.storage.writeAsync(store);
 
     return task;
   }
@@ -121,8 +121,8 @@ export class TaskService {
    * @returns The deleted task
    * @throws NotFoundError if the task does not exist
    */
-  delete(id: string): Task {
-    const store = this.storage.read();
+  async delete(id: string): Promise<Task> {
+    const store = await this.storage.readAsync();
     const index = store.tasks.findIndex((t) => t.id === id);
 
     if (index === -1) {
@@ -136,12 +136,12 @@ export class TaskService {
     this.collectDescendants(store.tasks, id, toDelete);
 
     store.tasks = store.tasks.filter((t) => !toDelete.has(t.id));
-    this.storage.write(store);
+    await this.storage.writeAsync(store);
     return deletedTask;
   }
 
-  getChildren(id: string): Task[] {
-    const store = this.storage.read();
+  async getChildren(id: string): Promise<Task[]> {
+    const store = await this.storage.readAsync();
     return store.tasks.filter((t) => t.parent_id === id);
   }
 
@@ -161,13 +161,13 @@ export class TaskService {
     return this.isDescendant(tasks, task.parent_id, ancestorId);
   }
 
-  get(id: string): Task | null {
-    const store = this.storage.read();
+  async get(id: string): Promise<Task | null> {
+    const store = await this.storage.readAsync();
     return store.tasks.find((t) => t.id === id) || null;
   }
 
-  list(input: ListTasksInput = {}): Task[] {
-    const store = this.storage.read();
+  async list(input: ListTasksInput = {}): Promise<Task[]> {
+    const store = await this.storage.readAsync();
     let tasks = store.tasks;
 
     if (!input.all) {
@@ -187,8 +187,8 @@ export class TaskService {
     return tasks.toSorted((a, b) => a.priority - b.priority);
   }
 
-  complete(id: string, result: string): Task {
-    const store = this.storage.read();
+  async complete(id: string, result: string): Promise<Task> {
+    const store = await this.storage.readAsync();
 
     // Collect all descendants, not just immediate children
     const descendants = new Set<string>();
@@ -205,7 +205,7 @@ export class TaskService {
       );
     }
 
-    return this.update({
+    return await this.update({
       id,
       status: "completed",
       result,

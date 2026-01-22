@@ -9,6 +9,6 @@ export const ListTasksArgsSchema = z.object({
   all: z.boolean().optional().describe("Show all tasks (pending and completed)"),
 });
 
-export function handleListTasks(args: ListTasksInput, service: TaskService): McpToolResponse {
-  return jsonResponse(service.list(args));
+export async function handleListTasks(args: ListTasksInput, service: TaskService): Promise<McpToolResponse> {
+  return jsonResponse(await service.list(args));
 }

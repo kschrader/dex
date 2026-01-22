@@ -20,8 +20,8 @@ describe("TaskService", () => {
   });
 
   describe("create", () => {
-    it("creates a task with required fields", () => {
-      const task = service.create({
+    it("creates a task with required fields", async () => {
+      const task = await service.create({
         description: "Test task",
         context: "Test context",
       });
@@ -35,8 +35,8 @@ describe("TaskService", () => {
       expect(task.result).toBeNull();
     });
 
-    it("creates a task with custom priority", () => {
-      const task = service.create({
+    it("creates a task with custom priority", async () => {
+      const task = await service.create({
         description: "Test task",
         context: "Test context",
         priority: 5,
@@ -45,13 +45,13 @@ describe("TaskService", () => {
       expect(task.priority).toBe(5);
     });
 
-    it("creates a child task with parent_id", () => {
-      const parent = service.create({
+    it("creates a child task with parent_id", async () => {
+      const parent = await service.create({
         description: "Parent task",
         context: "Parent context",
       });
 
-      const child = service.create({
+      const child = await service.create({
         description: "Child task",
         context: "Child context",
         parent_id: parent.id,
@@ -60,42 +60,42 @@ describe("TaskService", () => {
       expect(child.parent_id).toBe(parent.id);
     });
 
-    it("throws when parent task does not exist", () => {
-      expect(() =>
-        service.create({
+    it("throws when parent task does not exist", async () => {
+      await expect(async () =>
+        await service.create({
           description: "Orphan task",
           context: "Context",
           parent_id: "nonexistent",
         })
-      ).toThrow('Task "nonexistent" not found');
+      ).rejects.toThrow('Task "nonexistent" not found');
     });
   });
 
   describe("get", () => {
-    it("returns task by id", () => {
-      const created = service.create({
+    it("returns task by id", async () => {
+      const created = await service.create({
         description: "Test",
         context: "Context",
       });
 
-      const retrieved = service.get(created.id);
+      const retrieved = await service.get(created.id);
       expect(retrieved).toEqual(created);
     });
 
-    it("returns null for nonexistent task", () => {
-      const result = service.get("nonexistent");
+    it("returns null for nonexistent task", async () => {
+      const result = await service.get("nonexistent");
       expect(result).toBeNull();
     });
   });
 
   describe("update", () => {
-    it("updates task description", () => {
-      const task = service.create({
+    it("updates task description", async () => {
+      const task = await service.create({
         description: "Original",
         context: "Context",
       });
 
-      const updated = service.update({
+      const updated = await service.update({
         id: task.id,
         description: "Updated",
       });
@@ -104,13 +104,13 @@ describe("TaskService", () => {
       expect(updated.context).toBe("Context");
     });
 
-    it("updates multiple fields", () => {
-      const task = service.create({
+    it("updates multiple fields", async () => {
+      const task = await service.create({
         description: "Test",
         context: "Context",
       });
 
-      const updated = service.update({
+      const updated = await service.update({
         id: task.id,
         description: "New description",
         context: "New context",
@@ -122,41 +122,41 @@ describe("TaskService", () => {
       expect(updated.priority).toBe(10);
     });
 
-    it("throws when task does not exist", () => {
-      expect(() =>
-        service.update({
+    it("throws when task does not exist", async () => {
+      await expect(async () =>
+        await service.update({
           id: "nonexistent",
           description: "Updated",
         })
-      ).toThrow('Task "nonexistent" not found');
+      ).rejects.toThrow('Task "nonexistent" not found');
     });
 
-    it("deletes task via update with delete flag", () => {
-      const task = service.create({
+    it("deletes task via update with delete flag", async () => {
+      const task = await service.create({
         description: "To delete",
         context: "Context",
       });
 
-      const deleted = service.update({
+      const deleted = await service.update({
         id: task.id,
         delete: true,
       });
 
       expect(deleted.id).toBe(task.id);
-      expect(service.get(task.id)).toBeNull();
+      expect(await service.get(task.id)).toBeNull();
     });
 
-    it("updates parent_id", () => {
-      const parent = service.create({
+    it("updates parent_id", async () => {
+      const parent = await service.create({
         description: "Parent",
         context: "Context",
       });
-      const task = service.create({
+      const task = await service.create({
         description: "Task",
         context: "Context",
       });
 
-      const updated = service.update({
+      const updated = await service.update({
         id: task.id,
         parent_id: parent.id,
       });
@@ -164,18 +164,18 @@ describe("TaskService", () => {
       expect(updated.parent_id).toBe(parent.id);
     });
 
-    it("removes parent_id by setting to null", () => {
-      const parent = service.create({
+    it("removes parent_id by setting to null", async () => {
+      const parent = await service.create({
         description: "Parent",
         context: "Context",
       });
-      const child = service.create({
+      const child = await service.create({
         description: "Child",
         context: "Context",
         parent_id: parent.id,
       });
 
-      const updated = service.update({
+      const updated = await service.update({
         id: child.id,
         parent_id: null,
       });
@@ -183,355 +183,355 @@ describe("TaskService", () => {
       expect(updated.parent_id).toBeNull();
     });
 
-    it("throws when setting parent to self", () => {
-      const task = service.create({
+    it("throws when setting parent to self", async () => {
+      const task = await service.create({
         description: "Task",
         context: "Context",
       });
 
-      expect(() =>
-        service.update({
+      await expect(async () =>
+        await service.update({
           id: task.id,
           parent_id: task.id,
         })
-      ).toThrow("Task cannot be its own parent");
+      ).rejects.toThrow("Task cannot be its own parent");
     });
 
-    it("throws when parent would create cycle", () => {
-      const grandparent = service.create({
+    it("throws when parent would create cycle", async () => {
+      const grandparent = await service.create({
         description: "Grandparent",
         context: "Context",
       });
-      const parent = service.create({
+      const parent = await service.create({
         description: "Parent",
         context: "Context",
         parent_id: grandparent.id,
       });
-      const child = service.create({
+      const child = await service.create({
         description: "Child",
         context: "Context",
         parent_id: parent.id,
       });
 
       // Try to make grandparent a child of its descendant
-      expect(() =>
-        service.update({
+      await expect(async () =>
+        await service.update({
           id: grandparent.id,
           parent_id: child.id,
         })
-      ).toThrow("Cannot set parent: would create a cycle");
+      ).rejects.toThrow("Cannot set parent: would create a cycle");
     });
 
-    it("throws when new parent does not exist", () => {
-      const task = service.create({
+    it("throws when new parent does not exist", async () => {
+      const task = await service.create({
         description: "Task",
         context: "Context",
       });
 
-      expect(() =>
-        service.update({
+      await expect(async () =>
+        await service.update({
           id: task.id,
           parent_id: "nonexistent",
         })
-      ).toThrow('Task "nonexistent" not found');
+      ).rejects.toThrow('Task "nonexistent" not found');
     });
   });
 
   describe("delete", () => {
-    it("deletes a task and returns it", () => {
-      const task = service.create({
+    it("deletes a task and returns it", async () => {
+      const task = await service.create({
         description: "Test",
         context: "Context",
       });
 
-      const deletedTask = service.delete(task.id);
+      const deletedTask = await service.delete(task.id);
       expect(deletedTask.id).toBe(task.id);
       expect(deletedTask.description).toBe("Test");
-      expect(service.get(task.id)).toBeNull();
+      expect(await service.get(task.id)).toBeNull();
     });
 
-    it("throws for nonexistent task", () => {
-      expect(() => service.delete("nonexistent")).toThrow(
+    it("throws for nonexistent task", async () => {
+      await expect(async () => await service.delete("nonexistent")).rejects.toThrow(
         'Task "nonexistent" not found'
       );
     });
 
-    it("cascade deletes all descendants", () => {
-      const parent = service.create({
+    it("cascade deletes all descendants", async () => {
+      const parent = await service.create({
         description: "Parent",
         context: "Context",
       });
-      const child = service.create({
+      const child = await service.create({
         description: "Child",
         context: "Context",
         parent_id: parent.id,
       });
-      const grandchild = service.create({
+      const grandchild = await service.create({
         description: "Grandchild",
         context: "Context",
         parent_id: child.id,
       });
 
-      service.delete(parent.id);
+      await service.delete(parent.id);
 
-      expect(service.get(parent.id)).toBeNull();
-      expect(service.get(child.id)).toBeNull();
-      expect(service.get(grandchild.id)).toBeNull();
+      expect(await service.get(parent.id)).toBeNull();
+      expect(await service.get(child.id)).toBeNull();
+      expect(await service.get(grandchild.id)).toBeNull();
     });
 
-    it("only deletes descendants, not siblings", () => {
-      const parent = service.create({
+    it("only deletes descendants, not siblings", async () => {
+      const parent = await service.create({
         description: "Parent",
         context: "Context",
       });
-      const child1 = service.create({
+      const child1 = await service.create({
         description: "Child 1",
         context: "Context",
         parent_id: parent.id,
       });
-      const child2 = service.create({
+      const child2 = await service.create({
         description: "Child 2",
         context: "Context",
         parent_id: parent.id,
       });
 
-      service.delete(child1.id);
+      await service.delete(child1.id);
 
-      expect(service.get(child1.id)).toBeNull();
-      expect(service.get(child2.id)).not.toBeNull();
-      expect(service.get(parent.id)).not.toBeNull();
+      expect(await service.get(child1.id)).toBeNull();
+      expect(await service.get(child2.id)).not.toBeNull();
+      expect(await service.get(parent.id)).not.toBeNull();
     });
   });
 
   describe("getChildren", () => {
-    it("returns immediate children only", () => {
-      const parent = service.create({
+    it("returns immediate children only", async () => {
+      const parent = await service.create({
         description: "Parent",
         context: "Context",
       });
-      const child1 = service.create({
+      const child1 = await service.create({
         description: "Child 1",
         context: "Context",
         parent_id: parent.id,
       });
-      const child2 = service.create({
+      const child2 = await service.create({
         description: "Child 2",
         context: "Context",
         parent_id: parent.id,
       });
-      service.create({
+      await service.create({
         description: "Grandchild",
         context: "Context",
         parent_id: child1.id,
       });
 
-      const children = service.getChildren(parent.id);
+      const children = await service.getChildren(parent.id);
       expect(children).toHaveLength(2);
       expect(children.map((c) => c.id)).toContain(child1.id);
       expect(children.map((c) => c.id)).toContain(child2.id);
     });
 
-    it("returns empty array for task with no children", () => {
-      const task = service.create({
+    it("returns empty array for task with no children", async () => {
+      const task = await service.create({
         description: "Task",
         context: "Context",
       });
 
-      const children = service.getChildren(task.id);
+      const children = await service.getChildren(task.id);
       expect(children).toEqual([]);
     });
   });
 
   describe("list", () => {
-    it("returns pending tasks by default", () => {
-      const pending = service.create({
+    it("returns pending tasks by default", async () => {
+      const pending = await service.create({
         description: "Pending",
         context: "Context",
       });
-      const toComplete = service.create({
+      const toComplete = await service.create({
         description: "Completed",
         context: "Context",
       });
-      service.update({
+      await service.update({
         id: toComplete.id,
         status: "completed",
       });
 
-      const tasks = service.list();
+      const tasks = await service.list();
       expect(tasks).toHaveLength(1);
       expect(tasks[0].id).toBe(pending.id);
     });
 
-    it("filters by status", () => {
-      service.create({ description: "Pending", context: "Context" });
-      const completed = service.create({
+    it("filters by status", async () => {
+      await service.create({ description: "Pending", context: "Context" });
+      const completed = await service.create({
         description: "Completed",
         context: "Context",
       });
-      service.update({ id: completed.id, status: "completed" });
+      await service.update({ id: completed.id, status: "completed" });
 
-      const tasks = service.list({ status: "completed" });
+      const tasks = await service.list({ status: "completed" });
       expect(tasks).toHaveLength(1);
       expect(tasks[0].status).toBe("completed");
     });
 
-    it("returns all tasks when all flag is true", () => {
-      service.create({ description: "Pending", context: "Context" });
-      const completed = service.create({
+    it("returns all tasks when all flag is true", async () => {
+      await service.create({ description: "Pending", context: "Context" });
+      const completed = await service.create({
         description: "Completed",
         context: "Context",
       });
-      service.update({ id: completed.id, status: "completed" });
+      await service.update({ id: completed.id, status: "completed" });
 
-      const tasks = service.list({ all: true });
+      const tasks = await service.list({ all: true });
       expect(tasks).toHaveLength(2);
     });
 
-    it("filters by query in description", () => {
-      service.create({
+    it("filters by query in description", async () => {
+      await service.create({
         description: "Fix the bug",
         context: "Context",
       });
-      service.create({
+      await service.create({
         description: "Add feature",
         context: "Context",
       });
 
-      const tasks = service.list({ query: "bug" });
+      const tasks = await service.list({ query: "bug" });
       expect(tasks).toHaveLength(1);
       expect(tasks[0].description).toBe("Fix the bug");
     });
 
-    it("filters by query in context", () => {
-      service.create({
+    it("filters by query in context", async () => {
+      await service.create({
         description: "Task 1",
         context: "Related to authentication",
       });
-      service.create({
+      await service.create({
         description: "Task 2",
         context: "Related to UI",
       });
 
-      const tasks = service.list({ query: "authentication" });
+      const tasks = await service.list({ query: "authentication" });
       expect(tasks).toHaveLength(1);
       expect(tasks[0].description).toBe("Task 1");
     });
 
-    it("sorts by priority ascending", () => {
-      service.create({
+    it("sorts by priority ascending", async () => {
+      await service.create({
         description: "Low priority",
         context: "Context",
         priority: 10,
       });
-      service.create({
+      await service.create({
         description: "High priority",
         context: "Context",
         priority: 1,
       });
-      service.create({
+      await service.create({
         description: "Medium priority",
         context: "Context",
         priority: 5,
       });
 
-      const tasks = service.list();
+      const tasks = await service.list();
       expect(tasks[0].description).toBe("High priority");
       expect(tasks[1].description).toBe("Medium priority");
       expect(tasks[2].description).toBe("Low priority");
     });
 
-    it("returns empty array when no tasks match", () => {
-      const tasks = service.list();
+    it("returns empty array when no tasks match", async () => {
+      const tasks = await service.list();
       expect(tasks).toEqual([]);
     });
   });
 
   describe("complete", () => {
-    it("marks task as completed with result", () => {
-      const task = service.create({
+    it("marks task as completed with result", async () => {
+      const task = await service.create({
         description: "Test",
         context: "Context",
       });
 
-      const completed = service.complete(task.id, "Done successfully");
+      const completed = await service.complete(task.id, "Done successfully");
 
       expect(completed.status).toBe("completed");
       expect(completed.result).toBe("Done successfully");
     });
 
-    it("throws when task has pending children", () => {
-      const parent = service.create({
+    it("throws when task has pending children", async () => {
+      const parent = await service.create({
         description: "Parent",
         context: "Context",
       });
-      service.create({
+      await service.create({
         description: "Child",
         context: "Context",
         parent_id: parent.id,
       });
 
-      expect(() => service.complete(parent.id, "Done")).toThrow(
+      await expect(async () => await service.complete(parent.id, "Done")).rejects.toThrow(
         "Cannot complete: 1 subtask still pending"
       );
     });
 
-    it("throws when task has multiple pending children", () => {
-      const parent = service.create({
+    it("throws when task has multiple pending children", async () => {
+      const parent = await service.create({
         description: "Parent",
         context: "Context",
       });
-      service.create({
+      await service.create({
         description: "Child 1",
         context: "Context",
         parent_id: parent.id,
       });
-      service.create({
+      await service.create({
         description: "Child 2",
         context: "Context",
         parent_id: parent.id,
       });
 
-      expect(() => service.complete(parent.id, "Done")).toThrow(
+      await expect(async () => await service.complete(parent.id, "Done")).rejects.toThrow(
         "Cannot complete: 2 subtasks still pending"
       );
     });
 
-    it("throws when task has pending grandchildren", () => {
-      const grandparent = service.create({
+    it("throws when task has pending grandchildren", async () => {
+      const grandparent = await service.create({
         description: "Grandparent",
         context: "Context",
       });
-      const parent = service.create({
+      const parent = await service.create({
         description: "Parent",
         context: "Context",
         parent_id: grandparent.id,
       });
-      service.update({ id: parent.id, status: "completed" });
+      await service.update({ id: parent.id, status: "completed" });
 
-      service.create({
+      await service.create({
         description: "Grandchild",
         context: "Context",
         parent_id: parent.id,
       });
 
-      expect(() => service.complete(grandparent.id, "Done")).toThrow(
+      await expect(async () => await service.complete(grandparent.id, "Done")).rejects.toThrow(
         "Cannot complete: 1 subtask still pending"
       );
     });
 
-    it("allows completion when all descendants are completed", () => {
-      const parent = service.create({
+    it("allows completion when all descendants are completed", async () => {
+      const parent = await service.create({
         description: "Parent",
         context: "Context",
       });
-      const child = service.create({
+      const child = await service.create({
         description: "Child",
         context: "Context",
         parent_id: parent.id,
       });
-      service.update({ id: child.id, status: "completed" });
+      await service.update({ id: child.id, status: "completed" });
 
-      const completed = service.complete(parent.id, "Done");
+      const completed = await service.complete(parent.id, "Done");
       expect(completed.status).toBe("completed");
     });
   });

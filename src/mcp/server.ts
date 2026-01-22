@@ -15,13 +15,13 @@ function formatZodError(error: ZodError): string {
 
 function wrapHandler<T>(
   schema: ZodType<T>,
-  handler: (args: T, service: TaskService) => McpToolResponse,
+  handler: (args: T, service: TaskService) => Promise<McpToolResponse>,
   service: TaskService
 ): (args: unknown) => Promise<McpToolResponse> {
   return async (args) => {
     try {
       const parsed = schema.parse(args);
-      return handler(parsed, service);
+      return await handler(parsed, service);
     } catch (err) {
       if (err instanceof ZodError) {
         return errorResponse(new ValidationError(`Validation error: ${formatZodError(err)}`));

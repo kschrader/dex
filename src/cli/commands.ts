@@ -280,31 +280,31 @@ function parseIntFlag(flags: ParsedArgs["flags"], name: string): number | undefi
   return parsed;
 }
 
-export function runCli(args: string[], options: CliOptions): void {
+export async function runCli(args: string[], options: CliOptions): Promise<void> {
   const command = args[0];
 
   switch (command) {
     case "init":
       return initCommand();
     case "create":
-      return createCommand(args.slice(1), options);
+      return await createCommand(args.slice(1), options);
     case "list":
-      return listCommand(args.slice(1), options);
+      return await listCommand(args.slice(1), options);
     case "show":
-      return showCommand(args.slice(1), options);
+      return await showCommand(args.slice(1), options);
     case "edit":
-      return editCommand(args.slice(1), options);
+      return await editCommand(args.slice(1), options);
     case "complete":
-      return completeCommand(args.slice(1), options);
+      return await completeCommand(args.slice(1), options);
     case "delete":
-      return deleteCommandAsync(args.slice(1), options);
+      return await deleteCommandAsync(args.slice(1), options);
     case "help":
     case "--help":
     case "-h":
       return helpCommand();
     default:
       if (!command) {
-        return listCommand([], options);
+        return await listCommand([], options);
       }
       console.error(`${colors.red}Error:${colors.reset} Unknown command: ${command}`);
       const suggestion = getSuggestion(command);
@@ -412,7 +412,7 @@ function parseArgs(
   return { positional, flags };
 }
 
-function createCommand(args: string[], options: CliOptions): void {
+async function createCommand(args: string[], options: CliOptions): Promise<void> {
   const { flags } = parseArgs(args, {
     description: { short: "d", hasValue: true },
     context: { hasValue: true },
@@ -459,7 +459,7 @@ ${colors.bold}EXAMPLE:${colors.reset}
 
   const service = createService(options);
   try {
-    const task = service.create({
+    const task = await service.create({
       description,
       context,
       parent_id: getStringFlag(flags, "parent"),
@@ -500,7 +500,7 @@ function printTaskTree(tasks: Task[], parentId: string | null, prefix: string = 
   }
 }
 
-function listCommand(args: string[], options: CliOptions): void {
+async function listCommand(args: string[], options: CliOptions): Promise<void> {
   const { flags } = parseArgs(args, {
     all: { short: "a", hasValue: false },
     status: { short: "s", hasValue: true },
@@ -544,7 +544,7 @@ ${colors.bold}EXAMPLE:${colors.reset}
   }
 
   const service = createService(options);
-  const tasks = service.list({
+  const tasks = await service.list({
     all: getBooleanFlag(flags, "all") || undefined,
     status,
     query: getStringFlag(flags, "query"),
@@ -672,7 +672,7 @@ function formatTaskShow(task: Task, options: FormatTaskShowOptions = {}): string
   return lines.join("\n");
 }
 
-function showCommand(args: string[], options: CliOptions): void {
+async function showCommand(args: string[], options: CliOptions): Promise<void> {
   const { positional, flags } = parseArgs(args, {
     json: { hasValue: false },
     full: { short: "f", hasValue: false },
@@ -710,20 +710,20 @@ ${colors.bold}EXAMPLE:${colors.reset}
   }
 
   const service = createService(options);
-  const task = service.get(id);
+  const task = await service.get(id);
 
   if (!task) {
     console.error(`${colors.red}Error:${colors.reset} Task ${colors.bold}${id}${colors.reset} not found`);
     // Suggest looking at available tasks
-    const allTasks = service.list({ all: true });
+    const allTasks = await service.list({ all: true });
     if (allTasks.length > 0) {
       console.error(`Hint: Run "${colors.dim}dex list --all${colors.reset}" to see all tasks`);
     }
     process.exit(1);
   }
 
-  const children = service.getChildren(id);
-  const parentTask = task.parent_id ? service.get(task.parent_id) : null;
+  const children = await service.getChildren(id);
+  const parentTask = task.parent_id ? await service.get(task.parent_id) : null;
   const full = getBooleanFlag(flags, "full");
 
   // JSON output mode
@@ -744,7 +744,7 @@ ${colors.bold}EXAMPLE:${colors.reset}
   console.log(formatTaskShow(task, { full, parentTask, children }));
 }
 
-function editCommand(args: string[], options: CliOptions): void {
+async function editCommand(args: string[], options: CliOptions): Promise<void> {
   const { positional, flags } = parseArgs(args, {
     description: { short: "d", hasValue: true },
     context: { hasValue: true },
@@ -787,7 +787,7 @@ ${colors.bold}EXAMPLE:${colors.reset}
 
   const service = createService(options);
   try {
-    const task = service.update({
+    const task = await service.update({
       id,
       description: getStringFlag(flags, "description"),
       context: getStringFlag(flags, "context"),
@@ -803,7 +803,7 @@ ${colors.bold}EXAMPLE:${colors.reset}
   }
 }
 
-function completeCommand(args: string[], options: CliOptions): void {
+async function completeCommand(args: string[], options: CliOptions): Promise<void> {
   const { positional, flags } = parseArgs(args, {
     result: { short: "r", hasValue: true },
     help: { short: "h", hasValue: false },
@@ -846,7 +846,7 @@ ${colors.bold}EXAMPLE:${colors.reset}
 
   const service = createService(options);
   try {
-    const task = service.complete(id, result);
+    const task = await service.complete(id, result);
 
     console.log(`${colors.green}Completed${colors.reset} task ${colors.bold}${id}${colors.reset}`);
     console.log(formatTaskShow(task, { full: true }));
@@ -856,7 +856,7 @@ ${colors.bold}EXAMPLE:${colors.reset}
   }
 }
 
-function deleteCommandAsync(args: string[], options: CliOptions): void {
+async function deleteCommandAsync(args: string[], options: CliOptions): Promise<void> {
   const { positional, flags } = parseArgs(args, {
     force: { short: "f", hasValue: false },
     help: { short: "h", hasValue: false },
@@ -892,32 +892,32 @@ ${colors.bold}EXAMPLE:${colors.reset}
   }
 
   const service = createService(options);
-  const task = service.get(id);
+  const task = await service.get(id);
 
   if (!task) {
     console.error(`${colors.red}Error:${colors.reset} Task ${colors.bold}${id}${colors.reset} not found`);
-    const allTasks = service.list({ all: true });
+    const allTasks = await service.list({ all: true });
     if (allTasks.length > 0) {
       console.error(`${colors.dim}Hint: Run "dex list --all" to see all tasks${colors.reset}`);
     }
     process.exit(1);
   }
 
-  const children = service.getChildren(id);
+  const children = await service.getChildren(id);
 
   // If task has children and not forced, prompt for confirmation
   if (children.length > 0 && !force) {
     const childCount = children.length;
     const message = `Task ${id} has ${childCount} subtask${childCount > 1 ? "s" : ""} that will also be deleted. Continue? (y/n) `;
 
-    promptConfirm(message).then((confirmed) => {
+    promptConfirm(message).then(async (confirmed) => {
       if (!confirmed) {
         console.log("Aborted.");
         process.exit(0);
       }
 
       try {
-        service.delete(id);
+        await service.delete(id);
         console.log(`${colors.green}Deleted${colors.reset} task ${colors.bold}${id}${colors.reset} and ${childCount} subtask${childCount > 1 ? "s" : ""}`);
       } catch (err) {
         console.error(formatCliError(err));
@@ -926,7 +926,7 @@ ${colors.bold}EXAMPLE:${colors.reset}
     });
   } else {
     try {
-      service.delete(id);
+      await service.delete(id);
       if (children.length > 0) {
         console.log(`${colors.green}Deleted${colors.reset} task ${colors.bold}${id}${colors.reset} and ${children.length} subtask${children.length > 1 ? "s" : ""}`);
       } else {

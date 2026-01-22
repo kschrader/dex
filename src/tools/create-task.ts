@@ -10,7 +10,7 @@ export const CreateTaskArgsSchema = z.object({
   priority: z.number().int().min(0).optional().describe("Priority level - lower number = higher priority (default: 1)"),
 });
 
-export function handleCreateTask(args: CreateTaskInput, service: TaskService): McpToolResponse {
-  const task = service.create(args);
+export async function handleCreateTask(args: CreateTaskInput, service: TaskService): Promise<McpToolResponse> {
+  const task = await service.create(args);
   return jsonResponse(task);
 }
