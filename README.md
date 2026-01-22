@@ -28,6 +28,6 @@ dex mcp
 
 ## Storage
 
-Tasks stored in `.dex/tasks.json` (git root or home directory).
+Tasks stored as individual files in `.dex/tasks/{id}.json` (git root or home directory).
 
 Override: `DEX_STORAGE_PATH` env var or `--storage-path` flag.
