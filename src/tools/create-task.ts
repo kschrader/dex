@@ -4,8 +4,8 @@ import { CreateTaskInput } from "../types.js";
 import { jsonResponse, McpToolResponse } from "./response.js";
 
 export const CreateTaskArgsSchema = z.object({
-  description: z.string().min(1).describe("One-line summary of the task"),
-  context: z.string().min(1).describe("Full implementation context and details"),
+  description: z.string().min(1).describe("One-line summary (like GitHub Issue title). Action-oriented, specific. Example: 'Add JWT authentication to API endpoints'"),
+  context: z.string().min(1).describe("Comprehensive context like a GitHub Issue body. Explain what needs to be done and why, the specific requirements and constraints, the implementation approach with steps and technical choices, how you'll know it's done, and any relevant files or dependencies. Write naturally - agents and humans should understand the full picture without asking questions. See .dex/tasks/c2w75okn.json for a real example."),
   parent_id: z.string().min(1).optional().describe("Parent task ID to create as subtask"),
   priority: z.number().int().min(0).optional().describe("Priority level - lower number = higher priority (default: 1)"),
 });

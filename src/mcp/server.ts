@@ -39,21 +39,21 @@ export async function startMcpServer(storagePath?: string): Promise<void> {
 
   server.tool(
     "create_task",
-    "Create a new task with description and implementation context",
+    "Create a task ticket with comprehensive context like a GitHub Issue. Explain what needs to be done and why, the requirements and constraints, your implementation approach, and how you'll know it's complete. Use this for complex work that needs coordination across sessions or when context should persist. Break large work into subtasks for better tracking.",
     CreateTaskArgsSchema.shape,
     wrapHandler(CreateTaskArgsSchema, handleCreateTask, service)
   );
 
   server.tool(
     "update_task",
-    "Update a task's fields, change status, complete with result, or delete",
+    "Update task fields, mark complete with result, or delete. When completing, provide comprehensive result: what was implemented, key decisions made, trade-offs considered, any follow-ups needed. Think PR description: explain the resolution at a high level without reading code.",
     UpdateTaskArgsSchema.shape,
     wrapHandler(UpdateTaskArgsSchema, handleUpdateTask, service)
   );
 
   server.tool(
     "list_tasks",
-    "List tasks. By default shows only pending tasks. Filter by status, project, or search query.",
+    "List and search tasks. Use to review context, find related work, or understand current state. Filter by status, search content. By default shows only pending tasks.",
     ListTasksArgsSchema.shape,
     wrapHandler(ListTasksArgsSchema, handleListTasks, service)
   );

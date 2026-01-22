@@ -10,7 +10,7 @@ export const UpdateTaskArgsSchema = z.object({
   parent_id: z.string().min(1).nullable().optional().describe("Parent task ID (null to remove parent)"),
   priority: z.number().int().min(0).optional().describe("Updated priority"),
   status: TaskStatusSchema.optional().describe("Updated status"),
-  result: z.string().optional().describe("Final output when completing task"),
+  result: z.string().optional().describe("Implementation summary like a PR description. Explain what was implemented and how the solution works, key decisions made and their rationale, trade-offs or alternatives you considered, and any follow-up work or tech debt. Write naturally so anyone can understand the solution without reading code. See .dex/tasks/c2w75okn.json for a real example."),
   delete: z.boolean().optional().describe("Set to true to delete the task"),
 });
 

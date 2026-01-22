@@ -3,17 +3,44 @@ name: dex
 description: Manage tasks via dex CLI. Use when breaking down complex work, tracking implementation items, or persisting context across sessions.
 ---
 
-# Task Management
+# Agent Coordination with dex
 
-Use the `dex` CLI to track and manage work items during complex tasks.
+Use dex to act as a **master coordinator** for complex work:
+- Break down large tasks into structured deliverables
+- Track tickets with full context (like GitHub Issues)
+- Record implementation results (like PR descriptions)
+- Enable seamless handoffs between sessions and agents
 
-## When to Create Tasks
+## Core Principle: Tickets, Not Todos
 
-Create tasks when:
-- Work requires 3+ discrete, non-trivial steps
-- Implementation spans multiple sessions or interactions
-- Context needs to persist (decisions, constraints, progress)
-- You need to track dependencies between work items
+Dex tasks are **tickets** - structured artifacts with comprehensive context:
+- **Description**: One-line summary (issue title)
+- **Context**: Full background, requirements, approach (issue body)
+- **Result**: Implementation details, decisions, outcomes (PR description)
+
+This rich context enables:
+- You (the agent) to resume work without losing context
+- Other agents to pick up related work
+- Coordinated decomposition of complex tasks
+- Reconciliation of decisions and data across sessions
+
+Think: "Would someone understand the what, why, and how from this task alone?"
+
+## When to Use dex as Coordinator
+
+Use dex when you need to:
+- **Break down complexity**: Large feature → subtasks with clear boundaries
+- **Track multi-step work**: Implementation spanning 3+ distinct steps
+- **Persist context**: Work continuing across sessions
+- **Coordinate with other agents**: Shared understanding of goals/progress
+- **Record decisions**: Capture rationale for future reference
+
+Example workflow:
+1. User: "Add user authentication system"
+2. You create parent task with full requirements
+3. You break into subtasks: DB schema, API endpoints, frontend, tests
+4. You work through each, completing with detailed results
+5. Context preserved for future enhancements or debugging
 
 Skip task creation when:
 - Work is a single atomic action
@@ -34,29 +61,57 @@ Options:
 - `-p, --priority <n>`: Lower = higher priority (default: 1)
 
 Context should include:
-- Requirements and constraints
-- Technical approach
-- Acceptance criteria (what "done" looks like)
-- Related files or dependencies
+- What needs to be done and why
+- Specific requirements and constraints
+- Implementation approach (steps, files to modify, technical choices)
+- How to know it's done (acceptance criteria)
+- Related context (files, dependencies, parent task)
 
-Example:
+### Writing Comprehensive Context
+
+Include all essential information naturally - don't force rigid headers. Look at how the real example does it.
+
+**Good Example** (from actual task c2w75okn.json):
 ```bash
-dex create -d "Add user authentication" \
-  --context "Requirements:
-- JWT-based auth with refresh tokens
-- bcrypt for password hashing
-- Rate limiting on login endpoint
+dex create -d "Migrate storage to one file per task" \
+  --context "Change storage format for git-friendliness:
 
-Approach:
-- Add /login and /register endpoints
-- Store refresh tokens in DB
-- 15min access token, 7-day refresh
+Structure:
+.dex/
+└── tasks/
+    ├── abc123.json
+    └── def456.json
 
-Done when:
-- Users can register, login, logout
-- Tokens refresh automatically
-- Tests cover auth flows"
+NO INDEX - just scan task files. For typical task counts (<100), this is fast.
+
+Implementation:
+1. Update storage.ts:
+   - read(): Scan .dex/tasks/*.json, parse each, return TaskStore
+   - write(task): Write single task to .dex/tasks/{id}.json
+   - delete(id): Remove .dex/tasks/{id}.json
+   - Add readTask(id) for single task lookup
+
+2. Task file format: Same as current Task schema (one task per file)
+
+3. Migration: On read, if old tasks.json exists, migrate to new format
+
+4. Update tests
+
+Benefits:
+- Create = new file (never conflicts)
+- Update = single file change
+- Delete = remove file
+- No index to maintain or conflict
+- git diff shows exactly which tasks changed"
 ```
+
+Notice: It states the goal, shows the structure, lists specific implementation steps, and explains the benefits. Someone could pick this up without asking questions.
+
+**Bad Example** (insufficient):
+```bash
+dex create -d "Add auth" --context "Need to add authentication"
+```
+❌ Missing: How to implement it, what files, what's done when, technical approach
 
 ### List Tasks
 
@@ -79,27 +134,47 @@ dex show <id>
 dex complete <id> --result "What was accomplished"
 ```
 
-Result should include:
-- What was implemented (specifics)
-- Key decisions and rationale
-- Any follow-up items or tech debt
+### Writing Comprehensive Results
 
-Example:
+Include all essential information naturally - explain what you did without requiring code review.
+
+**Good Example** (from actual task c2w75okn.json):
 ```bash
-dex complete abc123 --result "Implemented JWT auth:
-- Added /login, /register, /logout endpoints
-- Using bcrypt with cost=12 for passwords
-- Access tokens: 15min, refresh: 7 days
-- Added rate limiting: 5 attempts per minute
+dex complete abc123 --result "Migrated storage from single tasks.json to one file per task:
 
-Decisions:
-- Chose JWT over sessions for stateless scaling
-- Stored refresh tokens in Redis for fast lookup
+Structure:
+- Each task stored as .dex/tasks/{id}.json
+- No index file (avoids merge conflicts)
+- Directory scanned on read to build task list
 
-Follow-up:
-- Add email verification (created task xyz789)
-- Consider 2FA support"
+Implementation:
+- Modified Storage.read() to scan .dex/tasks/ directory
+- Modified Storage.write() to write/delete individual task files
+- Auto-migration from old single-file format on first read
+- Atomic writes using temp file + rename pattern
+
+Trade-offs:
+- Slightly slower reads (must scan directory + parse each file)
+- Acceptable since task count is typically small (<100)
+- Better git history - each task change is isolated
+
+All 60 tests passing, build successful."
 ```
+
+Notice: States what changed, lists specific implementation details, explains trade-offs considered, confirms verification. Someone reading this understands what happened without looking at code.
+
+**Bad Example** (insufficient):
+```bash
+dex complete abc123 --result "Fixed the storage issue"
+```
+❌ Missing: What was actually implemented, how, what decisions were made, what trade-offs
+
+Result should include:
+- What was implemented (the approach, how it works, what changed conceptually)
+- Key decisions made and rationale
+- Trade-offs or alternatives considered
+- Any follow-up work or tech debt created
+- Verification done (tests passing, manual testing)
 
 ### Edit a Task
 
@@ -142,6 +217,75 @@ dex create -d "Implement login form" --context "..." --parent <parent-id>
 - A task cannot be completed while it has pending subtasks
 - Complete all children before completing the parent
 
+## Coordinating Complex Work
+
+### Decomposition Strategy
+
+When faced with large tasks:
+1. Create parent task with overall goal and context
+2. Analyze and identify 3-7 logical subtasks
+3. Create subtasks with specific contexts and boundaries
+4. Work through systematically, completing with results
+5. Complete parent with summary of overall implementation
+
+### Subtask Best Practices
+
+- **Independently understandable**: Each subtask should be clear on its own
+- **Link to parent**: Reference parent task, explain how this piece fits
+- **Specific scope**: What this subtask does vs what parent/siblings do
+- **Clear completion**: Define "done" for this piece specifically
+
+Example parent task context:
+```
+Need full authentication system for API.
+
+Implementation:
+1. Database schema for users/tokens → subtask
+2. Auth controller with /login, /register, /logout endpoints → subtask
+3. JWT middleware for route protection → subtask
+4. Frontend login/register forms → subtask
+5. Integration tests → subtask
+
+[Full requirements, constraints, technical approach...]
+```
+
+Example subtask context:
+```
+Part of auth system (parent: abc123). This subtask: JWT verification middleware.
+
+What it does:
+- Verify JWT signature and expiration on protected routes
+- Extract user ID from token payload
+- Attach user object to request
+- Return 401 for invalid/expired tokens
+
+Implementation:
+- Create src/middleware/verify-token.ts
+- Export verifyToken middleware function
+- Use jsonwebtoken library
+- Handle expired vs invalid token cases separately
+
+Done when:
+- Middleware function complete and working
+- Unit tests cover valid/invalid/expired scenarios
+- Integrated into auth routes in server.ts
+- Parent task can use this to protect endpoints
+```
+
+### Recording Results
+
+Complete tasks **immediately after implementing**:
+- Capture decisions while fresh in context
+- Record trade-offs considered during implementation
+- Note any deviations from original plan
+- Create follow-up tasks for tech debt or future work
+
+This practice ensures:
+- Future you/agents understand the reasoning
+- Decisions can be reconciled across sessions
+- Implementation history is preserved
+- Follow-ups aren't forgotten
+
 ## Best Practices
 
 1. **Right-size tasks**: Completable in one focused session
@@ -152,8 +296,17 @@ dex create -d "Implement login form" --context "..." --parent <parent-id>
 
 ## Storage
 
-Tasks are stored in:
-- `<git-root>/.dex/tasks.json` (if in a git repo)
-- `~/.dex/tasks.json` (fallback)
+Tasks are stored as individual files:
+- `<git-root>/.dex/tasks/{id}.json` (if in a git repo)
+- `~/.dex/tasks/{id}.json` (fallback)
 
-Override with `--storage-path` or `DEX_STORAGE_PATH` env var.
+One file per task enables:
+- Git-friendly diffs and history
+- Collaboration without merge conflicts
+- Easy task sharing and versioning
+
+Override storage directory with `--storage-path` or `DEX_STORAGE_PATH` env var.
+
+### Example Task File
+
+See `.dex/tasks/c2w75okn.json` for a well-structured task with comprehensive context and result.
