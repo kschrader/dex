@@ -2,6 +2,7 @@
   "name": "dex",
   "version": "1.0.0",
   "description": "Task tracking tool with MCP server and CLI interfaces",
+  "license": "MIT",
   "type": "module",
   "bin": {
     "dex": "./dist/index.js"
