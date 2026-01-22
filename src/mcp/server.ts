@@ -1,5 +1,6 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
+import { ZodError } from "zod";
 import { TaskService } from "../core/task-service.js";
 import {
   CreateTaskArgsSchema,
@@ -17,6 +18,13 @@ import {
   ListProjectsArgsSchema,
   handleListProjects,
 } from "../tools/list-projects.js";
+import { jsonResponse } from "../tools/response.js";
+
+function formatZodError(error: ZodError): string {
+  return error.errors
+    .map((e) => `${e.path.join(".")}: ${e.message}`)
+    .join(", ");
+}
 
 export async function startMcpServer(storagePath?: string): Promise<void> {
   const service = new TaskService(storagePath);
@@ -30,8 +38,15 @@ export async function startMcpServer(storagePath?: string): Promise<void> {
     "Create a new task with description and implementation context",
     CreateTaskArgsSchema.shape,
     async (args) => {
-      const parsed = CreateTaskArgsSchema.parse(args);
-      return handleCreateTask(parsed, service);
+      try {
+        const parsed = CreateTaskArgsSchema.parse(args);
+        return handleCreateTask(parsed, service);
+      } catch (err) {
+        if (err instanceof ZodError) {
+          return jsonResponse({ error: `Validation error: ${formatZodError(err)}` });
+        }
+        return jsonResponse({ error: err instanceof Error ? err.message : String(err) });
+      }
     }
   );
 
@@ -40,8 +55,15 @@ export async function startMcpServer(storagePath?: string): Promise<void> {
     "Update a task's fields, change status, complete with result, or delete",
     UpdateTaskArgsSchema.shape,
     async (args) => {
-      const parsed = UpdateTaskArgsSchema.parse(args);
-      return handleUpdateTask(parsed, service);
+      try {
+        const parsed = UpdateTaskArgsSchema.parse(args);
+        return handleUpdateTask(parsed, service);
+      } catch (err) {
+        if (err instanceof ZodError) {
+          return jsonResponse({ error: `Validation error: ${formatZodError(err)}` });
+        }
+        return jsonResponse({ error: err instanceof Error ? err.message : String(err) });
+      }
     }
   );
 
@@ -50,8 +72,15 @@ export async function startMcpServer(storagePath?: string): Promise<void> {
     "List tasks. By default shows only pending tasks. Filter by status, project, or search query.",
     ListTasksArgsSchema.shape,
     async (args) => {
-      const parsed = ListTasksArgsSchema.parse(args);
-      return handleListTasks(parsed, service);
+      try {
+        const parsed = ListTasksArgsSchema.parse(args);
+        return handleListTasks(parsed, service);
+      } catch (err) {
+        if (err instanceof ZodError) {
+          return jsonResponse({ error: `Validation error: ${formatZodError(err)}` });
+        }
+        return jsonResponse({ error: err instanceof Error ? err.message : String(err) });
+      }
     }
   );
 
@@ -60,7 +89,11 @@ export async function startMcpServer(storagePath?: string): Promise<void> {
     "List all projects with task counts",
     ListProjectsArgsSchema.shape,
     async () => {
-      return handleListProjects(service);
+      try {
+        return handleListProjects(service);
+      } catch (err) {
+        return jsonResponse({ error: err instanceof Error ? err.message : String(err) });
+      }
     }
   );
 
