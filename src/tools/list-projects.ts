@@ -4,11 +4,11 @@ import { jsonResponse, McpToolResponse } from "./response.js";
 
 export const ListProjectsArgsSchema = z.object({});
 
+/**
+ * Handle the list_projects MCP tool call.
+ * Errors are propagated to the MCP server layer for consistent handling.
+ */
 export function handleListProjects(service: TaskService): McpToolResponse {
-  try {
-    const projects = service.listProjects();
-    return jsonResponse(projects);
-  } catch (err) {
-    return jsonResponse({ error: err instanceof Error ? err.message : String(err) });
-  }
+  const projects = service.listProjects();
+  return jsonResponse(projects);
 }

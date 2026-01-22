@@ -55,10 +55,10 @@
       "description": "Review mcp/server.ts",
       "context": "Review MCP setup, tool registration, error handling. Check for proper async handling and schema validation.",
       "priority": 1,
-      "status": "pending",
-      "result": null,
+      "status": "completed",
+      "result": "Added Zod error handling with user-friendly formatting",
       "created_at": "2026-01-22T08:05:20.795Z",
-      "updated_at": "2026-01-22T08:05:20.795Z"
+      "updated_at": "2026-01-22T08:25:58.881Z"
     },
     {
       "id": "zhpk2mgj",
@@ -79,10 +79,10 @@
       "description": "Review tools/*.ts",
       "context": "Review MCP tool handlers (create-task, update-task, list-tasks, list-projects, response). Check for response consistency, proper error handling, and schema alignment.",
       "priority": 1,
-      "status": "pending",
-      "result": null,
+      "status": "completed",
+      "result": "Aligned schemas with types.ts, consistent JSON responses, added error handling",
       "created_at": "2026-01-22T08:05:30.379Z",
-      "updated_at": "2026-01-22T08:05:30.379Z"
+      "updated_at": "2026-01-22T08:25:58.976Z"
     },
     {
       "id": "llqse2o0",
@@ -91,10 +91,10 @@
       "description": "Review config files",
       "context": "Review tsconfig.json and package.json for correctness. Check compiler options, dependencies, and package metadata.",
       "priority": 1,
-      "status": "pending",
-      "result": null,
+      "status": "completed",
+      "result": "Added main, types, exports, files fields to package.json",
       "created_at": "2026-01-22T08:05:30.768Z",
-      "updated_at": "2026-01-22T08:05:30.768Z"
+      "updated_at": "2026-01-22T08:25:59.072Z"
     },
     {
       "id": "n37z272m",
@@ -115,10 +115,10 @@
       "description": "Add test coverage",
       "context": "The project has no tests. Add unit tests for core logic (TaskService, Storage) and integration tests for CLI and MCP interfaces.",
       "priority": 1,
-      "status": "pending",
-      "result": null,
+      "status": "completed",
+      "result": "Added Vitest test suite with 59 tests",
       "created_at": "2026-01-22T08:05:31.581Z",
-      "updated_at": "2026-01-22T08:05:31.581Z"
+      "updated_at": "2026-01-22T08:26:18.799Z"
     },
     {
       "id": "0g7kgxn8",
@@ -127,10 +127,10 @@
       "description": "Build and verify compilation",
       "context": "Ensure project compiles cleanly with no TypeScript errors or warnings. Run the CLI and MCP server to verify basic functionality.",
       "priority": 1,
-      "status": "pending",
-      "result": null,
+      "status": "completed",
+      "result": "Build verified throughout review process",
       "created_at": "2026-01-22T08:05:32.003Z",
-      "updated_at": "2026-01-22T08:05:32.003Z"
+      "updated_at": "2026-01-22T08:26:18.895Z"
     },
     {
       "id": "t72fyvt2",
@@ -235,10 +235,34 @@
       "description": "Add test suite",
       "context": "Set up a basic test suite using modern tooling (Vitest recommended). Focus on:\n- Core business logic (TaskService CRUD, parent/child relationships)\n- Storage layer (read/write, error handling)\n- CLI argument parsing\n\nBest practices:\n- Use real file system with temp directories, avoid mocking storage\n- Test behavior not implementation\n- Focus on edge cases and error paths\n- Keep tests fast and isolated",
       "priority": 0,
+      "status": "completed",
+      "result": "Added Vitest with 59 tests covering TaskService and Storage",
+      "created_at": "2026-01-22T08:22:33.268Z",
+      "updated_at": "2026-01-22T08:25:59.166Z"
+    },
+    {
+      "id": "162r0wsp",
+      "parent_id": null,
+      "project": "enhancements",
+      "description": "Add per-command --help support",
+      "context": "Commands like 'dex list --help' should show command-specific help. Currently only 'dex help' or 'dex --help' works.",
+      "priority": 1,
       "status": "pending",
       "result": null,
-      "created_at": "2026-01-22T08:22:33.268Z",
-      "updated_at": "2026-01-22T08:22:33.268Z"
+      "created_at": "2026-01-22T08:26:06.782Z",
+      "updated_at": "2026-01-22T08:26:06.782Z"
+    },
+    {
+      "id": "gxxrliuo",
+      "parent_id": null,
+      "project": "enhancements",
+      "description": "Run claude-settings-audit",
+      "context": "Use the claude-settings-audit skill to generate recommended Claude Code settings.json permissions for this project.",
+      "priority": 1,
+      "status": "pending",
+      "result": null,
+      "created_at": "2026-01-22T08:26:06.877Z",
+      "updated_at": "2026-01-22T08:26:06.877Z"
     }
   ]
 }

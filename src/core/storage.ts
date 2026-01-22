@@ -3,6 +3,7 @@ import * as path from "node:path";
 import * as os from "node:os";
 import * as crypto from "node:crypto";
 import { TaskStore, TaskStoreSchema } from "../types.js";
+import { DataCorruptionError, StorageError } from "../errors.js";
 
 function findGitRoot(startDir: string): string | null {
   let currentDir: string;
@@ -71,16 +72,21 @@ export class TaskStorage {
     let data: unknown;
     try {
       data = JSON.parse(content);
-    } catch {
-      throw new Error(
-        `Failed to parse JSON from ${this.storagePath}. File may be corrupted.`
+    } catch (parseErr) {
+      const errorMessage = parseErr instanceof Error ? parseErr.message : String(parseErr);
+      throw new DataCorruptionError(
+        this.storagePath,
+        parseErr instanceof Error ? parseErr : undefined,
+        `Invalid JSON: ${errorMessage}`
       );
     }
 
     const result = TaskStoreSchema.safeParse(data);
     if (!result.success) {
-      throw new Error(
-        `Invalid task store format in ${this.storagePath}: ${result.error.message}`
+      throw new DataCorruptionError(
+        this.storagePath,
+        undefined,
+        `Invalid schema: ${result.error.message}`
       );
     }
 
@@ -106,9 +112,14 @@ export class TaskStorage {
       try {
         fs.unlinkSync(tempPath);
       } catch {
-        // Ignore cleanup errors
+        // Cleanup errors are acceptable to ignore - the main error is what matters
       }
-      throw err;
+      const originalError = err instanceof Error ? err : undefined;
+      throw new StorageError(
+        `Failed to write task data to "${this.storagePath}"`,
+        originalError,
+        "Check file permissions and available disk space"
+      );
     }
   }
 

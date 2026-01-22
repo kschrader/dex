@@ -1,5 +1,6 @@
 import { TaskService } from "../core/task-service.js";
 import { Task, TaskStatus } from "../types.js";
+import { DexError } from "../errors.js";
 import * as readline from "readline";
 
 interface CliOptions {
@@ -31,6 +32,29 @@ const COMMANDS = ["create", "list", "show", "edit", "complete", "delete", "proje
 
 function createService(options: CliOptions): TaskService {
   return new TaskService(options.storagePath);
+}
+
+/**
+ * Format an error for CLI output with proper coloring and suggestions.
+ */
+function formatCliError(err: unknown): string {
+  let message: string;
+  let suggestion: string | undefined;
+
+  if (err instanceof DexError) {
+    message = err.message;
+    suggestion = err.suggestion;
+  } else if (err instanceof Error) {
+    message = err.message;
+  } else {
+    message = String(err);
+  }
+
+  let output = `${colors.red}Error:${colors.reset} ${message}`;
+  if (suggestion) {
+    output += `\n${colors.dim}Hint: ${suggestion}${colors.reset}`;
+  }
+  return output;
 }
 
 // Calculate Levenshtein distance for command suggestions
@@ -126,7 +150,11 @@ function formatTaskJson(task: Task): object {
 
 function getStringFlag(flags: ParsedArgs["flags"], name: string): string | undefined {
   const value = flags[name];
-  return typeof value === "string" ? value : undefined;
+  // Treat empty strings as missing values (can happen when flag is at end of args)
+  if (typeof value === "string" && value.length > 0) {
+    return value;
+  }
+  return undefined;
 }
 
 function getBooleanFlag(flags: ParsedArgs["flags"], name: string): boolean {
@@ -135,7 +163,15 @@ function getBooleanFlag(flags: ParsedArgs["flags"], name: string): boolean {
 
 function parseIntFlag(flags: ParsedArgs["flags"], name: string): number | undefined {
   const value = getStringFlag(flags, name);
-  return value !== undefined ? parseInt(value, 10) : undefined;
+  if (value === undefined) {
+    return undefined;
+  }
+  const parsed = parseInt(value, 10);
+  if (isNaN(parsed)) {
+    console.error(`${colors.red}Error:${colors.reset} Invalid value for --${name}: expected a number, got "${value}"`);
+    process.exit(1);
+  }
+  return parsed;
 }
 
 export function runCli(args: string[], options: CliOptions = {}): void {
@@ -227,7 +263,30 @@ function createCommand(args: string[], options: CliOptions): void {
     project: { hasValue: true },
     priority: { short: "p", hasValue: true },
     parent: { hasValue: true },
+    help: { short: "h", hasValue: false },
   });
+
+  if (getBooleanFlag(flags, "help")) {
+    console.log(`${colors.bold}dex create${colors.reset} - Create a new task
+
+${colors.bold}USAGE:${colors.reset}
+  dex create -d "description" --context "context" [options]
+
+${colors.bold}OPTIONS:${colors.reset}
+  -d, --description <text>   Task description (required)
+  --context <text>           Task context/details (required)
+  --project <name>           Project grouping (default: "default")
+  -p, --priority <n>         Priority level (lower = higher priority, default: 1)
+  --parent <id>              Parent task ID (creates subtask)
+  -h, --help                 Show this help message
+
+${colors.bold}EXAMPLE:${colors.reset}
+  dex create -d "Fix login bug" --context "Users report 500 errors on /login"
+  dex create -d "Write tests" --context "Cover auth module" --project auth -p 2
+  dex create -d "Subtask" --context "Part of bigger task" --parent abc123
+`);
+    return;
+  }
 
   const description = getStringFlag(flags, "description");
   const context = getStringFlag(flags, "context");
@@ -257,7 +316,7 @@ function createCommand(args: string[], options: CliOptions): void {
     console.log(`${colors.green}Created${colors.reset} task ${colors.bold}${task.id}${colors.reset}`);
     console.log(formatTask(task));
   } catch (err) {
-    console.error(`${colors.red}Error:${colors.reset} ${err instanceof Error ? err.message : err}`);
+    console.error(formatCliError(err));
     process.exit(1);
   }
 }
@@ -281,12 +340,43 @@ function listCommand(args: string[], options: CliOptions): void {
     query: { short: "q", hasValue: true },
     flat: { short: "f", hasValue: false },
     json: { hasValue: false },
+    help: { short: "h", hasValue: false },
   });
 
+  if (getBooleanFlag(flags, "help")) {
+    console.log(`${colors.bold}dex list${colors.reset} - List tasks
+
+${colors.bold}USAGE:${colors.reset}
+  dex list [options]
+
+${colors.bold}OPTIONS:${colors.reset}
+  -a, --all                  Include completed tasks
+  -s, --status <status>      Filter by status (pending, completed)
+  --project <name>           Filter by project
+  -q, --query <text>         Search in description and context
+  -f, --flat                 Show flat list instead of tree view
+  --json                     Output as JSON
+  -h, --help                 Show this help message
+
+${colors.bold}EXAMPLE:${colors.reset}
+  dex list                   # Show pending tasks as tree
+  dex list --all             # Include completed tasks
+  dex list --project auth    # Filter by project
+  dex list -q "login" --flat # Search and show flat list
+  dex list --json | jq '.'   # Output JSON for scripting
+`);
+    return;
+  }
+
   const statusValue = getStringFlag(flags, "status");
-  const status = statusValue === "pending" || statusValue === "completed"
-    ? statusValue as TaskStatus
-    : undefined;
+  let status: TaskStatus | undefined;
+  if (statusValue !== undefined) {
+    if (statusValue !== "pending" && statusValue !== "completed") {
+      console.error(`${colors.red}Error:${colors.reset} Invalid value for --status: expected "pending" or "completed", got "${statusValue}"`);
+      process.exit(1);
+    }
+    status = statusValue;
+  }
 
   const service = createService(options);
   const tasks = service.list({
@@ -319,7 +409,29 @@ function listCommand(args: string[], options: CliOptions): void {
 function showCommand(args: string[], options: CliOptions): void {
   const { positional, flags } = parseArgs(args, {
     json: { hasValue: false },
+    help: { short: "h", hasValue: false },
   });
+
+  if (getBooleanFlag(flags, "help")) {
+    console.log(`${colors.bold}dex show${colors.reset} - Show task details
+
+${colors.bold}USAGE:${colors.reset}
+  dex show <task-id> [options]
+
+${colors.bold}ARGUMENTS:${colors.reset}
+  <task-id>                  Task ID to display (required)
+
+${colors.bold}OPTIONS:${colors.reset}
+  --json                     Output as JSON
+  -h, --help                 Show this help message
+
+${colors.bold}EXAMPLE:${colors.reset}
+  dex show abc123            # Show task details and subtask count
+  dex show abc123 --json     # Output as JSON for scripting
+`);
+    return;
+  }
+
   const id = positional[0];
 
   if (!id) {
@@ -373,7 +485,33 @@ function editCommand(args: string[], options: CliOptions): void {
     project: { hasValue: true },
     priority: { short: "p", hasValue: true },
     parent: { hasValue: true },
+    help: { short: "h", hasValue: false },
   });
+
+  if (getBooleanFlag(flags, "help")) {
+    console.log(`${colors.bold}dex edit${colors.reset} - Edit an existing task
+
+${colors.bold}USAGE:${colors.reset}
+  dex edit <task-id> [options]
+
+${colors.bold}ARGUMENTS:${colors.reset}
+  <task-id>                  Task ID to edit (required)
+
+${colors.bold}OPTIONS:${colors.reset}
+  -d, --description <text>   New task description
+  --context <text>           New task context/details
+  --project <name>           Move to different project
+  -p, --priority <n>         New priority level
+  --parent <id>              New parent task ID
+  -h, --help                 Show this help message
+
+${colors.bold}EXAMPLE:${colors.reset}
+  dex edit abc123 -d "Updated description"
+  dex edit abc123 --project backend -p 1
+  dex edit abc123 --context "More details about the task"
+`);
+    return;
+  }
 
   const id = positional[0];
 
@@ -397,7 +535,7 @@ function editCommand(args: string[], options: CliOptions): void {
     console.log(`${colors.green}Updated${colors.reset} task ${colors.bold}${id}${colors.reset}`);
     console.log(formatTask(task));
   } catch (err) {
-    console.error(`${colors.red}Error:${colors.reset} ${err instanceof Error ? err.message : err}`);
+    console.error(formatCliError(err));
     process.exit(1);
   }
 }
@@ -405,7 +543,28 @@ function editCommand(args: string[], options: CliOptions): void {
 function completeCommand(args: string[], options: CliOptions): void {
   const { positional, flags } = parseArgs(args, {
     result: { short: "r", hasValue: true },
+    help: { short: "h", hasValue: false },
   });
+
+  if (getBooleanFlag(flags, "help")) {
+    console.log(`${colors.bold}dex complete${colors.reset} - Mark a task as completed
+
+${colors.bold}USAGE:${colors.reset}
+  dex complete <task-id> --result "completion notes"
+
+${colors.bold}ARGUMENTS:${colors.reset}
+  <task-id>                  Task ID to complete (required)
+
+${colors.bold}OPTIONS:${colors.reset}
+  -r, --result <text>        Completion result/notes (required)
+  -h, --help                 Show this help message
+
+${colors.bold}EXAMPLE:${colors.reset}
+  dex complete abc123 --result "Fixed by updating auth token refresh logic"
+  dex complete abc123 -r "Implemented and tested"
+`);
+    return;
+  }
 
   const id = positional[0];
   const result = getStringFlag(flags, "result");
@@ -429,7 +588,7 @@ function completeCommand(args: string[], options: CliOptions): void {
     console.log(`${colors.green}Completed${colors.reset} task ${colors.bold}${id}${colors.reset}`);
     console.log(formatTask(task, true));
   } catch (err) {
-    console.error(`${colors.red}Error:${colors.reset} ${err instanceof Error ? err.message : err}`);
+    console.error(formatCliError(err));
     process.exit(1);
   }
 }
@@ -437,7 +596,29 @@ function completeCommand(args: string[], options: CliOptions): void {
 function deleteCommandAsync(args: string[], options: CliOptions): void {
   const { positional, flags } = parseArgs(args, {
     force: { short: "f", hasValue: false },
+    help: { short: "h", hasValue: false },
   });
+
+  if (getBooleanFlag(flags, "help")) {
+    console.log(`${colors.bold}dex delete${colors.reset} - Delete a task
+
+${colors.bold}USAGE:${colors.reset}
+  dex delete <task-id> [options]
+
+${colors.bold}ARGUMENTS:${colors.reset}
+  <task-id>                  Task ID to delete (required)
+
+${colors.bold}OPTIONS:${colors.reset}
+  -f, --force                Delete without confirmation (even if has subtasks)
+  -h, --help                 Show this help message
+
+${colors.bold}EXAMPLE:${colors.reset}
+  dex delete abc123          # Prompts if task has subtasks
+  dex delete abc123 -f       # Force delete without prompting
+`);
+    return;
+  }
+
   const id = positional[0];
   const force = getBooleanFlag(flags, "force");
 
@@ -454,7 +635,7 @@ function deleteCommandAsync(args: string[], options: CliOptions): void {
     console.error(`${colors.red}Error:${colors.reset} Task ${colors.bold}${id}${colors.reset} not found`);
     const allTasks = service.list({ all: true });
     if (allTasks.length > 0) {
-      console.error(`Hint: Run "${colors.dim}dex list --all${colors.reset}" to see all tasks`);
+      console.error(`${colors.dim}Hint: Run "dex list --all" to see all tasks${colors.reset}`);
     }
     process.exit(1);
   }
@@ -472,19 +653,25 @@ function deleteCommandAsync(args: string[], options: CliOptions): void {
         process.exit(0);
       }
 
-      const deleted = service.delete(id);
-      if (deleted) {
+      try {
+        service.delete(id);
         console.log(`${colors.green}Deleted${colors.reset} task ${colors.bold}${id}${colors.reset} and ${childCount} subtask${childCount > 1 ? "s" : ""}`);
+      } catch (err) {
+        console.error(formatCliError(err));
+        process.exit(1);
       }
     });
   } else {
-    const deleted = service.delete(id);
-    if (deleted) {
+    try {
+      service.delete(id);
       if (children.length > 0) {
         console.log(`${colors.green}Deleted${colors.reset} task ${colors.bold}${id}${colors.reset} and ${children.length} subtask${children.length > 1 ? "s" : ""}`);
       } else {
         console.log(`${colors.green}Deleted${colors.reset} task ${colors.bold}${id}${colors.reset}`);
       }
+    } catch (err) {
+      console.error(formatCliError(err));
+      process.exit(1);
     }
   }
 }
@@ -492,7 +679,25 @@ function deleteCommandAsync(args: string[], options: CliOptions): void {
 function projectsCommand(args: string[], options: CliOptions): void {
   const { flags } = parseArgs(args, {
     json: { hasValue: false },
+    help: { short: "h", hasValue: false },
   });
+
+  if (getBooleanFlag(flags, "help")) {
+    console.log(`${colors.bold}dex projects${colors.reset} - List all projects
+
+${colors.bold}USAGE:${colors.reset}
+  dex projects [options]
+
+${colors.bold}OPTIONS:${colors.reset}
+  --json                     Output as JSON
+  -h, --help                 Show this help message
+
+${colors.bold}EXAMPLE:${colors.reset}
+  dex projects               # List all projects with task counts
+  dex projects --json        # Output as JSON for scripting
+`);
+    return;
+  }
 
   const service = createService(options);
   const projects = service.listProjects();

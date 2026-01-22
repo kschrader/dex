@@ -80,7 +80,7 @@ describe("TaskStorage", () => {
       fs.writeFileSync(storagePath, "not valid json {");
       const storage = new TaskStorage(storagePath);
 
-      expect(() => storage.read()).toThrow("Failed to parse JSON");
+      expect(() => storage.read()).toThrow("is corrupted: Invalid JSON:");
     });
 
     it("throws on invalid task store format", () => {
@@ -88,7 +88,7 @@ describe("TaskStorage", () => {
       fs.writeFileSync(storagePath, JSON.stringify({ tasks: "not an array" }));
       const storage = new TaskStorage(storagePath);
 
-      expect(() => storage.read()).toThrow("Invalid task store format");
+      expect(() => storage.read()).toThrow("is corrupted: Invalid schema:");
     });
 
     it("throws on missing required task fields", () => {
@@ -101,7 +101,7 @@ describe("TaskStorage", () => {
       );
       const storage = new TaskStorage(storagePath);
 
-      expect(() => storage.read()).toThrow("Invalid task store format");
+      expect(() => storage.read()).toThrow("is corrupted: Invalid schema:");
     });
   });
 

@@ -12,11 +12,11 @@ export const ListTasksArgsSchema = z.object({
 
 export type ListTasksArgs = ListTasksInput;
 
+/**
+ * Handle the list_tasks MCP tool call.
+ * Errors are propagated to the MCP server layer for consistent handling.
+ */
 export function handleListTasks(args: ListTasksArgs, service: TaskService): McpToolResponse {
-  try {
-    const tasks = service.list(args);
-    return jsonResponse(tasks);
-  } catch (err) {
-    return jsonResponse({ error: err instanceof Error ? err.message : String(err) });
-  }
+  const tasks = service.list(args);
+  return jsonResponse(tasks);
 }

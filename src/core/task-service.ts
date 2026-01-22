@@ -6,6 +6,7 @@ import {
   UpdateTaskInput,
   ListTasksInput,
 } from "../types.js";
+import { NotFoundError, ValidationError } from "../errors.js";
 
 const generateId = customAlphabet("0123456789abcdefghijklmnopqrstuvwxyz", 8);
 
@@ -26,7 +27,7 @@ export class TaskService {
     if (input.parent_id) {
       const parent = store.tasks.find((t) => t.id === input.parent_id);
       if (!parent) {
-        throw new Error(`Parent task ${input.parent_id} not found`);
+        throw new NotFoundError("Task", input.parent_id, "The specified parent task does not exist");
       }
       parentId = input.parent_id;
       // Inherit project from parent if not explicitly set
@@ -59,7 +60,7 @@ export class TaskService {
     const index = store.tasks.findIndex((t) => t.id === input.id);
 
     if (index === -1) {
-      throw new Error(`Task ${input.id} not found`);
+      throw new NotFoundError("Task", input.id);
     }
 
     if (input.delete) {
@@ -78,15 +79,21 @@ export class TaskService {
       if (input.parent_id !== null) {
         // Validate new parent exists and isn't self or descendant
         if (input.parent_id === input.id) {
-          throw new Error("Task cannot be its own parent");
+          throw new ValidationError(
+            "Task cannot be its own parent",
+            "Choose a different task as the parent"
+          );
         }
         const parent = store.tasks.find((t) => t.id === input.parent_id);
         if (!parent) {
-          throw new Error(`Parent task ${input.parent_id} not found`);
+          throw new NotFoundError("Task", input.parent_id, "The specified parent task does not exist");
         }
         // Check for cycles: new parent can't be a descendant
         if (this.isDescendant(store.tasks, input.parent_id, input.id)) {
-          throw new Error("Cannot set parent: would create a cycle");
+          throw new ValidationError(
+            "Cannot set parent: would create a cycle",
+            "The selected parent is already a subtask of this task"
+          );
         }
       }
       task.parent_id = input.parent_id;
@@ -103,13 +110,21 @@ export class TaskService {
     return task;
   }
 
-  delete(id: string): boolean {
+  /**
+   * Delete a task and all its descendants.
+   * @param id The task ID to delete
+   * @returns The deleted task
+   * @throws NotFoundError if the task does not exist
+   */
+  delete(id: string): Task {
     const store = this.storage.read();
     const index = store.tasks.findIndex((t) => t.id === id);
 
     if (index === -1) {
-      return false;
+      throw new NotFoundError("Task", id);
     }
+
+    const deletedTask = store.tasks[index];
 
     // Cascade delete all descendants
     const toDelete = new Set<string>([id]);
@@ -117,7 +132,7 @@ export class TaskService {
 
     store.tasks = store.tasks.filter((t) => !toDelete.has(t.id));
     this.storage.write(store);
-    return true;
+    return deletedTask;
   }
 
   getChildren(id: string): Task[] {
@@ -203,8 +218,9 @@ export class TaskService {
     );
 
     if (pendingDescendants.length > 0) {
-      throw new Error(
-        `Cannot complete: ${pendingDescendants.length} subtask${pendingDescendants.length > 1 ? "s" : ""} still pending`
+      throw new ValidationError(
+        `Cannot complete: ${pendingDescendants.length} subtask${pendingDescendants.length > 1 ? "s" : ""} still pending`,
+        "Complete or delete all subtasks first"
       );
     }
 

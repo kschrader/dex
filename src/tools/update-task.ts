@@ -17,19 +17,16 @@ export const UpdateTaskArgsSchema = z.object({
 
 export type UpdateTaskArgs = UpdateTaskInput;
 
+/**
+ * Handle the update_task MCP tool call.
+ * Errors are propagated to the MCP server layer for consistent handling.
+ */
 export function handleUpdateTask(args: UpdateTaskArgs, service: TaskService): McpToolResponse {
-  try {
-    if (args.delete) {
-      const deleted = service.delete(args.id);
-      if (!deleted) {
-        return jsonResponse({ error: `Task ${args.id} not found` });
-      }
-      return jsonResponse({ deleted: true, id: args.id });
-    }
-
-    const task = service.update(args);
-    return jsonResponse(task);
-  } catch (err) {
-    return jsonResponse({ error: err instanceof Error ? err.message : String(err) });
+  if (args.delete) {
+    const deletedTask = service.delete(args.id);
+    return jsonResponse({ deleted: true, id: args.id, task: deletedTask });
   }
+
+  const task = service.update(args);
+  return jsonResponse(task);
 }

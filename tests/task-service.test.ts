@@ -72,7 +72,7 @@ describe("TaskService", () => {
           context: "Context",
           parent_id: "nonexistent",
         })
-      ).toThrow("Parent task nonexistent not found");
+      ).toThrow('Task "nonexistent" not found');
     });
 
     it("uses explicit project over inherited project", () => {
@@ -152,7 +152,7 @@ describe("TaskService", () => {
           id: "nonexistent",
           description: "Updated",
         })
-      ).toThrow("Task nonexistent not found");
+      ).toThrow('Task "nonexistent" not found');
     });
 
     it("deletes task via update with delete flag", () => {
@@ -257,25 +257,27 @@ describe("TaskService", () => {
           id: task.id,
           parent_id: "nonexistent",
         })
-      ).toThrow("Parent task nonexistent not found");
+      ).toThrow('Task "nonexistent" not found');
     });
   });
 
   describe("delete", () => {
-    it("deletes a task", () => {
+    it("deletes a task and returns it", () => {
       const task = service.create({
         description: "Test",
         context: "Context",
       });
 
-      const result = service.delete(task.id);
-      expect(result).toBe(true);
+      const deletedTask = service.delete(task.id);
+      expect(deletedTask.id).toBe(task.id);
+      expect(deletedTask.description).toBe("Test");
       expect(service.get(task.id)).toBeNull();
     });
 
-    it("returns false for nonexistent task", () => {
-      const result = service.delete("nonexistent");
-      expect(result).toBe(false);
+    it("throws for nonexistent task", () => {
+      expect(() => service.delete("nonexistent")).toThrow(
+        'Task "nonexistent" not found'
+      );
     });
 
     it("cascade deletes all descendants", () => {

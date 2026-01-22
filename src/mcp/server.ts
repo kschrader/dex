@@ -18,7 +18,8 @@ import {
   ListProjectsArgsSchema,
   handleListProjects,
 } from "../tools/list-projects.js";
-import { jsonResponse } from "../tools/response.js";
+import { errorResponse } from "../tools/response.js";
+import { DexError, ValidationError } from "../errors.js";
 
 function formatZodError(error: ZodError): string {
   return error.errors
@@ -43,9 +44,9 @@ export async function startMcpServer(storagePath?: string): Promise<void> {
         return handleCreateTask(parsed, service);
       } catch (err) {
         if (err instanceof ZodError) {
-          return jsonResponse({ error: `Validation error: ${formatZodError(err)}` });
+          return errorResponse(new ValidationError(`Validation error: ${formatZodError(err)}`));
         }
-        return jsonResponse({ error: err instanceof Error ? err.message : String(err) });
+        return errorResponse(err);
       }
     }
   );
@@ -60,9 +61,9 @@ export async function startMcpServer(storagePath?: string): Promise<void> {
         return handleUpdateTask(parsed, service);
       } catch (err) {
         if (err instanceof ZodError) {
-          return jsonResponse({ error: `Validation error: ${formatZodError(err)}` });
+          return errorResponse(new ValidationError(`Validation error: ${formatZodError(err)}`));
         }
-        return jsonResponse({ error: err instanceof Error ? err.message : String(err) });
+        return errorResponse(err);
       }
     }
   );
@@ -77,9 +78,9 @@ export async function startMcpServer(storagePath?: string): Promise<void> {
         return handleListTasks(parsed, service);
       } catch (err) {
         if (err instanceof ZodError) {
-          return jsonResponse({ error: `Validation error: ${formatZodError(err)}` });
+          return errorResponse(new ValidationError(`Validation error: ${formatZodError(err)}`));
         }
-        return jsonResponse({ error: err instanceof Error ? err.message : String(err) });
+        return errorResponse(err);
       }
     }
   );
@@ -92,7 +93,7 @@ export async function startMcpServer(storagePath?: string): Promise<void> {
       try {
         return handleListProjects(service);
       } catch (err) {
-        return jsonResponse({ error: err instanceof Error ? err.message : String(err) });
+        return errorResponse(err);
       }
     }
   );

@@ -13,18 +13,18 @@ export const CreateTaskArgsSchema = z.object({
 
 export type CreateTaskArgs = CreateTaskInput;
 
+/**
+ * Handle the create_task MCP tool call.
+ * Errors are propagated to the MCP server layer for consistent handling.
+ */
 export function handleCreateTask(args: CreateTaskArgs, service: TaskService): McpToolResponse {
-  try {
-    const task = service.create({
-      description: args.description,
-      context: args.context,
-      parent_id: args.parent_id,
-      project: args.project,
-      priority: args.priority,
-    });
+  const task = service.create({
+    description: args.description,
+    context: args.context,
+    parent_id: args.parent_id,
+    project: args.project,
+    priority: args.priority,
+  });
 
-    return jsonResponse(task);
-  } catch (err) {
-    return jsonResponse({ error: err instanceof Error ? err.message : String(err) });
-  }
+  return jsonResponse(task);
 }
