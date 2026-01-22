@@ -27,41 +27,34 @@ One file per task: `.dex/tasks/{id}.json`
 Use `dex` skill to coordinate complex work. Create tickets with full context (like GitHub Issues), break down into subtasks, complete with detailed results (like PR descriptions). See `skills/dex/SKILL.md`.
 
 ## Local Development
-When working on dex itself, build and run from source instead of using the system-wide `dex` installation:
-```bash
-pnpm build                    # Compile TypeScript
-pnpm start create -d "..."    # Run CLI commands
-# or use dev mode:
-pnpm dev                      # Watch mode in one terminal
-node dist/index.js <command>  # Run in another terminal
-```
 
-## Testing the /dex Skill Locally
-
-The `/dex` skill is auto-discovered from `skills/dex/SKILL.md` when working in this repo. To test the skill with your local build:
+When working on dex itself, use `pnpm link --global` to make your local build available as the `dex` command:
 
 ### Setup
 ```bash
-pnpm build
-pnpm link --global  # Makes local build available as 'dex' command
+pnpm install
+pnpm run link       # Shortcut for: pnpm build && pnpm link --global
 ```
 
-Now the `/dex` skill in Claude Code will use your local build.
+Now you can use `dex` commands directly (e.g., `dex create`, `dex list`), and they'll run your local build.
 
 ### Development Cycle
 ```bash
 # Make code changes...
 pnpm build          # Rebuild
-# Test skill via Claude Code
+# Test with: dex list, dex create, etc.
 ```
 
 Or use watch mode:
 ```bash
-pnpm dev            # Auto-rebuild on changes
-# Test skill after rebuild completes
+pnpm dev            # Auto-rebuild on changes in one terminal
+dex list            # Test commands in another terminal
 ```
+
+### Testing the /dex Skill
+The `/dex` skill is auto-discovered from `skills/dex/SKILL.md` when working in this repo. Once you've run `pnpm run link`, the skill will automatically use your local build.
 
 ### Cleanup
 ```bash
-pnpm unlink --global  # Remove global link
+pnpm run unlink     # Remove global link when done
 ```

@@ -5,6 +5,7 @@ import { runCli } from "./cli/commands.js";
 import { loadConfig } from "./core/config.js";
 import { StorageEngine } from "./core/storage-engine.js";
 import { FileStorage } from "./core/storage.js";
+import { GitHubIssuesStorage } from "./core/github-issues-storage.js";
 
 const args = process.argv.slice(2);
 
@@ -65,8 +66,28 @@ function createStorageEngine(cliStoragePath?: string): StorageEngine {
       return new FileStorage(filePath);
     }
 
-    case "github-issues":
-      throw new Error("GitHub Issues storage not yet implemented");
+    case "github-issues": {
+      const ghConfig = config.storage["github-issues"];
+      if (!ghConfig) {
+        throw new Error("GitHub Issues storage selected but not configured");
+      }
+
+      // Get token from environment variable
+      const tokenEnv = ghConfig.token_env || "GITHUB_TOKEN";
+      const token = process.env[tokenEnv];
+      if (!token) {
+        throw new Error(
+          `GitHub token not found in environment variable ${tokenEnv}`
+        );
+      }
+
+      return new GitHubIssuesStorage({
+        owner: ghConfig.owner,
+        repo: ghConfig.repo,
+        token,
+        labelPrefix: ghConfig.label_prefix,
+      });
+    }
 
     case "github-projects":
       throw new Error("GitHub Projects storage not yet implemented");

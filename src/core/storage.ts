@@ -203,6 +203,27 @@ export class FileStorage implements StorageEngine {
   getPath(): string {
     return this.getIdentifier();
   }
+
+  /**
+   * Async read implementation (wraps synchronous read)
+   */
+  async readAsync(): Promise<TaskStore> {
+    return this.read();
+  }
+
+  /**
+   * Async write implementation (wraps synchronous write)
+   */
+  async writeAsync(store: TaskStore): Promise<void> {
+    this.write(store);
+  }
+
+  /**
+   * File storage supports synchronous operations
+   */
+  isSync(): boolean {
+    return true;
+  }
 }
 
 // Backward compatibility alias

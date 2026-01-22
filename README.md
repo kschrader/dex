@@ -99,6 +99,35 @@ dex mcp
 
 ## Storage
 
+Dex supports multiple storage backends:
+
+### File Storage (Default)
 Tasks stored as individual files in `.dex/tasks/{id}.json` (git root or home directory).
 
-Override: `DEX_STORAGE_PATH` env var or `--storage-path` flag.
+Override: `DEX_STORAGE_PATH` env var, `--storage-path` flag, or config file.
+
+### GitHub Issues Storage
+Store tasks as GitHub Issues in a repository.
+
+**Setup:**
+1. Create a GitHub personal access token with `repo` scope
+2. Set token: `export GITHUB_TOKEN=ghp_...`
+3. Run `dex init` to create config file
+4. Edit `~/.config/dex/dex.toml`:
+   ```toml
+   [storage]
+   engine = "github-issues"
+
+   [storage.github-issues]
+   owner = "your-username"
+   repo = "dex-tasks"
+   token_env = "GITHUB_TOKEN"
+   label_prefix = "dex"
+   ```
+
+**Status:** Infrastructure implemented. Requires async TaskService support (see task `6r7es13r`).
+
+### GitHub Projects v2 Storage
+Store tasks as items in a GitHub Project board.
+
+**Status:** Planned. Not yet implemented.
