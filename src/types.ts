@@ -4,16 +4,16 @@ export const TaskStatusSchema = z.enum(["pending", "completed"]);
 export type TaskStatus = z.infer<typeof TaskStatusSchema>;
 
 export const TaskSchema = z.object({
-  id: z.string(),
-  parent_id: z.string().nullable().default(null),
-  project: z.string().default("default"),
-  description: z.string(),
-  context: z.string(),
-  priority: z.number().int().default(1),
+  id: z.string().min(1, "Task ID is required"),
+  parent_id: z.string().min(1).nullable().default(null),
+  project: z.string().min(1).default("default"),
+  description: z.string().min(1, "Description is required"),
+  context: z.string().min(1, "Context is required"),
+  priority: z.number().int().min(0).default(1),
   status: TaskStatusSchema.default("pending"),
   result: z.string().nullable().default(null),
-  created_at: z.string(),
-  updated_at: z.string(),
+  created_at: z.string().datetime(),
+  updated_at: z.string().datetime(),
 });
 
 export type Task = z.infer<typeof TaskSchema>;
@@ -27,20 +27,20 @@ export type TaskStore = z.infer<typeof TaskStoreSchema>;
 export const CreateTaskInputSchema = z.object({
   description: z.string().min(1, "Description is required"),
   context: z.string().min(1, "Context is required"),
-  parent_id: z.string().optional(),
-  project: z.string().optional(),
-  priority: z.number().int().optional(),
+  parent_id: z.string().min(1).optional(),
+  project: z.string().min(1).optional(),
+  priority: z.number().int().min(0).optional(),
 });
 
 export type CreateTaskInput = z.infer<typeof CreateTaskInputSchema>;
 
 export const UpdateTaskInputSchema = z.object({
-  id: z.string(),
-  description: z.string().optional(),
-  context: z.string().optional(),
-  parent_id: z.string().nullable().optional(),
-  project: z.string().optional(),
-  priority: z.number().int().optional(),
+  id: z.string().min(1, "Task ID is required"),
+  description: z.string().min(1, "Description cannot be empty").optional(),
+  context: z.string().min(1, "Context cannot be empty").optional(),
+  parent_id: z.string().min(1).nullable().optional(),
+  project: z.string().min(1, "Project cannot be empty").optional(),
+  priority: z.number().int().min(0).optional(),
   status: TaskStatusSchema.optional(),
   result: z.string().optional(),
   delete: z.boolean().optional(),

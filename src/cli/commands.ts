@@ -394,15 +394,6 @@ function editCommand(args: string[], options: CliOptions): void {
       priority: parseIntFlag(flags, "priority"),
     });
 
-    if (!task) {
-      console.error(`${colors.red}Error:${colors.reset} Task ${colors.bold}${id}${colors.reset} not found`);
-      const allTasks = service.list({ all: true });
-      if (allTasks.length > 0) {
-        console.error(`Hint: Run "${colors.dim}dex list --all${colors.reset}" to see all tasks`);
-      }
-      process.exit(1);
-    }
-
     console.log(`${colors.green}Updated${colors.reset} task ${colors.bold}${id}${colors.reset}`);
     console.log(formatTask(task));
   } catch (err) {
@@ -434,15 +425,6 @@ function completeCommand(args: string[], options: CliOptions): void {
   const service = createService(options);
   try {
     const task = service.complete(id, result);
-
-    if (!task) {
-      console.error(`${colors.red}Error:${colors.reset} Task ${colors.bold}${id}${colors.reset} not found`);
-      const allTasks = service.list({ all: true });
-      if (allTasks.length > 0) {
-        console.error(`Hint: Run "${colors.dim}dex list --all${colors.reset}" to see all tasks`);
-      }
-      process.exit(1);
-    }
 
     console.log(`${colors.green}Completed${colors.reset} task ${colors.bold}${id}${colors.reset}`);
     console.log(formatTask(task, true));

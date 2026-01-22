@@ -7,10 +7,10 @@
       "description": "Review types.ts",
       "context": "Review Zod schemas, validation rules, type safety. Check for missing validations, proper defaults, and schema consistency.",
       "priority": 1,
-      "status": "pending",
-      "result": null,
+      "status": "completed",
+      "result": "Added min validations, datetime for timestamps. Priority allows 0 for highest.",
       "created_at": "2026-01-22T08:05:19.226Z",
-      "updated_at": "2026-01-22T08:05:19.226Z"
+      "updated_at": "2026-01-22T08:22:18.195Z"
     },
     {
       "id": "8d0cnol6",
@@ -19,10 +19,10 @@
       "description": "Review index.ts",
       "context": "Review entry point, argument parsing, error handling. Check for edge cases in arg parsing and proper error propagation.",
       "priority": 1,
-      "status": "pending",
-      "result": null,
+      "status": "completed",
+      "result": "Better --storage-path error handling and =value syntax support",
       "created_at": "2026-01-22T08:05:19.627Z",
-      "updated_at": "2026-01-22T08:05:19.627Z"
+      "updated_at": "2026-01-22T08:22:25.385Z"
     },
     {
       "id": "94b4gmzs",
@@ -31,10 +31,10 @@
       "description": "Review core/storage.ts",
       "context": "Review file I/O, git root detection, error handling. Check for race conditions, proper error messages, and edge cases like missing directories or corrupted JSON.",
       "priority": 1,
-      "status": "pending",
-      "result": null,
+      "status": "completed",
+      "result": "Atomic writes, safe JSON parsing, TOCTOU fixes, worktree support",
       "created_at": "2026-01-22T08:05:20.017Z",
-      "updated_at": "2026-01-22T08:05:20.017Z"
+      "updated_at": "2026-01-22T08:22:25.480Z"
     },
     {
       "id": "1u1i8r5k",
@@ -43,10 +43,10 @@
       "description": "Review core/task-service.ts",
       "context": "Review business logic, edge cases, consistency. Check update/delete semantics, ID generation, and proper timestamp handling.",
       "priority": 1,
-      "status": "pending",
-      "result": null,
+      "status": "completed",
+      "result": "Fixed complete() to check all descendants, update() now throws on not found",
       "created_at": "2026-01-22T08:05:20.413Z",
-      "updated_at": "2026-01-22T08:05:20.413Z"
+      "updated_at": "2026-01-22T08:22:25.574Z"
     },
     {
       "id": "jp2shtxi",
@@ -199,10 +199,10 @@
       "description": "Update dex skill with subtask guidance",
       "context": "Update skills/dex/SKILL.md to explain subtask usage. Keep concise. Cover: --parent flag for creating subtasks, tree display in list, completion blocking, when to use subtasks vs separate tasks.",
       "priority": 1,
-      "status": "pending",
-      "result": null,
+      "status": "completed",
+      "result": "Added Subtasks section covering --parent flag, tree view, and completion rules",
       "created_at": "2026-01-22T08:11:47.782Z",
-      "updated_at": "2026-01-22T08:11:47.782Z"
+      "updated_at": "2026-01-22T08:15:52.205Z"
     },
     {
       "id": "p2tt9ce8",
@@ -211,10 +211,10 @@
       "description": "Optimize AGENTS.md for minimal token usage",
       "context": "Find the most concise way to instruct agents to use dex instead of TodoWrite. Current text may be too verbose. Goal: minimal tokens while being unambiguous.",
       "priority": 1,
-      "status": "pending",
-      "result": null,
+      "status": "completed",
+      "result": "Reduced to single line: 50% token reduction while maintaining clarity",
       "created_at": "2026-01-22T08:12:31.851Z",
-      "updated_at": "2026-01-22T08:12:31.851Z"
+      "updated_at": "2026-01-22T08:15:52.301Z"
     },
     {
       "id": "odn7uz8l",
@@ -223,10 +223,22 @@
       "description": "Make CLI a great user experience",
       "context": "Improve CLI UX while maintaining terminal compatibility. Consider:\n- Better output formatting and alignment\n- Color support (with fallback for no-color terminals)\n- Clearer error messages with suggestions\n- Progress indicators for operations\n- Interactive confirmations for destructive actions\n- Tab completion\n- Consistent output for scripting (--json flag?)\n\nMust work in all terminals - no fancy Unicode that might not render.",
       "priority": 1,
+      "status": "completed",
+      "result": "Added colors (NO_COLOR support), --json output, command suggestions, delete confirmation, improved error messages, column alignment",
+      "created_at": "2026-01-22T08:13:50.998Z",
+      "updated_at": "2026-01-22T08:19:33.565Z"
+    },
+    {
+      "id": "lujm9kvt",
+      "parent_id": null,
+      "project": "enhancements",
+      "description": "Add test suite",
+      "context": "Set up a basic test suite using modern tooling (Vitest recommended). Focus on:\n- Core business logic (TaskService CRUD, parent/child relationships)\n- Storage layer (read/write, error handling)\n- CLI argument parsing\n\nBest practices:\n- Use real file system with temp directories, avoid mocking storage\n- Test behavior not implementation\n- Focus on edge cases and error paths\n- Keep tests fast and isolated",
+      "priority": 0,
       "status": "pending",
       "result": null,
-      "created_at": "2026-01-22T08:13:50.998Z",
-      "updated_at": "2026-01-22T08:13:50.998Z"
+      "created_at": "2026-01-22T08:22:33.268Z",
+      "updated_at": "2026-01-22T08:22:33.268Z"
     }
   ]
 }

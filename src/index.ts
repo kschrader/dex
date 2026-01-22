@@ -10,10 +10,25 @@ let storagePath: string | undefined;
 const filteredArgs: string[] = [];
 
 for (let i = 0; i < args.length; i++) {
-  if (args[i] === "--storage-path" && args[i + 1]) {
-    storagePath = args[++i];
+  const arg = args[i];
+
+  if (arg === "--storage-path") {
+    const nextArg = args[i + 1];
+    if (!nextArg || nextArg.startsWith("-")) {
+      console.error("Error: --storage-path requires a value");
+      process.exit(1);
+    }
+    storagePath = nextArg;
+    i++; // Skip the value in next iteration
+  } else if (arg.startsWith("--storage-path=")) {
+    const value = arg.slice("--storage-path=".length);
+    if (!value) {
+      console.error("Error: --storage-path requires a value");
+      process.exit(1);
+    }
+    storagePath = value;
   } else {
-    filteredArgs.push(args[i]);
+    filteredArgs.push(arg);
   }
 }
 

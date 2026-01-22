@@ -25,11 +25,6 @@ export function handleUpdateTask(args: UpdateTaskArgs, service: TaskService): Mc
     }
 
     const task = service.update(args);
-
-    if (!task) {
-      return textResponse(`Task ${args.id} not found`);
-    }
-
     return jsonResponse(task);
   } catch (err) {
     return jsonResponse({ error: err instanceof Error ? err.message : String(err) });

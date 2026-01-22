@@ -1,13 +1,26 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
 import * as os from "node:os";
+import * as crypto from "node:crypto";
 import { TaskStore, TaskStoreSchema } from "../types.js";
 
 function findGitRoot(startDir: string): string | null {
-  let currentDir = startDir;
+  let currentDir: string;
+  try {
+    currentDir = fs.realpathSync(startDir);
+  } catch {
+    // If path doesn't exist or is inaccessible, fall back to input
+    currentDir = startDir;
+  }
+
   while (currentDir !== path.dirname(currentDir)) {
-    if (fs.existsSync(path.join(currentDir, ".git"))) {
+    const gitPath = path.join(currentDir, ".git");
+    try {
+      // Check if .git exists (file for worktrees, directory for regular repos)
+      fs.statSync(gitPath);
       return currentDir;
+    } catch {
+      // .git doesn't exist at this level, continue traversing
     }
     currentDir = path.dirname(currentDir);
   }
@@ -23,10 +36,7 @@ function getDefaultStoragePath(): string {
 }
 
 export function getStoragePath(): string {
-  return (
-    process.env.DEX_STORAGE_PATH ||
-    getDefaultStoragePath()
-  );
+  return process.env.DEX_STORAGE_PATH || getDefaultStoragePath();
 }
 
 export class TaskStorage {
@@ -38,25 +48,68 @@ export class TaskStorage {
 
   private ensureDirectory(): void {
     const dir = path.dirname(this.storagePath);
-    if (!fs.existsSync(dir)) {
-      fs.mkdirSync(dir, { recursive: true });
-    }
+    // recursive: true handles existing directories gracefully (no TOCTOU race)
+    fs.mkdirSync(dir, { recursive: true });
   }
 
   read(): TaskStore {
-    if (!fs.existsSync(this.storagePath)) {
+    let content: string;
+    try {
+      content = fs.readFileSync(this.storagePath, "utf-8");
+    } catch (err) {
+      if ((err as NodeJS.ErrnoException).code === "ENOENT") {
+        return { tasks: [] };
+      }
+      throw err;
+    }
+
+    // Handle empty files
+    if (!content.trim()) {
       return { tasks: [] };
     }
 
-    const content = fs.readFileSync(this.storagePath, "utf-8");
-    const data = JSON.parse(content);
-    return TaskStoreSchema.parse(data);
+    let data: unknown;
+    try {
+      data = JSON.parse(content);
+    } catch {
+      throw new Error(
+        `Failed to parse JSON from ${this.storagePath}. File may be corrupted.`
+      );
+    }
+
+    const result = TaskStoreSchema.safeParse(data);
+    if (!result.success) {
+      throw new Error(
+        `Invalid task store format in ${this.storagePath}: ${result.error.message}`
+      );
+    }
+
+    return result.data;
   }
 
   write(store: TaskStore): void {
     this.ensureDirectory();
     const content = JSON.stringify(store, null, 2);
-    fs.writeFileSync(this.storagePath, content, "utf-8");
+
+    // Atomic write: write to temp file, then rename
+    const dir = path.dirname(this.storagePath);
+    const tempPath = path.join(
+      dir,
+      `.tasks.${crypto.randomBytes(6).toString("hex")}.tmp`
+    );
+
+    try {
+      fs.writeFileSync(tempPath, content, "utf-8");
+      fs.renameSync(tempPath, this.storagePath);
+    } catch (err) {
+      // Clean up temp file on failure
+      try {
+        fs.unlinkSync(tempPath);
+      } catch {
+        // Ignore cleanup errors
+      }
+      throw err;
+    }
   }
 
   getPath(): string {

@@ -54,18 +54,19 @@ export class TaskService {
     return task;
   }
 
-  update(input: UpdateTaskInput): Task | null {
+  update(input: UpdateTaskInput): Task {
     const store = this.storage.read();
     const index = store.tasks.findIndex((t) => t.id === input.id);
 
     if (index === -1) {
-      return null;
+      throw new Error(`Task ${input.id} not found`);
     }
 
     if (input.delete) {
+      const deleted = store.tasks[index];
       store.tasks.splice(index, 1);
       this.storage.write(store);
-      return null;
+      return deleted;
     }
 
     const task = store.tasks[index];
@@ -190,13 +191,20 @@ export class TaskService {
     }));
   }
 
-  complete(id: string, result: string): Task | null {
-    const children = this.getChildren(id);
-    const pendingChildren = children.filter((c) => c.status === "pending");
+  complete(id: string, result: string): Task {
+    const store = this.storage.read();
 
-    if (pendingChildren.length > 0) {
+    // Collect all descendants, not just immediate children
+    const descendants = new Set<string>();
+    this.collectDescendants(store.tasks, id, descendants);
+
+    const pendingDescendants = store.tasks.filter(
+      (t) => descendants.has(t.id) && t.status === "pending"
+    );
+
+    if (pendingDescendants.length > 0) {
       throw new Error(
-        `Cannot complete: ${pendingChildren.length} subtask${pendingChildren.length > 1 ? "s" : ""} still pending`
+        `Cannot complete: ${pendingDescendants.length} subtask${pendingDescendants.length > 1 ? "s" : ""} still pending`
       );
     }
 
