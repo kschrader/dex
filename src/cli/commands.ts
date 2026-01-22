@@ -578,15 +578,32 @@ ${colors.bold}EXAMPLE:${colors.reset}
 // Default max length for context/result text in show command (use --full to see all)
 const SHOW_TEXT_MAX_LENGTH = 200;
 
+// Max description length for subtask display in show command
+const SHOW_SUBTASK_DESCRIPTION_MAX_LENGTH = 50;
+
+interface FormatTaskShowOptions {
+  full?: boolean;
+  parentTask?: Task | null;
+  children?: Task[];
+}
+
 /**
  * Format the detailed show view for a task with proper text wrapping.
  */
-function formatTaskShow(task: Task, full: boolean = false): string {
+function formatTaskShow(task: Task, options: FormatTaskShowOptions = {}): string {
+  const { full = false, parentTask, children = [] } = options;
   const statusIcon = task.status === "completed" ? "[x]" : "[ ]";
   const statusColor = task.status === "completed" ? colors.green : colors.yellow;
   const priority = task.priority !== 1 ? ` ${colors.cyan}[p${task.priority}]${colors.reset}` : "";
 
   const lines: string[] = [];
+
+  // Parent task reference (if this task has a parent)
+  if (parentTask) {
+    const parentDesc = truncateText(parentTask.description, 50);
+    lines.push(`${colors.dim}Parent: ${parentTask.id} - ${parentDesc}${colors.reset}`);
+    lines.push(""); // Blank line after parent
+  }
 
   // Header line with status, ID, priority, and description
   lines.push(`${statusColor}${statusIcon}${colors.reset} ${colors.bold}${task.id}${colors.reset}${priority}: ${task.description}`);
@@ -619,6 +636,36 @@ function formatTaskShow(task: Task, full: boolean = false): string {
   lines.push(`${"Updated:".padEnd(labelWidth)} ${colors.dim}${task.updated_at}${colors.reset}`);
   if (task.completed_at) {
     lines.push(`${"Completed:".padEnd(labelWidth)} ${colors.dim}${task.completed_at}${colors.reset}`);
+  }
+
+  // Subtasks section (if task has children)
+  if (children.length > 0) {
+    const pending = children.filter((c) => c.status === "pending").length;
+    const completed = children.filter((c) => c.status === "completed").length;
+
+    // Sort by priority then status (pending first)
+    const sortedChildren = [...children].sort((a, b) => {
+      if (a.priority !== b.priority) return a.priority - b.priority;
+      if (a.status !== b.status) return a.status === "pending" ? -1 : 1;
+      return 0;
+    });
+
+    lines.push(""); // Blank line before subtasks
+    lines.push(`${colors.bold}Subtasks${colors.reset} (${colors.yellow}${pending} pending${colors.reset}, ${colors.green}${completed} completed${colors.reset}):`);
+
+    for (let i = 0; i < sortedChildren.length; i++) {
+      const child = sortedChildren[i];
+      const isLast = i === sortedChildren.length - 1;
+      const connector = isLast ? "└──" : "├──";
+      const childStatusIcon = child.status === "completed" ? "[x]" : "[ ]";
+      const childStatusColor = child.status === "completed" ? colors.green : colors.yellow;
+      const childDesc = truncateText(child.description, SHOW_SUBTASK_DESCRIPTION_MAX_LENGTH);
+      const childAge = child.status === "completed" && child.completed_at
+        ? ` ${colors.dim}(${formatAge(child.completed_at)})${colors.reset}`
+        : "";
+
+      lines.push(`${connector} ${childStatusColor}${childStatusIcon}${colors.reset} ${child.id}: ${childDesc}${childAge}`);
+    }
   }
 
   // Add hint if text was truncated
@@ -681,12 +728,14 @@ ${colors.bold}EXAMPLE:${colors.reset}
   }
 
   const children = service.getChildren(id);
+  const parentTask = task.parent_id ? service.get(task.parent_id) : null;
   const full = getBooleanFlag(flags, "full");
 
   // JSON output mode
   if (getBooleanFlag(flags, "json")) {
     const output = {
       ...formatTaskJson(task),
+      parent: parentTask ? formatTaskJson(parentTask) : null,
       subtasks: {
         pending: children.filter((c) => c.status === "pending").length,
         completed: children.filter((c) => c.status === "completed").length,
@@ -697,14 +746,7 @@ ${colors.bold}EXAMPLE:${colors.reset}
     return;
   }
 
-  console.log(formatTaskShow(task, full));
-
-  if (children.length > 0) {
-    const pending = children.filter((c) => c.status === "pending").length;
-    const completed = children.filter((c) => c.status === "completed").length;
-    console.log("");
-    console.log(`Subtasks: ${colors.yellow}${pending} pending${colors.reset}, ${colors.green}${completed} completed${colors.reset}`);
-  }
+  console.log(formatTaskShow(task, { full, parentTask, children }));
 }
 
 function editCommand(args: string[], options: CliOptions): void {
@@ -812,7 +854,7 @@ ${colors.bold}EXAMPLE:${colors.reset}
     const task = service.complete(id, result);
 
     console.log(`${colors.green}Completed${colors.reset} task ${colors.bold}${id}${colors.reset}`);
-    console.log(formatTaskShow(task, true));
+    console.log(formatTaskShow(task, { full: true }));
   } catch (err) {
     console.error(formatCliError(err));
     process.exit(1);
