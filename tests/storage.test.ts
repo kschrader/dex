@@ -17,106 +17,187 @@ describe("TaskStorage", () => {
 
   describe("constructor", () => {
     it("accepts a custom storage path", () => {
-      const storagePath = path.join(tempDir, "custom.json");
+      const storagePath = path.join(tempDir, ".dex");
       const storage = new TaskStorage(storagePath);
       expect(storage.getPath()).toBe(storagePath);
     });
   });
 
   describe("read", () => {
-    it("returns empty store when file does not exist", () => {
-      const storagePath = path.join(tempDir, "nonexistent.json");
+    it("returns empty store when tasks directory does not exist", () => {
+      const storagePath = path.join(tempDir, ".dex");
       const storage = new TaskStorage(storagePath);
 
       const store = storage.read();
       expect(store).toEqual({ tasks: [] });
     });
 
-    it("returns empty store when file is empty", () => {
-      const storagePath = path.join(tempDir, "empty.json");
-      fs.writeFileSync(storagePath, "");
+    it("returns empty store when tasks directory is empty", () => {
+      const storagePath = path.join(tempDir, ".dex");
+      fs.mkdirSync(path.join(storagePath, "tasks"), { recursive: true });
       const storage = new TaskStorage(storagePath);
 
       const store = storage.read();
       expect(store).toEqual({ tasks: [] });
     });
 
-    it("returns empty store when file contains only whitespace", () => {
-      const storagePath = path.join(tempDir, "whitespace.json");
-      fs.writeFileSync(storagePath, "   \n\t  ");
-      const storage = new TaskStorage(storagePath);
+    it("reads valid tasks from individual files", () => {
+      const storagePath = path.join(tempDir, ".dex");
+      const tasksDir = path.join(storagePath, "tasks");
+      fs.mkdirSync(tasksDir, { recursive: true });
 
-      const store = storage.read();
-      expect(store).toEqual({ tasks: [] });
-    });
-
-    it("reads valid task store from file", () => {
-      const storagePath = path.join(tempDir, "valid.json");
       const taskData = {
-        tasks: [
-          {
-            id: "test123",
-            parent_id: null,
-            description: "Test task",
-            context: "Test context",
-            priority: 1,
-            status: "pending",
-            result: null,
-            created_at: "2024-01-01T00:00:00.000Z",
-            updated_at: "2024-01-01T00:00:00.000Z",
-            completed_at: null,
-          },
-        ],
+        id: "test123",
+        parent_id: null,
+        description: "Test task",
+        context: "Test context",
+        priority: 1,
+        status: "pending",
+        result: null,
+        created_at: "2024-01-01T00:00:00.000Z",
+        updated_at: "2024-01-01T00:00:00.000Z",
+        completed_at: null,
       };
-      fs.writeFileSync(storagePath, JSON.stringify(taskData));
-      const storage = new TaskStorage(storagePath);
-
-      const store = storage.read();
-      expect(store).toEqual(taskData);
-    });
-
-    it("throws on invalid JSON", () => {
-      const storagePath = path.join(tempDir, "invalid.json");
-      fs.writeFileSync(storagePath, "not valid json {");
-      const storage = new TaskStorage(storagePath);
-
-      expect(() => storage.read()).toThrow("is corrupted: Invalid JSON:");
-    });
-
-    it("throws on invalid task store format", () => {
-      const storagePath = path.join(tempDir, "invalid-format.json");
-      fs.writeFileSync(storagePath, JSON.stringify({ tasks: "not an array" }));
-      const storage = new TaskStorage(storagePath);
-
-      expect(() => storage.read()).toThrow("is corrupted: Invalid schema:");
-    });
-
-    it("throws on missing required task fields", () => {
-      const storagePath = path.join(tempDir, "missing-fields.json");
       fs.writeFileSync(
-        storagePath,
-        JSON.stringify({
-          tasks: [{ id: "test", description: "Missing fields" }],
-        })
+        path.join(tasksDir, "test123.json"),
+        JSON.stringify(taskData)
       );
       const storage = new TaskStorage(storagePath);
 
+      const store = storage.read();
+      expect(store.tasks).toHaveLength(1);
+      expect(store.tasks[0]).toEqual(taskData);
+    });
+
+    it("reads multiple tasks from individual files", () => {
+      const storagePath = path.join(tempDir, ".dex");
+      const tasksDir = path.join(storagePath, "tasks");
+      fs.mkdirSync(tasksDir, { recursive: true });
+
+      const task1 = {
+        id: "task1",
+        parent_id: null,
+        description: "Task 1",
+        context: "Context 1",
+        priority: 1,
+        status: "pending",
+        result: null,
+        created_at: "2024-01-01T00:00:00.000Z",
+        updated_at: "2024-01-01T00:00:00.000Z",
+        completed_at: null,
+      };
+      const task2 = {
+        id: "task2",
+        parent_id: null,
+        description: "Task 2",
+        context: "Context 2",
+        priority: 2,
+        status: "pending",
+        result: null,
+        created_at: "2024-01-01T00:00:00.000Z",
+        updated_at: "2024-01-01T00:00:00.000Z",
+        completed_at: null,
+      };
+      fs.writeFileSync(path.join(tasksDir, "task1.json"), JSON.stringify(task1));
+      fs.writeFileSync(path.join(tasksDir, "task2.json"), JSON.stringify(task2));
+
+      const storage = new TaskStorage(storagePath);
+      const store = storage.read();
+
+      expect(store.tasks).toHaveLength(2);
+      expect(store.tasks.map((t) => t.id).sort()).toEqual(["task1", "task2"]);
+    });
+
+    it("throws on invalid JSON in task file", () => {
+      const storagePath = path.join(tempDir, ".dex");
+      const tasksDir = path.join(storagePath, "tasks");
+      fs.mkdirSync(tasksDir, { recursive: true });
+      fs.writeFileSync(path.join(tasksDir, "invalid.json"), "not valid json {");
+
+      const storage = new TaskStorage(storagePath);
+      expect(() => storage.read()).toThrow("is corrupted: Invalid JSON:");
+    });
+
+    it("throws on invalid task schema", () => {
+      const storagePath = path.join(tempDir, ".dex");
+      const tasksDir = path.join(storagePath, "tasks");
+      fs.mkdirSync(tasksDir, { recursive: true });
+      fs.writeFileSync(
+        path.join(tasksDir, "invalid.json"),
+        JSON.stringify({ id: "test", description: "Missing fields" })
+      );
+
+      const storage = new TaskStorage(storagePath);
       expect(() => storage.read()).toThrow("is corrupted: Invalid schema:");
+    });
+
+    it("ignores non-json files", () => {
+      const storagePath = path.join(tempDir, ".dex");
+      const tasksDir = path.join(storagePath, "tasks");
+      fs.mkdirSync(tasksDir, { recursive: true });
+
+      const taskData = {
+        id: "valid",
+        parent_id: null,
+        description: "Valid task",
+        context: "Context",
+        priority: 1,
+        status: "pending",
+        result: null,
+        created_at: "2024-01-01T00:00:00.000Z",
+        updated_at: "2024-01-01T00:00:00.000Z",
+        completed_at: null,
+      };
+      fs.writeFileSync(path.join(tasksDir, "valid.json"), JSON.stringify(taskData));
+      fs.writeFileSync(path.join(tasksDir, "readme.txt"), "ignore this");
+
+      const storage = new TaskStorage(storagePath);
+      const store = storage.read();
+
+      expect(store.tasks).toHaveLength(1);
+      expect(store.tasks[0].id).toBe("valid");
+    });
+
+    it("skips empty task files", () => {
+      const storagePath = path.join(tempDir, ".dex");
+      const tasksDir = path.join(storagePath, "tasks");
+      fs.mkdirSync(tasksDir, { recursive: true });
+
+      const taskData = {
+        id: "valid",
+        parent_id: null,
+        description: "Valid task",
+        context: "Context",
+        priority: 1,
+        status: "pending",
+        result: null,
+        created_at: "2024-01-01T00:00:00.000Z",
+        updated_at: "2024-01-01T00:00:00.000Z",
+        completed_at: null,
+      };
+      fs.writeFileSync(path.join(tasksDir, "valid.json"), JSON.stringify(taskData));
+      fs.writeFileSync(path.join(tasksDir, "empty.json"), "");
+
+      const storage = new TaskStorage(storagePath);
+      const store = storage.read();
+
+      expect(store.tasks).toHaveLength(1);
+      expect(store.tasks[0].id).toBe("valid");
     });
   });
 
   describe("write", () => {
-    it("creates directory if it does not exist", () => {
-      const storagePath = path.join(tempDir, "nested", "dir", "tasks.json");
+    it("creates tasks directory if it does not exist", () => {
+      const storagePath = path.join(tempDir, "nested", "dir", ".dex");
       const storage = new TaskStorage(storagePath);
 
       storage.write({ tasks: [] });
 
-      expect(fs.existsSync(storagePath)).toBe(true);
+      expect(fs.existsSync(path.join(storagePath, "tasks"))).toBe(true);
     });
 
-    it("writes task store to file", () => {
-      const storagePath = path.join(tempDir, "tasks.json");
+    it("writes each task to its own file", () => {
+      const storagePath = path.join(tempDir, ".dex");
       const storage = new TaskStorage(storagePath);
       const taskData = {
         tasks: [
@@ -136,86 +217,14 @@ describe("TaskStorage", () => {
 
       storage.write(taskData);
 
-      const content = fs.readFileSync(storagePath, "utf-8");
-      expect(JSON.parse(content)).toEqual(taskData);
+      const taskPath = path.join(storagePath, "tasks", "abc12345.json");
+      expect(fs.existsSync(taskPath)).toBe(true);
+      const content = fs.readFileSync(taskPath, "utf-8");
+      expect(JSON.parse(content)).toEqual(taskData.tasks[0]);
     });
 
-    it("overwrites existing file", () => {
-      const storagePath = path.join(tempDir, "tasks.json");
-      fs.writeFileSync(storagePath, JSON.stringify({ tasks: [] }));
-      const storage = new TaskStorage(storagePath);
-      const newData = {
-        tasks: [
-          {
-            id: "new12345",
-            parent_id: null,
-            description: "New",
-            context: "Context",
-            priority: 1,
-            status: "pending" as const,
-            result: null,
-            created_at: "2024-01-01T00:00:00.000Z",
-            updated_at: "2024-01-01T00:00:00.000Z",
-          },
-        ],
-      };
-
-      storage.write(newData);
-
-      const content = fs.readFileSync(storagePath, "utf-8");
-      expect(JSON.parse(content)).toEqual(newData);
-    });
-
-    it("writes with pretty formatting", () => {
-      const storagePath = path.join(tempDir, "tasks.json");
-      const storage = new TaskStorage(storagePath);
-
-      storage.write({ tasks: [] });
-
-      const content = fs.readFileSync(storagePath, "utf-8");
-      expect(content).toBe('{\n  "tasks": []\n}');
-    });
-
-    it("sorts tasks by ID for deterministic output", () => {
-      const storagePath = path.join(tempDir, "tasks.json");
-      const storage = new TaskStorage(storagePath);
-      const taskData = {
-        tasks: [
-          {
-            id: "zzz",
-            parent_id: null,
-            description: "Last alphabetically",
-            context: "Context",
-            priority: 1,
-            status: "pending" as const,
-            result: null,
-            created_at: "2024-01-01T00:00:00.000Z",
-            updated_at: "2024-01-01T00:00:00.000Z",
-          },
-          {
-            id: "aaa",
-            parent_id: null,
-            description: "First alphabetically",
-            context: "Context",
-            priority: 1,
-            status: "pending" as const,
-            result: null,
-            created_at: "2024-01-01T00:00:00.000Z",
-            updated_at: "2024-01-01T00:00:00.000Z",
-          },
-        ],
-      };
-
-      storage.write(taskData);
-
-      const content = fs.readFileSync(storagePath, "utf-8");
-      const parsed = JSON.parse(content);
-      expect(parsed.tasks[0].id).toBe("aaa");
-      expect(parsed.tasks[1].id).toBe("zzz");
-    });
-
-    it("formats tasks with newlines between them for git-friendly diffs", () => {
-      const storagePath = path.join(tempDir, "tasks.json");
+    it("writes multiple tasks to separate files", () => {
+      const storagePath = path.join(tempDir, ".dex");
       const storage = new TaskStorage(storagePath);
       const taskData = {
         tasks: [
@@ -246,65 +255,194 @@ describe("TaskStorage", () => {
 
       storage.write(taskData);
 
-      const content = fs.readFileSync(storagePath, "utf-8");
-      // Tasks should be separated by blank line (double newline after comma)
-      expect(content).toContain("},\n\n    {");
+      const tasksDir = path.join(storagePath, "tasks");
+      expect(fs.existsSync(path.join(tasksDir, "task1.json"))).toBe(true);
+      expect(fs.existsSync(path.join(tasksDir, "task2.json"))).toBe(true);
     });
 
-    it("maintains consistent field ordering", () => {
-      const storagePath = path.join(tempDir, "tasks.json");
+    it("deletes removed tasks", () => {
+      const storagePath = path.join(tempDir, ".dex");
+      const tasksDir = path.join(storagePath, "tasks");
+      fs.mkdirSync(tasksDir, { recursive: true });
+
+      // Create initial task file
+      const oldTask = {
+        id: "oldtask",
+        parent_id: null,
+        description: "Old task",
+        context: "Context",
+        priority: 1,
+        status: "pending",
+        result: null,
+        created_at: "2024-01-01T00:00:00.000Z",
+        updated_at: "2024-01-01T00:00:00.000Z",
+        completed_at: null,
+      };
+      fs.writeFileSync(
+        path.join(tasksDir, "oldtask.json"),
+        JSON.stringify(oldTask)
+      );
+
       const storage = new TaskStorage(storagePath);
-      // Create task with fields in non-standard order
+      const newData = {
+        tasks: [
+          {
+            id: "newtask",
+            parent_id: null,
+            description: "New",
+            context: "Context",
+            priority: 1,
+            status: "pending" as const,
+            result: null,
+            created_at: "2024-01-01T00:00:00.000Z",
+            updated_at: "2024-01-01T00:00:00.000Z",
+          },
+        ],
+      };
+
+      storage.write(newData);
+
+      expect(fs.existsSync(path.join(tasksDir, "oldtask.json"))).toBe(false);
+      expect(fs.existsSync(path.join(tasksDir, "newtask.json"))).toBe(true);
+    });
+
+    it("writes with pretty formatting", () => {
+      const storagePath = path.join(tempDir, ".dex");
+      const storage = new TaskStorage(storagePath);
       const taskData = {
         tasks: [
           {
-            updated_at: "2024-01-01T00:00:00.000Z",
-            status: "pending" as const,
-            id: "task1",
-            context: "Context",
-            description: "Task",
-            priority: 1,
+            id: "pretty",
             parent_id: null,
+            description: "Test",
+            context: "Context",
+            priority: 1,
+            status: "pending" as const,
             result: null,
             created_at: "2024-01-01T00:00:00.000Z",
+            updated_at: "2024-01-01T00:00:00.000Z",
           },
         ],
       };
 
       storage.write(taskData);
 
-      const content = fs.readFileSync(storagePath, "utf-8");
-      // Check field order: id should come before description
-      const idIndex = content.indexOf('"id"');
-      const descIndex = content.indexOf('"description"');
-      const contextIndex = content.indexOf('"context"');
-      expect(idIndex).toBeLessThan(descIndex);
-      expect(descIndex).toBeLessThan(contextIndex);
+      const content = fs.readFileSync(
+        path.join(storagePath, "tasks", "pretty.json"),
+        "utf-8"
+      );
+      expect(content).toContain("\n"); // Pretty printed
+      expect(content).toContain('  "id"'); // Indented
     });
 
-    it("performs atomic write (no temp files left behind)", () => {
-      const storagePath = path.join(tempDir, "tasks.json");
+    it("only creates task files in tasks directory", () => {
+      const storagePath = path.join(tempDir, ".dex");
       const storage = new TaskStorage(storagePath);
 
       storage.write({ tasks: [] });
 
-      const files = fs.readdirSync(tempDir);
-      expect(files).toEqual(["tasks.json"]);
+      const files = fs.readdirSync(storagePath);
+      expect(files).toEqual(["tasks"]);
     });
   });
 
   describe("getPath", () => {
     it("returns the storage path", () => {
-      const storagePath = path.join(tempDir, "my-tasks.json");
+      const storagePath = path.join(tempDir, ".dex");
       const storage = new TaskStorage(storagePath);
 
       expect(storage.getPath()).toBe(storagePath);
     });
   });
 
+  describe("migration from old format", () => {
+    it("migrates tasks from old tasks.json to individual files", () => {
+      const storagePath = path.join(tempDir, ".dex");
+      fs.mkdirSync(storagePath, { recursive: true });
+
+      const oldData = {
+        tasks: [
+          {
+            id: "migrated1",
+            parent_id: null,
+            description: "Task 1",
+            context: "Context",
+            priority: 1,
+            status: "pending",
+            result: null,
+            created_at: "2024-01-01T00:00:00.000Z",
+            updated_at: "2024-01-01T00:00:00.000Z",
+            completed_at: null,
+          },
+          {
+            id: "migrated2",
+            parent_id: null,
+            description: "Task 2",
+            context: "Context",
+            priority: 2,
+            status: "completed",
+            result: "Done",
+            created_at: "2024-01-01T00:00:00.000Z",
+            updated_at: "2024-01-01T00:00:00.000Z",
+            completed_at: "2024-01-01T01:00:00.000Z",
+          },
+        ],
+      };
+      fs.writeFileSync(
+        path.join(storagePath, "tasks.json"),
+        JSON.stringify(oldData)
+      );
+
+      const storage = new TaskStorage(storagePath);
+      const store = storage.read();
+
+      // Verify migration happened
+      expect(store.tasks).toHaveLength(2);
+      expect(store.tasks.map((t) => t.id).sort()).toEqual([
+        "migrated1",
+        "migrated2",
+      ]);
+
+      // Verify old file is removed
+      expect(fs.existsSync(path.join(storagePath, "tasks.json"))).toBe(false);
+
+      // Verify new files exist
+      expect(
+        fs.existsSync(path.join(storagePath, "tasks", "migrated1.json"))
+      ).toBe(true);
+      expect(
+        fs.existsSync(path.join(storagePath, "tasks", "migrated2.json"))
+      ).toBe(true);
+    });
+
+    it("removes empty old tasks.json without creating files", () => {
+      const storagePath = path.join(tempDir, ".dex");
+      fs.mkdirSync(storagePath, { recursive: true });
+      fs.writeFileSync(path.join(storagePath, "tasks.json"), "");
+
+      const storage = new TaskStorage(storagePath);
+      const store = storage.read();
+
+      expect(store.tasks).toEqual([]);
+      expect(fs.existsSync(path.join(storagePath, "tasks.json"))).toBe(false);
+    });
+
+    it("leaves corrupted old tasks.json in place", () => {
+      const storagePath = path.join(tempDir, ".dex");
+      fs.mkdirSync(storagePath, { recursive: true });
+      fs.writeFileSync(path.join(storagePath, "tasks.json"), "not valid json");
+
+      const storage = new TaskStorage(storagePath);
+      const store = storage.read();
+
+      expect(store.tasks).toEqual([]);
+      expect(fs.existsSync(path.join(storagePath, "tasks.json"))).toBe(true);
+    });
+  });
+
   describe("round-trip", () => {
     it("preserves task data through read/write cycle", () => {
-      const storagePath = path.join(tempDir, "tasks.json");
+      const storagePath = path.join(tempDir, ".dex");
       const storage = new TaskStorage(storagePath);
       const originalData = {
         tasks: [
@@ -338,11 +476,18 @@ describe("TaskStorage", () => {
       storage.write(originalData);
       const readData = storage.read();
 
-      expect(readData).toEqual(originalData);
+      // Sort for comparison since file order isn't guaranteed
+      const sortedOriginal = [...originalData.tasks].sort((a, b) =>
+        a.id.localeCompare(b.id)
+      );
+      const sortedRead = [...readData.tasks].sort((a, b) =>
+        a.id.localeCompare(b.id)
+      );
+      expect(sortedRead).toEqual(sortedOriginal);
     });
 
     it("handles special characters in task content", () => {
-      const storagePath = path.join(tempDir, "tasks.json");
+      const storagePath = path.join(tempDir, ".dex");
       const storage = new TaskStorage(storagePath);
       const dataWithSpecialChars = {
         tasks: [
@@ -368,7 +513,7 @@ describe("TaskStorage", () => {
     });
 
     it("handles unicode characters", () => {
-      const storagePath = path.join(tempDir, "tasks.json");
+      const storagePath = path.join(tempDir, ".dex");
       const storage = new TaskStorage(storagePath);
       const dataWithUnicode = {
         tasks: [
@@ -396,7 +541,7 @@ describe("TaskStorage", () => {
 
   describe("concurrent access simulation", () => {
     it("handles multiple sequential writes", () => {
-      const storagePath = path.join(tempDir, "tasks.json");
+      const storagePath = path.join(tempDir, ".dex");
       const storage = new TaskStorage(storagePath);
 
       for (let i = 0; i < 10; i++) {
@@ -425,7 +570,7 @@ describe("TaskStorage", () => {
 
   describe("edge cases", () => {
     it("handles empty tasks array", () => {
-      const storagePath = path.join(tempDir, "tasks.json");
+      const storagePath = path.join(tempDir, ".dex");
       const storage = new TaskStorage(storagePath);
 
       storage.write({ tasks: [] });
@@ -435,7 +580,7 @@ describe("TaskStorage", () => {
     });
 
     it("handles large number of tasks", () => {
-      const storagePath = path.join(tempDir, "tasks.json");
+      const storagePath = path.join(tempDir, ".dex");
       const storage = new TaskStorage(storagePath);
       const tasks = Array.from({ length: 100 }, (_, i) => ({
         id: `task${i.toString().padStart(4, "0")}`,
@@ -456,7 +601,7 @@ describe("TaskStorage", () => {
     });
 
     it("handles task with long description and context", () => {
-      const storagePath = path.join(tempDir, "tasks.json");
+      const storagePath = path.join(tempDir, ".dex");
       const storage = new TaskStorage(storagePath);
       const longText = "a".repeat(10000);
       const data = {

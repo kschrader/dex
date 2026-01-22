@@ -11,7 +11,7 @@ describe("TaskService", () => {
 
   beforeEach(() => {
     tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "dex-test-"));
-    storagePath = path.join(tempDir, "tasks.json");
+    storagePath = path.join(tempDir, ".dex");
     service = new TaskService(storagePath);
   });
 
