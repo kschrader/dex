@@ -5,6 +5,7 @@ export type TaskStatus = z.infer<typeof TaskStatusSchema>;
 
 export const TaskSchema = z.object({
   id: z.string(),
+  parent_id: z.string().nullable().default(null),
   project: z.string().default("default"),
   description: z.string(),
   context: z.string(),
@@ -26,6 +27,7 @@ export type TaskStore = z.infer<typeof TaskStoreSchema>;
 export const CreateTaskInputSchema = z.object({
   description: z.string().min(1, "Description is required"),
   context: z.string().min(1, "Context is required"),
+  parent_id: z.string().optional(),
   project: z.string().optional(),
   priority: z.number().int().optional(),
 });
@@ -36,6 +38,7 @@ export const UpdateTaskInputSchema = z.object({
   id: z.string(),
   description: z.string().optional(),
   context: z.string().optional(),
+  parent_id: z.string().nullable().optional(),
   project: z.string().optional(),
   priority: z.number().int().optional(),
   status: TaskStatusSchema.optional(),

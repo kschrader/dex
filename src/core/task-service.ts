@@ -20,9 +20,25 @@ export class TaskService {
     const store = this.storage.read();
     const now = new Date().toISOString();
 
+    let parentId: string | null = null;
+    let project = input.project || "default";
+
+    if (input.parent_id) {
+      const parent = store.tasks.find((t) => t.id === input.parent_id);
+      if (!parent) {
+        throw new Error(`Parent task ${input.parent_id} not found`);
+      }
+      parentId = input.parent_id;
+      // Inherit project from parent if not explicitly set
+      if (!input.project) {
+        project = parent.project;
+      }
+    }
+
     const task: Task = {
       id: generateId(),
-      project: input.project || "default",
+      parent_id: parentId,
+      project,
       description: input.description,
       context: input.context,
       priority: input.priority ?? 1,
@@ -57,6 +73,23 @@ export class TaskService {
 
     if (input.description !== undefined) task.description = input.description;
     if (input.context !== undefined) task.context = input.context;
+    if (input.parent_id !== undefined) {
+      if (input.parent_id !== null) {
+        // Validate new parent exists and isn't self or descendant
+        if (input.parent_id === input.id) {
+          throw new Error("Task cannot be its own parent");
+        }
+        const parent = store.tasks.find((t) => t.id === input.parent_id);
+        if (!parent) {
+          throw new Error(`Parent task ${input.parent_id} not found`);
+        }
+        // Check for cycles: new parent can't be a descendant
+        if (this.isDescendant(store.tasks, input.parent_id, input.id)) {
+          throw new Error("Cannot set parent: would create a cycle");
+        }
+      }
+      task.parent_id = input.parent_id;
+    }
     if (input.project !== undefined) task.project = input.project;
     if (input.priority !== undefined) task.priority = input.priority;
     if (input.status !== undefined) task.status = input.status;
@@ -77,9 +110,34 @@ export class TaskService {
       return false;
     }
 
-    store.tasks.splice(index, 1);
+    // Cascade delete all descendants
+    const toDelete = new Set<string>([id]);
+    this.collectDescendants(store.tasks, id, toDelete);
+
+    store.tasks = store.tasks.filter((t) => !toDelete.has(t.id));
     this.storage.write(store);
     return true;
+  }
+
+  getChildren(id: string): Task[] {
+    const store = this.storage.read();
+    return store.tasks.filter((t) => t.parent_id === id);
+  }
+
+  private collectDescendants(tasks: Task[], parentId: string, result: Set<string>): void {
+    for (const task of tasks) {
+      if (task.parent_id === parentId && !result.has(task.id)) {
+        result.add(task.id);
+        this.collectDescendants(tasks, task.id, result);
+      }
+    }
+  }
+
+  private isDescendant(tasks: Task[], potentialDescendant: string, ancestorId: string): boolean {
+    const task = tasks.find((t) => t.id === potentialDescendant);
+    if (!task || !task.parent_id) return false;
+    if (task.parent_id === ancestorId) return true;
+    return this.isDescendant(tasks, task.parent_id, ancestorId);
   }
 
   get(id: string): Task | null {
@@ -133,6 +191,15 @@ export class TaskService {
   }
 
   complete(id: string, result: string): Task | null {
+    const children = this.getChildren(id);
+    const pendingChildren = children.filter((c) => c.status === "pending");
+
+    if (pendingChildren.length > 0) {
+      throw new Error(
+        `Cannot complete: ${pendingChildren.length} subtask${pendingChildren.length > 1 ? "s" : ""} still pending`
+      );
+    }
+
     return this.update({
       id,
       status: "completed",

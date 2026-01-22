@@ -14,20 +14,21 @@ function createService(options: CliOptions): TaskService {
   return new TaskService(options.storagePath);
 }
 
-function formatTask(task: Task, verbose: boolean = false): string {
+function formatTask(task: Task, verbose: boolean = false, indent: number = 0): string {
+  const prefix = "  ".repeat(indent);
   const status = task.status === "completed" ? "✓" : "○";
   const priority = task.priority !== 1 ? ` [p${task.priority}]` : "";
   const project = task.project !== "default" ? ` (${task.project})` : "";
 
-  let output = `${status} ${task.id}${priority}${project}: ${task.description}`;
+  let output = `${prefix}${status} ${task.id}${priority}${project}: ${task.description}`;
 
   if (verbose) {
-    output += `\n  Context: ${task.context}`;
+    output += `\n${prefix}  Context: ${task.context}`;
     if (task.result) {
-      output += `\n  Result: ${task.result}`;
+      output += `\n${prefix}  Result: ${task.result}`;
     }
-    output += `\n  Created: ${task.created_at}`;
-    output += `\n  Updated: ${task.updated_at}`;
+    output += `\n${prefix}  Created: ${task.created_at}`;
+    output += `\n${prefix}  Updated: ${task.updated_at}`;
   }
 
   return output;
@@ -131,6 +132,7 @@ function createCommand(args: string[], options: CliOptions): void {
     context: { hasValue: true },
     project: { hasValue: true },
     priority: { short: "p", hasValue: true },
+    parent: { hasValue: true },
   });
 
   const description = getStringFlag(flags, "description");
@@ -147,15 +149,32 @@ function createCommand(args: string[], options: CliOptions): void {
   }
 
   const service = createService(options);
-  const task = service.create({
-    description,
-    context,
-    project: getStringFlag(flags, "project"),
-    priority: parseIntFlag(flags, "priority"),
-  });
+  try {
+    const task = service.create({
+      description,
+      context,
+      parent_id: getStringFlag(flags, "parent"),
+      project: getStringFlag(flags, "project"),
+      priority: parseIntFlag(flags, "priority"),
+    });
 
-  console.log(`Created task ${task.id}`);
-  console.log(formatTask(task));
+    console.log(`Created task ${task.id}`);
+    console.log(formatTask(task));
+  } catch (err) {
+    console.error(`Error: ${err instanceof Error ? err.message : err}`);
+    process.exit(1);
+  }
+}
+
+function printTaskTree(tasks: Task[], parentId: string | null, indent: number): void {
+  const children = tasks
+    .filter((t) => t.parent_id === parentId)
+    .toSorted((a, b) => a.priority - b.priority);
+
+  for (const task of children) {
+    console.log(formatTask(task, false, indent));
+    printTaskTree(tasks, task.id, indent + 1);
+  }
 }
 
 function listCommand(args: string[], options: CliOptions): void {
@@ -164,6 +183,7 @@ function listCommand(args: string[], options: CliOptions): void {
     status: { short: "s", hasValue: true },
     project: { hasValue: true },
     query: { short: "q", hasValue: true },
+    flat: { short: "f", hasValue: false },
   });
 
   const statusValue = getStringFlag(flags, "status");
@@ -184,8 +204,12 @@ function listCommand(args: string[], options: CliOptions): void {
     return;
   }
 
-  for (const task of tasks) {
-    console.log(formatTask(task));
+  if (getBooleanFlag(flags, "flat")) {
+    for (const task of tasks) {
+      console.log(formatTask(task));
+    }
+  } else {
+    printTaskTree(tasks, null, 0);
   }
 }
 
@@ -207,6 +231,13 @@ function showCommand(args: string[], options: CliOptions): void {
   }
 
   console.log(formatTask(task, true));
+
+  const children = service.getChildren(id);
+  if (children.length > 0) {
+    const pending = children.filter((c) => c.status === "pending").length;
+    const completed = children.filter((c) => c.status === "completed").length;
+    console.log(`\n  Subtasks: ${pending} pending, ${completed} completed`);
+  }
 }
 
 function editCommand(args: string[], options: CliOptions): void {
@@ -215,6 +246,7 @@ function editCommand(args: string[], options: CliOptions): void {
     context: { hasValue: true },
     project: { hasValue: true },
     priority: { short: "p", hasValue: true },
+    parent: { hasValue: true },
   });
 
   const id = positional[0];
@@ -225,21 +257,27 @@ function editCommand(args: string[], options: CliOptions): void {
   }
 
   const service = createService(options);
-  const task = service.update({
-    id,
-    description: getStringFlag(flags, "description"),
-    context: getStringFlag(flags, "context"),
-    project: getStringFlag(flags, "project"),
-    priority: parseIntFlag(flags, "priority"),
-  });
+  try {
+    const task = service.update({
+      id,
+      description: getStringFlag(flags, "description"),
+      context: getStringFlag(flags, "context"),
+      parent_id: getStringFlag(flags, "parent"),
+      project: getStringFlag(flags, "project"),
+      priority: parseIntFlag(flags, "priority"),
+    });
 
-  if (!task) {
-    console.error(`Task ${id} not found`);
+    if (!task) {
+      console.error(`Task ${id} not found`);
+      process.exit(1);
+    }
+
+    console.log(`Updated task ${id}`);
+    console.log(formatTask(task));
+  } catch (err) {
+    console.error(`Error: ${err instanceof Error ? err.message : err}`);
     process.exit(1);
   }
-
-  console.log(`Updated task ${id}`);
-  console.log(formatTask(task));
 }
 
 function completeCommand(args: string[], options: CliOptions): void {
@@ -261,15 +299,20 @@ function completeCommand(args: string[], options: CliOptions): void {
   }
 
   const service = createService(options);
-  const task = service.complete(id, result);
+  try {
+    const task = service.complete(id, result);
 
-  if (!task) {
-    console.error(`Task ${id} not found`);
+    if (!task) {
+      console.error(`Task ${id} not found`);
+      process.exit(1);
+    }
+
+    console.log(`Completed task ${id}`);
+    console.log(formatTask(task, true));
+  } catch (err) {
+    console.error(`Error: ${err instanceof Error ? err.message : err}`);
     process.exit(1);
   }
-
-  console.log(`Completed task ${id}`);
-  console.log(formatTask(task, true));
 }
 
 function deleteCommand(args: string[], options: CliOptions): void {
@@ -316,25 +359,27 @@ USAGE:
 COMMANDS:
   mcp                              Start MCP server (stdio)
   create -d "..." --context "..."  Create task
-  list                             List pending tasks
+  list                             List pending tasks (tree view)
+  list --flat                      List without tree hierarchy
   list --all                       Include completed tasks
   list --status completed          Filter by status
   list --project "auth"            Filter by project
   list --query "login"             Search description/context
-  show <id>                        View task details
+  show <id>                        View task details + subtask count
   edit <id> [-d "..."]             Edit task
   complete <id> --result "..."     Mark completed with result
-  delete <id>                      Remove task
+  delete <id>                      Remove task (cascades to subtasks)
   projects                         List all projects
 
 OPTIONS:
   --storage-path <path>            Override storage file location
   -p, --priority <n>               Task priority (lower = higher priority)
   --project <name>                 Project grouping
+  --parent <id>                    Parent task (creates subtask)
 
 EXAMPLES:
   dex create -d "Fix login bug" --context "Users report 500 errors"
-  dex create -d "Urgent task" --context "..." -p 0
+  dex create -d "Subtask" --context "..." --parent abc123
   dex list --project auth
   dex complete abc123 --result "Fixed by updating auth token refresh"
 `);
