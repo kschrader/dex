@@ -1,42 +1,28 @@
-Use `/dex` for task management.
+# Agent Instructions
 
-# Dex
+## Package Manager
+Use **pnpm**: `pnpm install`, `pnpm build`
 
-Task tracking tool with dual interfaces: MCP server for LLM consumption and CLI for humans.
+## Commit Attribution
+AI commits MUST include:
+```
+Co-Authored-By: Claude <noreply@anthropic.com>
+```
 
 ## Architecture
-
 ```
 src/
-├── index.ts           # Entry point: routes to CLI or MCP
-├── types.ts           # Zod schemas for Task, TaskStore
-├── core/
-│   ├── storage.ts     # JSON file I/O
-│   └── task-service.ts # Business logic
+├── index.ts           # Entry: routes to CLI or MCP
+├── types.ts           # Zod schemas
+├── core/              # Storage + TaskService
 ├── tools/             # MCP tool handlers
-├── mcp/server.ts      # MCP server setup
-└── cli/commands.ts    # CLI command handlers
-```
-
-## Development
-
-```bash
-pnpm install
-pnpm run build
-```
-
-## Testing
-
-```bash
-# CLI
-node dist/index.js create -d "Test" --context "..."
-node dist/index.js list
-
-# MCP server
-node dist/index.js mcp
+├── mcp/server.ts      # MCP server
+└── cli/commands.ts    # CLI handlers
 ```
 
 ## Storage
+- Per-repo: `<git-root>/.dex/tasks.json`
+- Fallback: `~/.dex/tasks.json`
 
-Per-repo: `<git-root>/.dex/tasks.json`
-Fallback: `~/.dex/tasks.json`
+## Task Management
+Use `/dex` skill. See `skills/dex/SKILL.md`
