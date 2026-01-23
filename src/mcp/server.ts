@@ -1,5 +1,6 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
+import { Transport } from "@modelcontextprotocol/sdk/shared/transport.js";
 import { ZodError, ZodType } from "zod";
 import { TaskService } from "../core/task-service.js";
 import { StorageEngine } from "../core/storage-engine.js";
@@ -10,7 +11,9 @@ import { errorResponse, McpToolResponse } from "../tools/response.js";
 import { ValidationError } from "../errors.js";
 
 function formatZodError(error: ZodError): string {
-  return error.errors.map((e) => `${e.path.join(".")}: ${e.message}`).join(", ");
+  return error.errors
+    .map((e) => `${e.path.join(".")}: ${e.message}`)
+    .join(", ");
 }
 
 function wrapHandler<T>(
@@ -31,7 +34,11 @@ function wrapHandler<T>(
   };
 }
 
-export async function startMcpServer(storage: StorageEngine): Promise<void> {
+/**
+ * Creates an MCP server instance with all tools registered.
+ * Exported for testing purposes.
+ */
+export function createMcpServer(storage: StorageEngine): McpServer {
   const service = new TaskService(storage);
   const server = new McpServer({
     name: "dex",
@@ -59,6 +66,17 @@ export async function startMcpServer(storage: StorageEngine): Promise<void> {
     wrapHandler(ListTasksArgsSchema, handleListTasks, service)
   );
 
-  const transport = new StdioServerTransport();
-  await server.connect(transport);
+  return server;
+}
+
+/**
+ * Starts the MCP server with the given storage and transport.
+ * If no transport is provided, uses StdioServerTransport.
+ */
+export async function startMcpServer(
+  storage: StorageEngine,
+  transport?: Transport
+): Promise<void> {
+  const server = createMcpServer(storage);
+  await server.connect(transport ?? new StdioServerTransport());
 }
