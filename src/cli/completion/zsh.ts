@@ -106,5 +106,10 @@ _dex() {
             ;;
     esac
 }
+
+# Register completion function with zsh
+if (( \$+functions[compdef] )); then
+    compdef _dex dex 2>/dev/null
+fi
 `;
 }
