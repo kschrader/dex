@@ -47,6 +47,23 @@ Skip task creation when:
 - Everything fits in one session with no follow-up
 - Overhead of tracking exceeds value
 
+## Important: dex vs Claude Code's TaskCreate
+
+Claude Code has built-in task tools (`TaskCreate`, `TaskUpdate`, `TaskList`). **Do not confuse these with dex.**
+
+| | dex | Claude Code TaskCreate |
+|---|---|---|
+| **Persistence** | Persists in `.dex/` files | Session-only, lost when session ends |
+| **Context** | Rich (description + context + result) | Basic (subject + description) |
+| **Hierarchy** | 3-level (epic -> task -> subtask) | Flat dependencies only |
+| **Collaboration** | Git-trackable, shareable | Not shareable |
+
+**Rule of thumb:**
+- Use **dex** for work that needs to persist, be handed off, or tracked across sessions
+- Use **Claude Code's TaskCreate** only for ephemeral in-session tracking (like a scratchpad)
+
+When the user asks you to "break down work" or "create subtasks" for anything meaningful, use dex.
+
 ## CLI Usage
 
 ### Create a Task
