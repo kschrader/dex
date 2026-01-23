@@ -44,7 +44,16 @@
       "Bash(pnpm why:*)",
       "Bash(node --version:*)",
       "Bash(pnpm --version:*)",
-      "Bash(tsc --version:*)"
+      "Bash(tsc --version:*)",
+      "Bash(dex:*)",
+      "Bash(dex init:*)",
+      "Bash(dex list:*)",
+      "Bash(dex show:*)",
+      "Bash(dex create:*)",
+      "Bash(dex edit:*)",
+      "Bash(dex complete:*)",
+      "Bash(dex delete:*)",
+      "Bash(dex mcp:*)"
     ],
     "deny": []
   }
