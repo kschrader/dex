@@ -9,6 +9,7 @@ import {
   getBooleanFlag,
   parseArgs,
   pluralize,
+  stripAnsi,
   terminalWidth,
   truncateText,
   wrapText,
@@ -16,18 +17,34 @@ import {
 
 // Max description length for subtask display in show command
 const SHOW_SUBTASK_DESCRIPTION_MAX_LENGTH = 50;
+// Max characters before truncation for context/result fields
+const SHOW_TEXT_MAX_LENGTH = 300;
 
 interface FormatTaskShowOptions {
   ancestors?: Task[];
   children?: Task[];
   grandchildren?: Task[];
+  full?: boolean;
+}
+
+/**
+ * Truncate text if needed and report whether truncation occurred.
+ * Returns the (possibly truncated) text and a boolean indicating if it was truncated.
+ */
+function truncateIfNeeded(text: string, maxLength: number): { text: string; truncated: boolean } {
+  const visibleLength = stripAnsi(text).length;
+  if (visibleLength <= maxLength) {
+    return { text, truncated: false };
+  }
+  return { text: truncateText(text, maxLength), truncated: true };
 }
 
 /**
  * Format the detailed show view for a task with proper text wrapping.
  */
 export function formatTaskShow(task: Task, options: FormatTaskShowOptions = {}): string {
-  const { ancestors = [], children = [], grandchildren = [] } = options;
+  const { ancestors = [], children = [], grandchildren = [], full = false } = options;
+  let wasTruncated = false;
   const statusIcon = task.status === "completed" ? "[x]" : "[ ]";
   const statusColor = task.status === "completed" ? colors.green : colors.yellow;
   const priority = task.priority !== 1 ? ` ${colors.cyan}[p${task.priority}]${colors.reset}` : "";
@@ -48,13 +65,17 @@ export function formatTaskShow(task: Task, options: FormatTaskShowOptions = {}):
   // Context section with word wrapping
   const indent = "  ";
   lines.push(`${colors.bold}Context:${colors.reset}`);
-  lines.push(wrapText(task.context, terminalWidth, indent));
+  const context = full ? { text: task.context, truncated: false } : truncateIfNeeded(task.context, SHOW_TEXT_MAX_LENGTH);
+  wasTruncated ||= context.truncated;
+  lines.push(wrapText(context.text, terminalWidth, indent));
 
   // Result section (if present) with word wrapping
   if (task.result) {
     lines.push(""); // Blank line before result
     lines.push(`${colors.bold}Result:${colors.reset}`);
-    lines.push(wrapText(`${colors.green}${task.result}${colors.reset}`, terminalWidth, indent));
+    const result = full ? { text: task.result, truncated: false } : truncateIfNeeded(task.result, SHOW_TEXT_MAX_LENGTH);
+    wasTruncated ||= result.truncated;
+    lines.push(wrapText(`${colors.green}${result.text}${colors.reset}`, terminalWidth, indent));
   }
 
   // Commit metadata section (if present)
@@ -129,7 +150,7 @@ export function formatTaskShow(task: Task, options: FormatTaskShowOptions = {}):
 
   // More Information section (navigation hints)
   const parentTask = ancestors.length > 0 ? ancestors[ancestors.length - 1] : null;
-  if (parentTask || children.length > 0) {
+  if (parentTask || children.length > 0 || wasTruncated) {
     lines.push("");
     lines.push(`${colors.bold}More Information:${colors.reset}`);
 
@@ -138,6 +159,9 @@ export function formatTaskShow(task: Task, options: FormatTaskShowOptions = {}):
     }
     if (children.length > 0) {
       lines.push(`  ${colors.dim}•${colors.reset} View subtree: ${colors.cyan}dex list ${task.id}${colors.reset}`);
+    }
+    if (wasTruncated) {
+      lines.push(`  ${colors.dim}•${colors.reset} View full content: ${colors.cyan}dex show ${task.id} --full${colors.reset}`);
     }
   }
 
@@ -161,7 +185,7 @@ ${colors.bold}ARGUMENTS:${colors.reset}
   <task-id>                  Task ID to display (required)
 
 ${colors.bold}OPTIONS:${colors.reset}
-  -f, --full                 (Deprecated - kept for compatibility)
+  -f, --full                 Show full context and result (no truncation)
   --json                     Output as JSON
   -h, --help                 Show this help message
 
@@ -216,5 +240,6 @@ ${colors.bold}EXAMPLE:${colors.reset}
     return;
   }
 
-  console.log(formatTaskShow(task, { ancestors, children, grandchildren }));
+  const full = getBooleanFlag(flags, "full");
+  console.log(formatTaskShow(task, { ancestors, children, grandchildren, full }));
 }
