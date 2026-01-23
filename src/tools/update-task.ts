@@ -11,13 +11,36 @@ export const UpdateTaskArgsSchema = z.object({
   priority: z.number().int().min(0).optional().describe("Updated priority"),
   status: TaskStatusSchema.optional().describe("Updated status"),
   result: z.string().optional().describe("Implementation summary like a PR description. Explain what was implemented and how the solution works, key decisions made and their rationale, trade-offs or alternatives you considered, and any follow-up work or tech debt. Write naturally so anyone can understand the solution without reading code. See .dex/tasks/c2w75okn.json for a real example."),
+  commit_sha: z.string().optional().describe("Git commit SHA that implements this task"),
+  commit_message: z.string().optional().describe("Commit message"),
+  commit_branch: z.string().optional().describe("Branch name where commit was made"),
+  commit_url: z.string().url().optional().describe("URL to the commit (e.g., GitHub commit URL)"),
   delete: z.boolean().optional().describe("Set to true to delete the task"),
 });
 
-export async function handleUpdateTask(args: UpdateTaskInput, service: TaskService): Promise<McpToolResponse> {
-  if (args.delete) {
-    const deletedTask = await service.update(args);
-    return jsonResponse({ deleted: true, id: args.id, task: deletedTask });
+type UpdateTaskArgs = z.infer<typeof UpdateTaskArgsSchema>;
+
+export async function handleUpdateTask(args: UpdateTaskArgs, service: TaskService): Promise<McpToolResponse> {
+  // Convert flat commit params to nested metadata structure
+  const { commit_sha, commit_message, commit_branch, commit_url, ...rest } = args;
+
+  const updateInput: UpdateTaskInput = { ...rest };
+
+  if (commit_sha) {
+    updateInput.metadata = {
+      commit: {
+        sha: commit_sha,
+        message: commit_message,
+        branch: commit_branch,
+        url: commit_url,
+        timestamp: new Date().toISOString(),
+      },
+    };
   }
-  return jsonResponse(await service.update(args));
+
+  if (updateInput.delete) {
+    const deletedTask = await service.update(updateInput);
+    return jsonResponse({ deleted: true, id: updateInput.id, task: deletedTask });
+  }
+  return jsonResponse(await service.update(updateInput));
 }

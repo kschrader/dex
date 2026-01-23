@@ -242,6 +242,9 @@ export function formatTask(task: Task, options: FormatTaskOptions = {}): string 
     if (task.result) {
       output += `\n${verbosePrefix}  ${"Result:".padEnd(labelWidth)} ${colors.green}${task.result}${colors.reset}`;
     }
+    if (task.metadata?.commit) {
+      output += `\n${verbosePrefix}  ${"Commit:".padEnd(labelWidth)} ${colors.cyan}${task.metadata.commit.sha}${colors.reset}`;
+    }
     output += `\n${verbosePrefix}  ${"Created:".padEnd(labelWidth)} ${colors.dim}${task.created_at}${colors.reset}`;
     output += `\n${verbosePrefix}  ${"Updated:".padEnd(labelWidth)} ${colors.dim}${task.updated_at}${colors.reset}`;
     if (task.completed_at) {

@@ -3,6 +3,22 @@ import { z } from "zod";
 export const TaskStatusSchema = z.enum(["pending", "completed"]);
 export type TaskStatus = z.infer<typeof TaskStatusSchema>;
 
+export const CommitMetadataSchema = z.object({
+  sha: z.string().min(1),
+  message: z.string().optional(),
+  branch: z.string().optional(),
+  url: z.string().url().optional(),
+  timestamp: z.string().datetime().optional(),
+});
+
+export type CommitMetadata = z.infer<typeof CommitMetadataSchema>;
+
+export const TaskMetadataSchema = z.object({
+  commit: CommitMetadataSchema.optional(),
+}).nullable();
+
+export type TaskMetadata = z.infer<typeof TaskMetadataSchema>;
+
 export const TaskSchema = z.object({
   id: z.string().min(1, "Task ID is required"),
   parent_id: z.string().min(1).nullable().default(null),
@@ -11,6 +27,7 @@ export const TaskSchema = z.object({
   priority: z.number().int().min(0).default(1),
   status: TaskStatusSchema.default("pending"),
   result: z.string().nullable().default(null),
+  metadata: TaskMetadataSchema.default(null),
   created_at: z.string().datetime(),
   updated_at: z.string().datetime(),
   completed_at: z.string().datetime().nullable().default(null),
@@ -41,6 +58,7 @@ export const UpdateTaskInputSchema = z.object({
   priority: z.number().int().min(0).optional(),
   status: TaskStatusSchema.optional(),
   result: z.string().optional(),
+  metadata: TaskMetadataSchema.optional(),
   delete: z.boolean().optional(),
 });
 

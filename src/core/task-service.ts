@@ -45,6 +45,7 @@ export class TaskService {
       priority: input.priority ?? 1,
       status: "pending",
       result: null,
+      metadata: null,
       created_at: now,
       updated_at: now,
       completed_at: null,
@@ -107,6 +108,9 @@ export class TaskService {
       task.status = input.status;
     }
     if (input.result !== undefined) task.result = input.result;
+    if (input.metadata !== undefined) {
+      task.metadata = input.metadata;
+    }
 
     task.updated_at = now;
     store.tasks[index] = task;
@@ -187,7 +191,7 @@ export class TaskService {
     return tasks.toSorted((a, b) => a.priority - b.priority);
   }
 
-  async complete(id: string, result: string): Promise<Task> {
+  async complete(id: string, result: string, metadata?: Task["metadata"]): Promise<Task> {
     const store = await this.storage.readAsync();
 
     // Collect all descendants, not just immediate children
@@ -209,6 +213,7 @@ export class TaskService {
       id,
       status: "completed",
       result,
+      metadata,
     });
   }
 

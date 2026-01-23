@@ -53,6 +53,23 @@ export function formatTaskShow(task: Task, options: FormatTaskShowOptions = {}):
     lines.push(wrapText(`${colors.green}${task.result}${colors.reset}`, terminalWidth, indent));
   }
 
+  // Commit metadata section (if present)
+  if (task.metadata?.commit) {
+    const commit = task.metadata.commit;
+    lines.push(""); // Blank line before commit section
+    lines.push(`${colors.bold}Commit:${colors.reset}`);
+    lines.push(`  SHA:    ${colors.cyan}${commit.sha}${colors.reset}`);
+    if (commit.message) {
+      lines.push(`  Message: ${commit.message}`);
+    }
+    if (commit.branch) {
+      lines.push(`  Branch:  ${commit.branch}`);
+    }
+    if (commit.url) {
+      lines.push(`  URL:     ${colors.dim}${commit.url}${colors.reset}`);
+    }
+  }
+
   // Metadata section
   lines.push(""); // Blank line before metadata
   const labelWidth = 10;

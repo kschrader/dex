@@ -1,4 +1,4 @@
-import { Task, TaskStatus } from "../types.js";
+import { Task, TaskStatus, CommitMetadata } from "../types.js";
 
 /**
  * Represents a subtask parsed from or to be embedded in a GitHub issue body.
@@ -131,6 +131,7 @@ function parseDetailsBlock(content: string): EmbeddedSubtask | null {
     priority: metadata.priority ?? 1,
     status: metadata.status ?? (isCompleted ? "completed" : "pending"),
     result,
+    metadata: metadata.commit ? { commit: metadata.commit } : null,
     created_at: metadata.created_at ?? new Date().toISOString(),
     updated_at: metadata.updated_at ?? new Date().toISOString(),
     completed_at: metadata.completed_at ?? null,
@@ -147,8 +148,10 @@ function parseMetadataComments(content: string): {
   created_at?: string;
   updated_at?: string;
   completed_at?: string | null;
+  commit?: CommitMetadata;
 } {
   const metadata: ReturnType<typeof parseMetadataComments> = {};
+  const commit: Partial<CommitMetadata> = {};
 
   // Match all dex:subtask: comments
   const commentRegex = /<!-- dex:subtask:(\w+):(.*?) -->/g;
@@ -177,7 +180,27 @@ function parseMetadataComments(content: string): {
       case "completed_at":
         metadata.completed_at = value === "null" ? null : value;
         break;
+      case "commit_sha":
+        commit.sha = value;
+        break;
+      case "commit_message":
+        commit.message = value;
+        break;
+      case "commit_branch":
+        commit.branch = value;
+        break;
+      case "commit_url":
+        commit.url = value;
+        break;
+      case "commit_timestamp":
+        commit.timestamp = value;
+        break;
     }
+  }
+
+  // Only add commit metadata if we have at least a SHA
+  if (commit.sha) {
+    metadata.commit = commit as CommitMetadata;
   }
 
   return metadata;
@@ -219,6 +242,25 @@ function renderSubtaskBlock(subtask: EmbeddedSubtask): string {
   lines.push(
     `<!-- dex:subtask:completed_at:${subtask.completed_at ?? "null"} -->`
   );
+
+  // Render commit metadata if present
+  if (subtask.metadata?.commit) {
+    const commit = subtask.metadata.commit;
+    lines.push(`<!-- dex:subtask:commit_sha:${commit.sha} -->`);
+    if (commit.message) {
+      lines.push(`<!-- dex:subtask:commit_message:${commit.message} -->`);
+    }
+    if (commit.branch) {
+      lines.push(`<!-- dex:subtask:commit_branch:${commit.branch} -->`);
+    }
+    if (commit.url) {
+      lines.push(`<!-- dex:subtask:commit_url:${commit.url} -->`);
+    }
+    if (commit.timestamp) {
+      lines.push(`<!-- dex:subtask:commit_timestamp:${commit.timestamp} -->`);
+    }
+  }
+
   lines.push("");
 
   if (subtask.context) {
