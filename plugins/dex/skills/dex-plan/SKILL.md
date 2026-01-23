@@ -1,52 +1,87 @@
 ---
 name: dex-plan
-description: Create dex task from planning mode output. Use at end of planning session to persist plan as trackable work.
+description: Create dex task from markdown planning documents (plans, specs, design docs, roadmaps)
 ---
 
-# Converting Plans to Tasks
+# Converting Markdown Documents to Tasks
 
-Use `/dex-plan` at the end of a planning session to create a dex task from the plan file.
+Use `/dex-plan` to convert any markdown planning document into a trackable dex task.
 
 ## When to Use
 
-- After completing a plan in plan mode
-- Plan is comprehensive and actionable
-- Want to track plan execution as structured work
+**Common scenarios:**
+- After completing a plan in plan mode → persist as trackable work
+- Have a specification document → track implementation as structured task
+- Design document ready for implementation → convert to dex task
+- Roadmap or milestone document → create task with full context
+- Any markdown file with planning/design content you want to track
+
+## Supported Documents
+
+Works with any markdown file containing planning or design content:
+- Plan files from plan mode (`~/.claude/plans/*.md`)
+- Specification documents (`SPEC.md`, `REQUIREMENTS.md`)
+- Design documents (`DESIGN.md`, `ARCHITECTURE.md`)
+- Roadmaps and milestone documents
+- Feature proposals and technical RFCs
+- Any markdown file with structured planning content
 
 ## Usage
 
 ```bash
-/dex-plan <plan-file-path>
+/dex-plan <markdown-file-path>
 ```
 
-In plan mode, you know the plan file path from context (shown in system reminder). Example:
+### Examples
 
+**From plan mode:**
 ```bash
 /dex-plan /home/user/.claude/plans/moonlit-brewing-lynx.md
 ```
 
+**From specification document:**
+```bash
+/dex-plan @SPEC.md
+```
+
+**From design document:**
+```bash
+/dex-plan docs/AUTHENTICATION_DESIGN.md
+```
+
+**From roadmap:**
+```bash
+/dex-plan ROADMAP.md
+```
+
 ## What It Does
 
-1. Reads the plan markdown file
-2. Extracts plan title (first `#` heading) as task description
+1. Reads any markdown file
+2. Extracts title from first `#` heading (or uses filename as fallback)
 3. Strips "Plan: " prefix if present (case-insensitive)
-4. Uses full plan content as task context
+4. Stores full markdown content as task context
 5. Creates dex task
 6. Returns task ID
 
-## Example
+## Examples
 
-If the plan file contains:
+**From plan mode file:**
 ```markdown
 # Plan: Add JWT Authentication
 
 ## Summary
 ...
 ```
+→ Task description: "Add JWT Authentication" (note: "Plan: " prefix stripped)
 
-The resulting task will have:
-- **Description**: "Add JWT Authentication" (note: "Plan: " prefix stripped)
-- **Context**: (full plan content)
+**From specification document:**
+```markdown
+# User Authentication Specification
+
+## Requirements
+...
+```
+→ Task description: "User Authentication Specification"
 
 ## Options
 
@@ -65,6 +100,7 @@ Once created, you can:
 
 ## When NOT to Use
 
-- Plan is incomplete or exploratory
-- Plan is just notes, not actionable
-- Plan hasn't been saved to disk yet
+- Document is incomplete or exploratory (just draft notes)
+- Content isn't actionable or ready for implementation
+- File hasn't been saved to disk yet
+- File doesn't contain meaningful planning/design content
