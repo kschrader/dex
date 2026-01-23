@@ -28,6 +28,8 @@ export async function runCli(args: string[], options: CliOptions): Promise<void>
     case "complete":
       return await completeCommand(args.slice(1), options);
     case "delete":
+    case "rm":
+    case "remove":
       return await deleteCommand(args.slice(1), options);
     case "plan":
       return await planCommand(args.slice(1), options);

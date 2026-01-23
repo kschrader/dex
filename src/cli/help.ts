@@ -23,6 +23,7 @@ ${colors.bold}COMMANDS:${colors.reset}
   complete <id> --result "..."     Mark completed with result
   delete <id>                      Remove task (prompts if has subtasks)
   delete <id> -f                   Force delete without confirmation
+  rm, remove                       Aliases for delete command
   plan <file>                      Create task from plan markdown file
 
 ${colors.bold}OPTIONS:${colors.reset}

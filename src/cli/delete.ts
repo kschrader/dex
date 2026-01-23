@@ -19,6 +19,8 @@ export async function deleteCommand(args: string[], options: CliOptions): Promis
 
 ${colors.bold}USAGE:${colors.reset}
   dex delete <task-id> [options]
+  dex rm <task-id> [options]
+  dex remove <task-id> [options]
 
 ${colors.bold}ARGUMENTS:${colors.reset}
   <task-id>                  Task ID to delete (required)
@@ -27,9 +29,10 @@ ${colors.bold}OPTIONS:${colors.reset}
   -f, --force                Delete without confirmation (even if has subtasks)
   -h, --help                 Show this help message
 
-${colors.bold}EXAMPLE:${colors.reset}
+${colors.bold}EXAMPLES:${colors.reset}
   dex delete abc123          # Prompts if task has subtasks
-  dex delete abc123 -f       # Force delete without prompting
+  dex rm abc123 -f           # Force delete without prompting (using alias)
+  dex remove abc123          # Same as delete (using alias)
 `);
     return;
   }
