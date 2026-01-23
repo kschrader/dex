@@ -60,4 +60,57 @@ describe("list command", () => {
     expect(out).toContain("Fix bug");
     expect(out).not.toContain("Add feature");
   });
+
+  it("filters by positional query argument", async () => {
+    await runCli(["create", "-d", "Fix bug", "--context", "ctx"], { storage });
+    await runCli(["create", "-d", "Add feature", "--context", "ctx"], { storage });
+    output.stdout.length = 0;
+
+    await runCli(["list", "bug"], { storage });
+
+    const out = output.stdout.join("\n");
+    expect(out).toContain("Fix bug");
+    expect(out).not.toContain("Add feature");
+  });
+
+  it("shows subtree when given task ID", async () => {
+    // Create parent with children
+    await runCli(["create", "-d", "Parent task", "--context", "ctx"], { storage });
+    const parentId = output.stdout.join("\n").match(/\b([a-z0-9]{8})\b/)?.[1];
+    expect(parentId).toBeDefined();
+
+    await runCli(["create", "-d", "Child one", "--context", "ctx", "--parent", parentId!], { storage });
+    await runCli(["create", "-d", "Child two", "--context", "ctx", "--parent", parentId!], { storage });
+
+    // Create unrelated task
+    await runCli(["create", "-d", "Unrelated task", "--context", "ctx"], { storage });
+    output.stdout.length = 0;
+
+    await runCli(["list", parentId!], { storage });
+
+    const out = output.stdout.join("\n");
+    expect(out).toContain("Parent task");
+    expect(out).toContain("Child one");
+    expect(out).toContain("Child two");
+    expect(out).not.toContain("Unrelated task");
+  });
+
+  it("shows full tree with 3 levels", async () => {
+    // Create epic -> task -> subtask hierarchy
+    await runCli(["create", "-d", "Epic", "--context", "ctx"], { storage });
+    const epicId = output.stdout.join("\n").match(/\b([a-z0-9]{8})\b/)?.[1];
+
+    await runCli(["create", "-d", "Task under epic", "--context", "ctx", "--parent", epicId!], { storage });
+    const taskId = output.stdout.join("\n").match(/\b([a-z0-9]{8})\b/)?.[1];
+
+    await runCli(["create", "-d", "Subtask", "--context", "ctx", "--parent", taskId!], { storage });
+    output.stdout.length = 0;
+
+    await runCli(["list"], { storage });
+
+    const out = output.stdout.join("\n");
+    expect(out).toContain("Epic");
+    expect(out).toContain("Task under epic");
+    expect(out).toContain("Subtask");
+  });
 });

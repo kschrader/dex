@@ -344,16 +344,83 @@ dex create -d "Implement login form" --context "..." --parent <parent-id>
 - A task cannot be completed while it has pending subtasks
 - Complete all children before completing the parent
 
+## Epics and Multi-Level Hierarchies
+
+For large initiatives spanning multiple tasks, use a 3-level hierarchy:
+
+| Level | Name | Purpose |
+|-------|------|---------|
+| L0 | **Epic** | Large initiative, root-level (e.g., "Add user authentication system") |
+| L1 | **Task** | Significant work item under an epic (e.g., "Implement JWT middleware") |
+| L2 | **Subtask** | Atomic implementation step (e.g., "Add token verification function") |
+
+**Maximum depth is 3 levels.** Attempting to create a child of a subtask will fail.
+
+### When to Use Epics
+
+Use an epic when:
+- Work spans 5+ distinct tasks
+- Multiple areas of the codebase are affected
+- Work will span multiple sessions or involve coordination
+- You want high-level progress tracking
+
+Don't create an epic when:
+- Work is 2-3 tasks (just create them as siblings)
+- Tasks are unrelated (create separate root tasks)
+- You'd only have 1 task under the epic
+
+### Creating an Epic Structure
+
+```bash
+# Create the epic
+dex create -d "Add user authentication system" \
+  --context "Full auth system with JWT tokens, password reset, session management..."
+
+# Note the epic ID (e.g., abc123), then create tasks under it
+dex create --parent abc123 -d "Implement JWT token generation" \
+  --context "Create token service with signing and verification..."
+
+dex create --parent abc123 -d "Add password reset flow" \
+  --context "Email-based password reset with secure tokens..."
+
+# For complex tasks, add subtasks
+dex create --parent def456 -d "Add token verification function" \
+  --context "Verify JWT signature and expiration..."
+```
+
+### Viewing Hierarchies
+
+```bash
+dex list                    # Full tree view with all levels
+dex list abc123             # Show epic abc123 and its subtree
+dex show abc123             # Epic details with task/subtask counts
+dex show def456             # Task details with breadcrumb path
+```
+
+### Best Practices for Hierarchies
+
+1. **Keep epics focused**: One epic = one major initiative
+2. **3-7 tasks per epic**: If you have more, consider splitting the epic
+3. **Subtasks are optional**: Only add L2 when a task is genuinely complex
+4. **Avoid deep nesting**: If you need L3, restructure your breakdown
+5. **Link context**: Reference parent in child task contexts
+
 ## Coordinating Complex Work
 
 ### Decomposition Strategy
 
 When faced with large tasks:
-1. Create parent task with overall goal and context
-2. Analyze and identify 3-7 logical subtasks
-3. Create subtasks with specific contexts and boundaries
-4. Work through systematically, completing with results
-5. Complete parent with summary of overall implementation
+1. **Assess scope**: Is this epic-level (5+ tasks) or task-level (3-7 subtasks)?
+2. Create parent task/epic with overall goal and context
+3. Analyze and identify 3-7 logical children
+4. Create children with specific contexts and boundaries
+5. Work through systematically, completing with results
+6. Complete parent with summary of overall implementation
+
+**Choosing the right level:**
+- Small feature (1-2 files, ~1 session) → Single task, no subtasks
+- Medium feature (3-5 files, 3-7 steps) → Task with subtasks
+- Large initiative (multiple areas, many sessions) → Epic with tasks
 
 ### Subtask Best Practices
 
@@ -421,9 +488,10 @@ This practice ensures:
 
 1. **Right-size tasks**: Completable in one focused session
 2. **Clear completion criteria**: Context should define "done"
-3. **Don't over-decompose**: 3-7 subtasks per parent is usually right
-4. **Action-oriented descriptions**: Start with verbs ("Add", "Fix", "Update")
-5. **Document results**: Record what was done and any follow-ups
+3. **Don't over-decompose**: 3-7 children per parent is usually right
+4. **Respect the depth limit**: Max 3 levels (epic → task → subtask)
+5. **Action-oriented descriptions**: Start with verbs ("Add", "Fix", "Update")
+6. **Document results**: Record what was done and any follow-ups
 
 ## Storage
 

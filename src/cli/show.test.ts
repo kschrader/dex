@@ -48,4 +48,62 @@ describe("show command", () => {
     await expect(runCli(["show"], { storage })).rejects.toThrow("process.exit");
     expect(output.stderr.join("\n")).toContain("Task ID is required");
   });
+
+  it("shows breadcrumb path for nested task", async () => {
+    // Create epic -> task -> subtask hierarchy
+    await runCli(["create", "-d", "Epic task", "--context", "ctx"], { storage });
+    const epicId = output.stdout.join("\n").match(TASK_ID_REGEX)?.[1];
+    output.stdout.length = 0;
+
+    await runCli(["create", "-d", "Child task", "--context", "ctx", "--parent", epicId!], { storage });
+    const taskId = output.stdout.join("\n").match(TASK_ID_REGEX)?.[1];
+    output.stdout.length = 0;
+
+    await runCli(["create", "-d", "Subtask", "--context", "ctx", "--parent", taskId!], { storage });
+    const subtaskId = output.stdout.join("\n").match(TASK_ID_REGEX)?.[1];
+    output.stdout.length = 0;
+
+    await runCli(["show", subtaskId!], { storage });
+
+    const out = output.stdout.join("\n");
+    expect(out).toContain("Path:");
+    expect(out).toContain("Epic task");
+    expect(out).toContain("Child task");
+  });
+
+  it("shows grandchildren count for epic", async () => {
+    // Create epic -> task -> subtask hierarchy
+    await runCli(["create", "-d", "Epic", "--context", "ctx"], { storage });
+    const epicId = output.stdout.join("\n").match(TASK_ID_REGEX)?.[1];
+    output.stdout.length = 0;
+
+    await runCli(["create", "-d", "Task", "--context", "ctx", "--parent", epicId!], { storage });
+    const taskId = output.stdout.join("\n").match(TASK_ID_REGEX)?.[1];
+    output.stdout.length = 0;
+
+    await runCli(["create", "-d", "Subtask 1", "--context", "ctx", "--parent", taskId!], { storage });
+    await runCli(["create", "-d", "Subtask 2", "--context", "ctx", "--parent", taskId!], { storage });
+
+    output.stdout.length = 0;
+    await runCli(["show", epicId!], { storage });
+
+    const out = output.stdout.join("\n");
+    // Should show both children count and grandchildren (subtasks) count
+    expect(out).toContain("Children");
+    expect(out).toContain("subtask");
+  });
+
+  it("shows navigation hint with dex list instead of --parent", async () => {
+    await runCli(["create", "-d", "Parent", "--context", "ctx"], { storage });
+    const parentId = output.stdout.join("\n").match(TASK_ID_REGEX)?.[1];
+
+    await runCli(["create", "-d", "Child", "--context", "ctx", "--parent", parentId!], { storage });
+
+    output.stdout.length = 0;
+    await runCli(["show", parentId!], { storage });
+
+    const out = output.stdout.join("\n");
+    expect(out).toContain(`dex list ${parentId}`);
+    expect(out).not.toContain("--parent");
+  });
 });

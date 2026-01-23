@@ -5,8 +5,10 @@ import {
   createService,
   exitIfTaskNotFound,
   formatAge,
+  formatBreadcrumb,
   getBooleanFlag,
   parseArgs,
+  pluralize,
   terminalWidth,
   truncateText,
   wrapText,
@@ -16,26 +18,27 @@ import {
 const SHOW_SUBTASK_DESCRIPTION_MAX_LENGTH = 50;
 
 interface FormatTaskShowOptions {
-  parentTask?: Task | null;
+  ancestors?: Task[];
   children?: Task[];
+  grandchildren?: Task[];
 }
 
 /**
  * Format the detailed show view for a task with proper text wrapping.
  */
 export function formatTaskShow(task: Task, options: FormatTaskShowOptions = {}): string {
-  const { parentTask, children = [] } = options;
+  const { ancestors = [], children = [], grandchildren = [] } = options;
   const statusIcon = task.status === "completed" ? "[x]" : "[ ]";
   const statusColor = task.status === "completed" ? colors.green : colors.yellow;
   const priority = task.priority !== 1 ? ` ${colors.cyan}[p${task.priority}]${colors.reset}` : "";
 
   const lines: string[] = [];
 
-  // Parent task reference (if this task has a parent)
-  if (parentTask) {
-    const parentDesc = truncateText(parentTask.description, 50);
-    lines.push(`${colors.dim}Parent: ${parentTask.id} - ${parentDesc}${colors.reset}`);
-    lines.push(""); // Blank line after parent
+  // Breadcrumb path (if this task has ancestors)
+  if (ancestors.length > 0) {
+    const breadcrumb = formatBreadcrumb(ancestors, task, 40);
+    lines.push(`${colors.bold}Path:${colors.reset} ${breadcrumb}`);
+    lines.push(""); // Blank line after breadcrumb
   }
 
   // Header line with status, ID, priority, and description
@@ -93,7 +96,15 @@ export function formatTaskShow(task: Task, options: FormatTaskShowOptions = {}):
     });
 
     lines.push(""); // Blank line before subtasks
-    lines.push(`${colors.bold}Subtasks${colors.reset} (${colors.yellow}${pending} pending${colors.reset}, ${colors.green}${completed} completed${colors.reset}):`);
+
+    // For epics (tasks with grandchildren), show hierarchical stats
+    if (grandchildren.length > 0) {
+      const pendingGrandchildren = grandchildren.filter((c) => c.status === "pending").length;
+      const completedGrandchildren = grandchildren.filter((c) => c.status === "completed").length;
+      lines.push(`${colors.bold}Children${colors.reset} (${colors.yellow}${pending} pending${colors.reset}, ${colors.green}${completed} completed${colors.reset}) — ${grandchildren.length} ${pluralize(grandchildren.length, "subtask")} (${colors.yellow}${pendingGrandchildren} pending${colors.reset}, ${colors.green}${completedGrandchildren} completed${colors.reset}):`);
+    } else {
+      lines.push(`${colors.bold}Subtasks${colors.reset} (${colors.yellow}${pending} pending${colors.reset}, ${colors.green}${completed} completed${colors.reset}):`);
+    }
 
     for (let i = 0; i < sortedChildren.length; i++) {
       const child = sortedChildren[i];
@@ -106,11 +117,18 @@ export function formatTaskShow(task: Task, options: FormatTaskShowOptions = {}):
         ? ` ${colors.dim}(${formatAge(child.completed_at)})${colors.reset}`
         : "";
 
-      lines.push(`${connector} ${childStatusColor}${childStatusIcon}${colors.reset} ${child.id}: ${childDesc}${childAge}`);
+      // Show grandchild count for children that have their own children
+      const childGrandchildren = grandchildren.filter((g) => g.parent_id === child.id);
+      const grandchildInfo = childGrandchildren.length > 0
+        ? ` ${colors.dim}(${childGrandchildren.length} ${pluralize(childGrandchildren.length, "subtask")})${colors.reset}`
+        : "";
+
+      lines.push(`${connector} ${childStatusColor}${childStatusIcon}${colors.reset} ${child.id}: ${childDesc}${grandchildInfo}${childAge}`);
     }
   }
 
   // More Information section (navigation hints)
+  const parentTask = ancestors.length > 0 ? ancestors[ancestors.length - 1] : null;
   if (parentTask || children.length > 0) {
     lines.push("");
     lines.push(`${colors.bold}More Information:${colors.reset}`);
@@ -119,7 +137,7 @@ export function formatTaskShow(task: Task, options: FormatTaskShowOptions = {}):
       lines.push(`  ${colors.dim}•${colors.reset} View parent task: ${colors.cyan}dex show ${parentTask.id}${colors.reset}`);
     }
     if (children.length > 0) {
-      lines.push(`  ${colors.dim}•${colors.reset} View subtasks: ${colors.cyan}dex list --parent ${task.id}${colors.reset}`);
+      lines.push(`  ${colors.dim}•${colors.reset} View subtree: ${colors.cyan}dex list ${task.id}${colors.reset}`);
     }
   }
 
@@ -166,23 +184,37 @@ ${colors.bold}EXAMPLE:${colors.reset}
   const task = await exitIfTaskNotFound(await service.get(id), id, service);
 
   const children = await service.getChildren(id);
-  const parentTask = task.parent_id ? await service.get(task.parent_id) : null;
+  const ancestors = await service.getAncestors(id);
+
+  // Collect grandchildren (children of children)
+  const grandchildren: Task[] = [];
+  for (const child of children) {
+    const childChildren = await service.getChildren(child.id);
+    grandchildren.push(...childChildren);
+  }
 
   // JSON output mode
   if (getBooleanFlag(flags, "json")) {
     const pending = children.filter((c) => c.status === "pending");
+    const pendingGrandchildren = grandchildren.filter((c) => c.status === "pending");
     const jsonOutput = {
       ...task,
-      parent: parentTask ?? null,
+      ancestors: ancestors.map((a) => ({ id: a.id, description: a.description })),
+      depth: ancestors.length,
       subtasks: {
         pending: pending.length,
         completed: children.length - pending.length,
         children,
       },
+      grandchildren: grandchildren.length > 0 ? {
+        pending: pendingGrandchildren.length,
+        completed: grandchildren.length - pendingGrandchildren.length,
+        tasks: grandchildren,
+      } : null,
     };
     console.log(JSON.stringify(jsonOutput, null, 2));
     return;
   }
 
-  console.log(formatTaskShow(task, { parentTask, children }));
+  console.log(formatTaskShow(task, { ancestors, children, grandchildren }));
 }

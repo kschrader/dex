@@ -150,6 +150,17 @@ export function formatAge(isoDate: string): string {
 }
 
 /**
+ * Format a breadcrumb path from ancestors to current task.
+ * Example: "Epic > Task > Subtask"
+ */
+export function formatBreadcrumb(ancestors: Task[], current: Task, maxDescLength: number = 30): string {
+  const items = [...ancestors, current].map((t) =>
+    truncateText(t.description, maxDescLength)
+  );
+  return items.join(` ${colors.dim}>${colors.reset} `);
+}
+
+/**
  * Strip ANSI color codes from a string for accurate length calculation.
  */
 export function stripAnsi(str: string): string {

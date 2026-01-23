@@ -34,6 +34,14 @@ export class TaskService {
       if (!parent) {
         throw new NotFoundError("Task", input.parent_id, "The specified parent task does not exist");
       }
+      // Validate depth: maximum 3 levels (epic → task → subtask)
+      const newDepth = this.getDepthFromParent(store.tasks, input.parent_id) + 1;
+      if (newDepth > 3) {
+        throw new ValidationError(
+          "Cannot create subtask: maximum depth (3 levels) reached",
+          "Tasks can only be nested 3 levels deep (epic → task → subtask)"
+        );
+      }
       parentId = input.parent_id;
     }
 
@@ -92,6 +100,16 @@ export class TaskService {
           throw new ValidationError(
             "Cannot set parent: would create a cycle",
             "The selected parent is already a subtask of this task"
+          );
+        }
+        // Validate depth: maximum 3 levels (epic → task → subtask)
+        // Need to check that this task + its descendants won't exceed depth limit
+        const newDepth = this.getDepthFromParent(store.tasks, input.parent_id) + 1;
+        const maxDescendantDepth = this.getMaxDescendantDepth(store.tasks, input.id);
+        if (newDepth + maxDescendantDepth > 3) {
+          throw new ValidationError(
+            "Cannot move task: would exceed maximum depth (3 levels)",
+            "Tasks can only be nested 3 levels deep (epic → task → subtask)"
           );
         }
       }
@@ -163,6 +181,54 @@ export class TaskService {
     if (!task || !task.parent_id) return false;
     if (task.parent_id === ancestorId) return true;
     return this.isDescendant(tasks, task.parent_id, ancestorId);
+  }
+
+  /**
+   * Get the ancestors of a task, from root to immediate parent.
+   * Returns an empty array for root-level tasks.
+   */
+  async getAncestors(id: string): Promise<Task[]> {
+    const store = await this.storage.readAsync();
+    return this.collectAncestors(store.tasks, id);
+  }
+
+  private collectAncestors(tasks: Task[], id: string): Task[] {
+    const task = tasks.find((t) => t.id === id);
+    if (!task || !task.parent_id) return [];
+
+    const parent = tasks.find((t) => t.id === task.parent_id);
+    if (!parent) return [];
+
+    // Recursively get ancestors of the parent, then append parent
+    return [...this.collectAncestors(tasks, parent.id), parent];
+  }
+
+  /**
+   * Get the nesting depth of a task.
+   * 0 = root (epic), 1 = task under epic, 2 = subtask
+   */
+  async getDepth(id: string): Promise<number> {
+    const ancestors = await this.getAncestors(id);
+    return ancestors.length;
+  }
+
+  /**
+   * Calculate depth from a parent ID (for validation during creation).
+   * Returns the depth a new child would have if created under this parent.
+   */
+  private getDepthFromParent(tasks: Task[], parentId: string): number {
+    const ancestors = this.collectAncestors(tasks, parentId);
+    return ancestors.length + 1; // +1 because the new task will be one level below parent
+  }
+
+  /**
+   * Get the maximum depth of descendants relative to a task.
+   * Returns 0 if the task has no children, 1 if it has children but no grandchildren, etc.
+   */
+  private getMaxDescendantDepth(tasks: Task[], taskId: string): number {
+    const children = tasks.filter((t) => t.parent_id === taskId);
+    if (children.length === 0) return 0;
+    return 1 + Math.max(...children.map((c) => this.getMaxDescendantDepth(tasks, c.id)));
   }
 
   async get(id: string): Promise<Task | null> {

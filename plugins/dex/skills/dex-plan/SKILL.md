@@ -86,6 +86,16 @@ Any markdown file containing planning or design content:
 
 After creating the main task, the skill analyzes the plan structure to determine if breaking it into subtasks adds value.
 
+### Hierarchy Levels
+
+The skill supports up to 3 levels (maximum depth enforced by dex):
+
+| Level | Name | Example |
+|-------|------|---------|
+| L0 | **Epic** | "Add user authentication system" |
+| L1 | **Task** | "Implement JWT middleware" |
+| L2 | **Subtask** | "Add token verification function" |
+
 ### When Breakdown Happens
 
 The skill creates subtasks when the plan has:
@@ -93,6 +103,12 @@ The skill creates subtasks when the plan has:
 - Implementation across multiple files or components (different modules, layers, or areas)
 - Clear sequential dependencies (step 1 before step 2)
 - Independent items that benefit from separate tracking
+
+**Epic-level breakdown** (creates tasks, not subtasks) when:
+- Plan has major phases/sections with their own sub-items
+- 5+ distinct areas of work
+- Plan spans multiple systems or components
+- Work will require multiple sessions
 
 ### When Breakdown Does NOT Happen
 
@@ -159,6 +175,42 @@ Created task xyz789 from plan
 Plan describes a cohesive single task. No subtask breakdown needed.
 
 View task: dex show xyz789
+```
+
+### Example: Epic-Level Breakdown (Two-Level Hierarchy)
+
+**Input plan** (`full-auth-plan.md`):
+```markdown
+# Plan: Complete User Authentication System
+
+## Phase 1: Backend Infrastructure
+1. Create database schema for users and sessions
+2. Implement password hashing with bcrypt
+3. Add JWT token generation and validation
+
+## Phase 2: API Endpoints
+1. POST /auth/register - User registration
+2. POST /auth/login - User login
+3. POST /auth/logout - Session invalidation
+4. POST /auth/reset-password - Password reset flow
+
+## Phase 3: Frontend Integration
+1. Login/register forms with validation
+2. Protected route components
+3. Session persistence with refresh tokens
+```
+
+**Output**:
+```
+Created epic abc123 from plan
+
+Analyzed plan structure: Found 3 major phases with sub-items
+Created as epic with 3 tasks:
+- def456: Backend Infrastructure (3 subtasks)
+- ghi789: API Endpoints (4 subtasks)
+- jkl012: Frontend Integration (3 subtasks)
+
+View full structure: dex list abc123
 ```
 
 ## Options
