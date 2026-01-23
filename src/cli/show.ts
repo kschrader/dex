@@ -5,7 +5,6 @@ import {
   createService,
   exitIfTaskNotFound,
   formatAge,
-  formatBreadcrumb,
   getBooleanFlag,
   parseArgs,
   pluralize,
@@ -15,8 +14,8 @@ import {
   wrapText,
 } from "./utils.js";
 
-// Max description length for subtask display in show command
-const SHOW_SUBTASK_DESCRIPTION_MAX_LENGTH = 50;
+// Max description length for tree display
+const SHOW_TREE_DESCRIPTION_MAX_LENGTH = 50;
 // Max characters before truncation for context/result fields
 const SHOW_TEXT_MAX_LENGTH = 300;
 
@@ -40,27 +39,112 @@ function truncateIfNeeded(text: string, maxLength: number): { text: string; trun
 }
 
 /**
+ * Format a task line for the hierarchy tree.
+ */
+function formatTreeTask(task: Task, options: {
+  prefix?: string;
+  isCurrent?: boolean;
+  truncateDescription?: number;
+  childCount?: number;
+}): string {
+  const { prefix = "", isCurrent = false, truncateDescription = SHOW_TREE_DESCRIPTION_MAX_LENGTH, childCount } = options;
+  const statusIcon = task.status === "completed" ? "[x]" : "[ ]";
+  const statusColor = task.status === "completed" ? colors.green : colors.yellow;
+  const desc = truncateText(task.description, truncateDescription);
+  const childInfo = childCount !== undefined && childCount > 0
+    ? ` ${colors.dim}(${childCount} ${pluralize(childCount, "subtask")})${colors.reset}`
+    : "";
+
+  if (isCurrent) {
+    return `${prefix}${statusColor}${statusIcon}${colors.reset} ${colors.bold}${task.id}${colors.reset}: ${desc}${childInfo}  ${colors.cyan}← viewing${colors.reset}`;
+  }
+  return `${prefix}${statusColor}${statusIcon}${colors.reset} ${colors.dim}${task.id}${colors.reset}: ${desc}${childInfo}`;
+}
+
+/**
+ * Format the hierarchy tree showing ancestors, current task, and children.
+ */
+function formatHierarchyTree(task: Task, ancestors: Task[], children: Task[], grandchildren: Task[]): string[] {
+  const lines: string[] = [];
+
+  // Build the tree from root to current task
+  // Each ancestor gets progressively deeper indentation
+  let currentIndent = "";
+
+  for (let i = 0; i < ancestors.length; i++) {
+    const ancestor = ancestors[i];
+    const isLast = i === ancestors.length - 1;
+
+    // Count children for this ancestor (next ancestor or current task if last)
+    const nextId = isLast ? task.id : ancestors[i + 1].id;
+    // We don't have sibling info, so just show the line
+    const connector = i === 0 ? "" : "└── ";
+    lines.push(formatTreeTask(ancestor, { prefix: currentIndent + connector }));
+
+    // Update indent for next level
+    if (i === 0) {
+      currentIndent = "";
+    } else {
+      currentIndent += "    ";
+    }
+  }
+
+  // Current task - highlighted
+  const currentConnector = ancestors.length > 0 ? "└── " : "";
+  const currentPrefix = currentIndent + currentConnector;
+  lines.push(formatTreeTask(task, {
+    prefix: currentPrefix,
+    isCurrent: true,
+    childCount: children.length,
+  }));
+
+  // Children of current task
+  if (children.length > 0) {
+    const childIndent = ancestors.length > 0 ? currentIndent + "    " : "";
+
+    // Sort by priority then status (pending first)
+    const sortedChildren = [...children].sort((a, b) => {
+      if (a.priority !== b.priority) return a.priority - b.priority;
+      if (a.status !== b.status) return a.status === "pending" ? -1 : 1;
+      return 0;
+    });
+
+    for (let i = 0; i < sortedChildren.length; i++) {
+      const child = sortedChildren[i];
+      const isLast = i === sortedChildren.length - 1;
+      const connector = isLast ? "└── " : "├── ";
+      const childGrandchildren = grandchildren.filter((g) => g.parent_id === child.id);
+      lines.push(formatTreeTask(child, {
+        prefix: childIndent + connector,
+        childCount: childGrandchildren.length,
+      }));
+    }
+  }
+
+  return lines;
+}
+
+/**
  * Format the detailed show view for a task with proper text wrapping.
  */
 export function formatTaskShow(task: Task, options: FormatTaskShowOptions = {}): string {
   const { ancestors = [], children = [], grandchildren = [], full = false } = options;
   let wasTruncated = false;
-  const statusIcon = task.status === "completed" ? "[x]" : "[ ]";
-  const statusColor = task.status === "completed" ? colors.green : colors.yellow;
   const priority = task.priority !== 1 ? ` ${colors.cyan}[p${task.priority}]${colors.reset}` : "";
 
   const lines: string[] = [];
 
-  // Breadcrumb path (if this task has ancestors)
-  if (ancestors.length > 0) {
-    const breadcrumb = formatBreadcrumb(ancestors, task, 40);
-    lines.push(`${colors.bold}Path:${colors.reset} ${breadcrumb}`);
-    lines.push(""); // Blank line after breadcrumb
+  // Hierarchy tree (if this task has ancestors or children)
+  if (ancestors.length > 0 || children.length > 0) {
+    lines.push(...formatHierarchyTree(task, ancestors, children, grandchildren));
+    lines.push(""); // Blank line after tree
+  } else {
+    // No hierarchy - just show the task header
+    const statusIcon = task.status === "completed" ? "[x]" : "[ ]";
+    const statusColor = task.status === "completed" ? colors.green : colors.yellow;
+    lines.push(`${statusColor}${statusIcon}${colors.reset} ${colors.bold}${task.id}${colors.reset}${priority}: ${task.description}`);
+    lines.push(""); // Blank line after header
   }
-
-  // Header line with status, ID, priority, and description
-  lines.push(`${statusColor}${statusIcon}${colors.reset} ${colors.bold}${task.id}${colors.reset}${priority}: ${task.description}`);
-  lines.push(""); // Blank line after header
 
   // Context section with word wrapping
   const indent = "  ";
@@ -102,50 +186,6 @@ export function formatTaskShow(task: Task, options: FormatTaskShowOptions = {}):
   lines.push(`${"Updated:".padEnd(labelWidth)} ${colors.dim}${task.updated_at}${colors.reset}`);
   if (task.completed_at) {
     lines.push(`${"Completed:".padEnd(labelWidth)} ${colors.dim}${task.completed_at}${colors.reset}`);
-  }
-
-  // Subtasks section (if task has children)
-  if (children.length > 0) {
-    const pending = children.filter((c) => c.status === "pending").length;
-    const completed = children.filter((c) => c.status === "completed").length;
-
-    // Sort by priority then status (pending first)
-    const sortedChildren = [...children].sort((a, b) => {
-      if (a.priority !== b.priority) return a.priority - b.priority;
-      if (a.status !== b.status) return a.status === "pending" ? -1 : 1;
-      return 0;
-    });
-
-    lines.push(""); // Blank line before subtasks
-
-    // For epics (tasks with grandchildren), show hierarchical stats
-    if (grandchildren.length > 0) {
-      const pendingGrandchildren = grandchildren.filter((c) => c.status === "pending").length;
-      const completedGrandchildren = grandchildren.filter((c) => c.status === "completed").length;
-      lines.push(`${colors.bold}Children${colors.reset} (${colors.yellow}${pending} pending${colors.reset}, ${colors.green}${completed} completed${colors.reset}) — ${grandchildren.length} ${pluralize(grandchildren.length, "subtask")} (${colors.yellow}${pendingGrandchildren} pending${colors.reset}, ${colors.green}${completedGrandchildren} completed${colors.reset}):`);
-    } else {
-      lines.push(`${colors.bold}Subtasks${colors.reset} (${colors.yellow}${pending} pending${colors.reset}, ${colors.green}${completed} completed${colors.reset}):`);
-    }
-
-    for (let i = 0; i < sortedChildren.length; i++) {
-      const child = sortedChildren[i];
-      const isLast = i === sortedChildren.length - 1;
-      const connector = isLast ? "└──" : "├──";
-      const childStatusIcon = child.status === "completed" ? "[x]" : "[ ]";
-      const childStatusColor = child.status === "completed" ? colors.green : colors.yellow;
-      const childDesc = truncateText(child.description, SHOW_SUBTASK_DESCRIPTION_MAX_LENGTH);
-      const childAge = child.status === "completed" && child.completed_at
-        ? ` ${colors.dim}(${formatAge(child.completed_at)})${colors.reset}`
-        : "";
-
-      // Show grandchild count for children that have their own children
-      const childGrandchildren = grandchildren.filter((g) => g.parent_id === child.id);
-      const grandchildInfo = childGrandchildren.length > 0
-        ? ` ${colors.dim}(${childGrandchildren.length} ${pluralize(childGrandchildren.length, "subtask")})${colors.reset}`
-        : "";
-
-      lines.push(`${connector} ${childStatusColor}${childStatusIcon}${colors.reset} ${child.id}: ${childDesc}${grandchildInfo}${childAge}`);
-    }
   }
 
   // More Information section (navigation hints)
