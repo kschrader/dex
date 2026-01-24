@@ -1,9 +1,4 @@
 ---
-interface Props {
-  title?: string;
-}
-
-const { title = 'Terminal' } = Astro.props;
 ---
 
 <div class="terminal">
@@ -13,8 +8,6 @@ const { title = 'Terminal' } = Astro.props;
       <span class="dot yellow"></span>
       <span class="dot green"></span>
     </div>
-    <div class="terminal-title">{title}</div>
-    <div class="terminal-spacer"></div>
   </div>
   <div class="terminal-body">
     <slot />
@@ -25,7 +18,7 @@ const { title = 'Terminal' } = Astro.props;
   .terminal {
     background: #000;
     border: 1px solid rgba(255, 255, 255, 0.1);
-    border-radius: 10px;
+    border-radius: 8px;
     overflow: hidden;
     margin: 1.5rem 0;
     box-shadow:
@@ -36,19 +29,19 @@ const { title = 'Terminal' } = Astro.props;
   .terminal-header {
     display: flex;
     align-items: center;
-    padding: 12px 16px;
+    padding: 8px 12px;
     background: #0a0a0a;
     border-bottom: 1px solid rgba(255, 255, 255, 0.06);
   }
 
   .terminal-dots {
     display: flex;
-    gap: 8px;
+    gap: 6px;
   }
 
   .dot {
-    width: 12px;
-    height: 12px;
+    width: 10px;
+    height: 10px;
     border-radius: 50%;
   }
 
@@ -62,19 +55,6 @@ const { title = 'Terminal' } = Astro.props;
 
   .dot.green {
     background: #28c840;
-  }
-
-  .terminal-title {
-    flex: 1;
-    text-align: center;
-    font-family: var(--font-mono);
-    font-size: 0.75rem;
-    color: #666;
-    font-weight: 500;
-  }
-
-  .terminal-spacer {
-    width: 52px;
   }
 
   .terminal-body {
