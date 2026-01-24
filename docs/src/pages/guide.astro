@@ -37,6 +37,44 @@ import Terminal from '../components/Terminal.astro';
     <li>The overhead isn't worth it</li>
   </ul>
 
+  <h2>dex vs Claude Code's TaskCreate</h2>
+
+  <p>Claude Code has built-in task tools (<code>TaskCreate</code>, <code>TaskUpdate</code>, <code>TaskList</code>). These are <strong>not</strong> the same as dex.</p>
+
+  <table>
+    <thead>
+      <tr>
+        <th></th>
+        <th>dex</th>
+        <th>Claude Code TaskCreate</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><strong>Persistence</strong></td>
+        <td>Persists in <code>.dex/</code> files</td>
+        <td>Session-only, lost when session ends</td>
+      </tr>
+      <tr>
+        <td><strong>Context</strong></td>
+        <td>Rich (description + context + result)</td>
+        <td>Basic (subject + description)</td>
+      </tr>
+      <tr>
+        <td><strong>Hierarchy</strong></td>
+        <td>3-level (epic → task → subtask)</td>
+        <td>Flat dependencies only</td>
+      </tr>
+      <tr>
+        <td><strong>Collaboration</strong></td>
+        <td>Git-trackable, shareable</td>
+        <td>Not shareable</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <p><strong>Rule of thumb:</strong> Use dex for work that needs to persist, be handed off, or tracked across sessions. Use Claude Code's TaskCreate only for ephemeral in-session tracking (like a scratchpad).</p>
+
   <h2>Basic Workflow</h2>
 
   <h3>Starting Work</h3>
@@ -159,6 +197,26 @@ All 24 tests passing."</pre>
     "Added rate limiting"
   </blockquote>
 
+  <h3>Verification is Critical</h3>
+
+  <p><strong>Before marking any task complete, Claude must verify the work.</strong> Verification separates "I think it's done" from "it's actually done."</p>
+
+  <p>Strong verification includes:</p>
+  <ul>
+    <li><strong>Test results</strong>: "All 60 tests passing" (with actual count)</li>
+    <li><strong>Build status</strong>: "Build successful"</li>
+    <li><strong>Manual testing</strong>: "Tested with valid/invalid inputs, both cases work"</li>
+  </ul>
+
+  <p>Weak verification to avoid:</p>
+  <ul>
+    <li>"Should work now" — "should" means not verified</li>
+    <li>"Made the changes" — no evidence it works</li>
+    <li>"Added tests" — did the tests pass?</li>
+  </ul>
+
+  <p>Good results always include explicit evidence: test counts, build output, manual testing outcomes.</p>
+
   <h2>Task Hierarchy</h2>
 
   <p>Dex supports three levels for organizing work:</p>
@@ -218,6 +276,17 @@ All 24 tests passing."</pre>
   </ul>
 
   <p>Task IDs become meaningless once work is complete. Describe the work itself in commits and PRs.</p>
+
+  <h2>Behavior Notes</h2>
+
+  <p>A few behaviors to be aware of:</p>
+
+  <ul>
+    <li><strong>Subtasks must complete first</strong>: A task with pending subtasks cannot be completed. Complete all children before the parent.</li>
+    <li><strong>Blockers are soft enforcement</strong>: Blocked tasks <em>can</em> be completed, but Claude will see a warning. This allows flexibility while communicating intended order.</li>
+    <li><strong>Delete cascades to children</strong>: Deleting a parent task also deletes all its subtasks.</li>
+    <li><strong>Maximum depth is 3 levels</strong>: Epic → Task → Subtask. Attempting to create a child of a subtask will fail.</li>
+  </ul>
 
   <h2>Tips for Working with Claude</h2>
 
