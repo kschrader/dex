@@ -120,6 +120,12 @@ claude plugin marketplace add dcramer/dex
 claude plugin install dex@dex
 ```
 
+Then install the CLI globally:
+
+```bash
+npm install -g @zeeg/dex
+```
+
 Restart Claude Code after installation.
 
 ### Claude Code (Local Clone)
@@ -128,6 +134,14 @@ Restart Claude Code after installation.
 git clone git@github.com:dcramer/dex.git ~/dex
 claude plugin marketplace add ~/dex
 claude plugin install dex
+```
+
+Then install the CLI globally:
+
+```bash
+cd ~/dex
+pnpm install && pnpm build
+pnpm link --global
 ```
 
 ### Updating
