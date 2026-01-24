@@ -1,38 +1,30 @@
 ---
 import Base from '../layouts/Base.astro';
 import Terminal from '../components/Terminal.astro';
-import { Code } from 'astro:components';
 ---
 
 <Base title="Install" description="Install dex for Claude Code and CLI">
   <h1>Installation</h1>
 
-  <p>Install the dex skill from the Claude Code marketplace:</p>
+  <h2>Claude Code</h2>
+  <p>Add dex as an MCP server to Claude Code:</p>
   <Terminal title="Terminal">
-    <Code
-      code={`claude plugin marketplace add dcramer/dex
-claude plugin install dex@dex`}
-      lang="bash"
-      theme="vitesse-black"
-    />
+    <pre class="cli-output"><span class="cli-dim">$</span> claude mcp add dex -- npx -y @zeeg/dex</pre>
   </Terminal>
-  <p>Restart Claude Code after installation.</p>
+  <p>Restart Claude Code after installation. The <code>/dex</code> skill will be available.</p>
 
-  <h3>Updating</h3>
+  <h2>Skills CLI</h2>
+  <p>If you use the <a href="https://github.com/anthropics/skills">skills CLI</a>:</p>
   <Terminal title="Terminal">
-    <Code
-      code={`claude plugin marketplace update
-claude plugin update dex@dex`}
-      lang="bash"
-      theme="vitesse-black"
-    />
+    <pre class="cli-output"><span class="cli-dim">$</span> npx skills add dcramer/dex</pre>
   </Terminal>
 
-  <h2>CLI (Optional)</h2>
-  <p>The skill uses <code>npx</code> by default, but you can install the CLI globally for faster execution:</p>
+  <h2>CLI Only</h2>
+  <p>Install the CLI globally for standalone use or faster execution:</p>
   <Terminal title="Terminal">
-    <Code code="npm install -g @zeeg/dex" lang="bash" theme="vitesse-black" />
+    <pre class="cli-output"><span class="cli-dim">$</span> npm install -g @zeeg/dex</pre>
   </Terminal>
+  <p>This is optional if using Claude Code, which runs via <code>npx</code> by default.</p>
 
   <h2>Shell Completions</h2>
   <p>Enable tab completion for dex commands and task IDs.</p>
@@ -40,24 +32,40 @@ claude plugin update dex@dex`}
   <h3>Bash</h3>
   <p>Add to <code>~/.bashrc</code>:</p>
   <Terminal title="~/.bashrc">
-    <Code code='eval "$(dex completion bash)"' lang="bash" theme="vitesse-black" />
+    <pre class="cli-output">eval "$(dex completion bash)"</pre>
   </Terminal>
 
   <h3>Zsh</h3>
   <p>Add to <code>~/.zshrc</code> (after compinit):</p>
   <Terminal title="~/.zshrc">
-    <Code code='eval "$(dex completion zsh)"' lang="bash" theme="vitesse-black" />
+    <pre class="cli-output">eval "$(dex completion zsh)"</pre>
   </Terminal>
 
   <h3>Fish</h3>
   <p>Add to <code>~/.config/fish/config.fish</code>:</p>
   <Terminal title="config.fish">
-    <Code code="dex completion fish | source" lang="fish" theme="vitesse-black" />
+    <pre class="cli-output">dex completion fish | source</pre>
   </Terminal>
 
   <h2>MCP Server</h2>
   <p>Run dex as an MCP server for other integrations:</p>
   <Terminal title="Terminal">
-    <Code code="dex mcp" lang="bash" theme="vitesse-black" />
+    <pre class="cli-output"><span class="cli-dim">$</span> dex mcp</pre>
   </Terminal>
 </Base>
+
+<style>
+  .cli-output {
+    font-family: var(--font-mono);
+    font-size: 0.875rem;
+    line-height: 1.6;
+    color: #e5e5e5;
+    margin: 0;
+    white-space: pre-wrap;
+    word-break: break-word;
+  }
+
+  .cli-dim {
+    color: #737373;
+  }
+</style>
