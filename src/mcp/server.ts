@@ -4,6 +4,7 @@ import { Transport } from "@modelcontextprotocol/sdk/shared/transport.js";
 import { ZodError, ZodType } from "zod";
 import { TaskService } from "../core/task-service.js";
 import { StorageEngine } from "../core/storage-engine.js";
+import { GitHubSyncService } from "../core/github-sync.js";
 import { CreateTaskArgsSchema, handleCreateTask } from "../tools/create-task.js";
 import { UpdateTaskArgsSchema, handleUpdateTask } from "../tools/update-task.js";
 import { ListTasksArgsSchema, handleListTasks } from "../tools/list-tasks.js";
@@ -38,8 +39,11 @@ function wrapHandler<T>(
  * Creates an MCP server instance with all tools registered.
  * Exported for testing purposes.
  */
-export function createMcpServer(storage: StorageEngine): McpServer {
-  const service = new TaskService(storage);
+export function createMcpServer(
+  storage: StorageEngine,
+  syncService?: GitHubSyncService | null
+): McpServer {
+  const service = new TaskService({ storage, syncService });
   const server = new McpServer({
     name: "dex",
     version: "1.0.0",
@@ -75,8 +79,9 @@ export function createMcpServer(storage: StorageEngine): McpServer {
  */
 export async function startMcpServer(
   storage: StorageEngine,
+  syncService?: GitHubSyncService | null,
   transport?: Transport
 ): Promise<void> {
-  const server = createMcpServer(storage);
+  const server = createMcpServer(storage, syncService);
   await server.connect(transport ?? new StdioServerTransport());
 }

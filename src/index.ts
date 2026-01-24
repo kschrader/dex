@@ -6,6 +6,7 @@ import { loadConfig } from "./core/config.js";
 import { StorageEngine } from "./core/storage-engine.js";
 import { FileStorage } from "./core/storage.js";
 import { GitHubIssuesStorage } from "./core/github-issues-storage.js";
+import { createGitHubSyncService, GitHubSyncService } from "./core/github-sync.js";
 
 const args = process.argv.slice(2);
 
@@ -58,10 +59,24 @@ function createStorageEngine(cliStoragePath?: string): StorageEngine {
   switch (config.storage.engine) {
     case "file": {
       // FileStorage handles path resolution: config path -> DEX_STORAGE_PATH -> auto-detect
-      return new FileStorage(config.storage.file?.path);
+      return new FileStorage({
+        path: config.storage.file?.path,
+        mode: config.storage.file?.mode,
+      });
     }
 
     case "github-issues": {
+      console.warn(
+        "Warning: storage.engine = 'github-issues' is deprecated.\n" +
+        "GitHub Issues is now an auto-sync enhancement. Use file storage with sync.github instead:\n\n" +
+        "  [storage]\n" +
+        "  engine = \"file\"\n\n" +
+        "  [sync.github]\n" +
+        "  enabled = true\n" +
+        "  owner = \"your-owner\"\n" +
+        "  repo = \"your-repo\"\n"
+      );
+
       const ghConfig = config.storage["github-issues"];
       if (!ghConfig) {
         throw new Error("GitHub Issues storage selected but not configured");
@@ -90,6 +105,14 @@ function createStorageEngine(cliStoragePath?: string): StorageEngine {
     default:
       throw new Error(`Unknown storage engine: ${config.storage.engine}`);
   }
+}
+
+/**
+ * Create GitHub sync service if configured.
+ */
+function createSyncService(): GitHubSyncService | null {
+  const config = loadConfig();
+  return createGitHubSyncService(config.sync?.github);
 }
 
 const command = filteredArgs[0];
@@ -123,13 +146,15 @@ ${bold}EXAMPLE:${reset}
   }
 
   const storage = createStorageEngine(storagePath);
-  startMcpServer(storage).catch((err) => {
+  const syncService = createSyncService();
+  startMcpServer(storage, syncService).catch((err) => {
     console.error("MCP server error:", err);
     process.exit(1);
   });
 } else {
   const storage = createStorageEngine(storagePath);
-  runCli(filteredArgs, { storage }).catch((err) => {
+  const syncService = createSyncService();
+  runCli(filteredArgs, { storage, syncService }).catch((err) => {
     console.error("Error:", err);
     process.exit(1);
   });

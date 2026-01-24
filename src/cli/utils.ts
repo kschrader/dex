@@ -1,11 +1,13 @@
 import { TaskService } from "../core/task-service.js";
 import { StorageEngine } from "../core/storage-engine.js";
+import { GitHubSyncService } from "../core/github-sync.js";
 import { Task } from "../types.js";
 import { extractErrorInfo } from "../errors.js";
 import * as readline from "readline";
 
 export interface CliOptions {
   storage: StorageEngine;
+  syncService?: GitHubSyncService | null;
 }
 
 export interface ParsedArgs {
@@ -43,10 +45,13 @@ export const colors = {
 };
 
 // Available commands for suggestions
-export const COMMANDS = ["create", "list", "ls", "show", "edit", "update", "complete", "done", "delete", "rm", "remove", "plan", "help", "mcp", "completion"];
+export const COMMANDS = ["create", "list", "ls", "show", "edit", "update", "complete", "done", "delete", "rm", "remove", "plan", "sync", "import", "help", "mcp", "completion"];
 
 export function createService(options: CliOptions): TaskService {
-  return new TaskService(options.storage);
+  return new TaskService({
+    storage: options.storage,
+    syncService: options.syncService,
+  });
 }
 
 /**

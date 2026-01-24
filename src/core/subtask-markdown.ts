@@ -6,6 +6,15 @@ import { Task, CommitMetadata } from "../types.js";
 export type EmbeddedSubtask = Omit<Task, "parent_id">;
 
 /**
+ * A task with hierarchy information for rendering.
+ */
+export interface HierarchicalTask {
+  task: Task;
+  depth: number;  // 0 = immediate child of root, 1 = grandchild, etc.
+  parentId: string | null;
+}
+
+/**
  * Result of parsing an issue body.
  */
 export interface ParsedIssueBody {
@@ -22,6 +31,8 @@ export interface ParsedSubtaskId {
 }
 
 const SUBTASKS_HEADER = "## Subtasks";
+const TASK_TREE_HEADER = "## Task Tree";
+const TASK_DETAILS_HEADER = "## Task Details";
 
 /**
  * Parse a compound subtask ID into its components.
@@ -50,11 +61,43 @@ export function createSubtaskId(parentId: string, index: number): string {
 }
 
 /**
+ * Result of parsing an issue body with hierarchy info.
+ */
+export interface ParsedHierarchicalIssueBody {
+  context: string;
+  subtasks: Array<EmbeddedSubtask & { parentId?: string }>;
+}
+
+/**
  * Parse an issue body to extract context and embedded subtasks.
+ * Handles both old flat format (## Subtasks) and new hierarchical format (## Task Tree/Details).
  * @param body - The GitHub issue body
  * @returns Parsed context and subtasks
  */
 export function parseIssueBody(body: string): ParsedIssueBody {
+  // Check for new hierarchical format
+  const taskTreeIndex = body.indexOf(TASK_TREE_HEADER);
+  const taskDetailsIndex = body.indexOf(TASK_DETAILS_HEADER);
+
+  if (taskTreeIndex !== -1 || taskDetailsIndex !== -1) {
+    // New hierarchical format
+    const contextEnd = Math.min(
+      taskTreeIndex !== -1 ? taskTreeIndex : Infinity,
+      taskDetailsIndex !== -1 ? taskDetailsIndex : Infinity
+    );
+    const context = body.slice(0, contextEnd).trim();
+
+    // Parse subtasks from Task Details section
+    if (taskDetailsIndex !== -1) {
+      const detailsSection = body.slice(taskDetailsIndex + TASK_DETAILS_HEADER.length);
+      const subtasks = parseSubtasksSection(detailsSection);
+      return { context, subtasks };
+    }
+
+    return { context, subtasks: [] };
+  }
+
+  // Old flat format
   const subtasksIndex = body.indexOf(SUBTASKS_HEADER);
 
   if (subtasksIndex === -1) {
@@ -68,6 +111,51 @@ export function parseIssueBody(body: string): ParsedIssueBody {
   const subtasksSection = body.slice(subtasksIndex + SUBTASKS_HEADER.length);
 
   const subtasks = parseSubtasksSection(subtasksSection);
+
+  return { context, subtasks };
+}
+
+/**
+ * Parse an issue body preserving hierarchy information.
+ * Returns subtasks with their parentId for reconstructing the tree.
+ * @param body - The GitHub issue body
+ * @returns Parsed context and subtasks with parent info
+ */
+export function parseHierarchicalIssueBody(body: string): ParsedHierarchicalIssueBody {
+  const taskTreeIndex = body.indexOf(TASK_TREE_HEADER);
+  const taskDetailsIndex = body.indexOf(TASK_DETAILS_HEADER);
+
+  // Determine context end
+  const contextEnd = Math.min(
+    taskTreeIndex !== -1 ? taskTreeIndex : Infinity,
+    taskDetailsIndex !== -1 ? taskDetailsIndex : Infinity,
+    body.indexOf(SUBTASKS_HEADER) !== -1 ? body.indexOf(SUBTASKS_HEADER) : Infinity
+  );
+
+  const context = contextEnd === Infinity
+    ? body.trim()
+    : body.slice(0, contextEnd).trim();
+
+  // Parse subtasks with parent info
+  const subtasks: Array<EmbeddedSubtask & { parentId?: string }> = [];
+
+  if (taskDetailsIndex !== -1) {
+    const detailsSection = body.slice(taskDetailsIndex + TASK_DETAILS_HEADER.length);
+    const detailsRegex = /<details>([\s\S]*?)<\/details>/g;
+    let match;
+
+    while ((match = detailsRegex.exec(detailsSection)) !== null) {
+      const result = parseDetailsBlockWithParent(match[1]);
+      if (result) {
+        subtasks.push(result);
+      }
+    }
+  } else if (body.indexOf(SUBTASKS_HEADER) !== -1) {
+    // Old format - no parent info
+    const subtasksSection = body.slice(body.indexOf(SUBTASKS_HEADER) + SUBTASKS_HEADER.length);
+    const parsed = parseSubtasksSection(subtasksSection);
+    subtasks.push(...parsed);
+  }
 
   return { context, subtasks };
 }
@@ -106,7 +194,13 @@ function parseDetailsBlock(content: string): EmbeddedSubtask | null {
   }
 
   const isCompleted = summaryMatch[1].toLowerCase() === "x";
-  const description = summaryMatch[2].trim();
+  // Clean up description: remove depth arrows, HTML tags, and code blocks
+  const rawDescription = summaryMatch[2].trim();
+  const description = rawDescription
+    .replace(/^↳+\s*/, "")  // Remove depth arrows
+    .replace(/<\/?b>/g, "") // Remove <b> tags
+    .replace(/<code>.*?<\/code>/g, "") // Remove <code>id</code> blocks
+    .trim();
 
   // Extract metadata from HTML comments
   const metadata = parseMetadataComments(content);
@@ -142,10 +236,27 @@ function parseDetailsBlock(content: string): EmbeddedSubtask | null {
 }
 
 /**
+ * Parse a single <details> block into a subtask with parent info.
+ */
+function parseDetailsBlockWithParent(
+  content: string
+): (EmbeddedSubtask & { parentId?: string }) | null {
+  const subtask = parseDetailsBlock(content);
+  if (!subtask) return null;
+
+  // Extract parent from metadata
+  const parentMatch = content.match(/<!-- dex:subtask:parent:(.*?) -->/);
+  const parentId = parentMatch ? parentMatch[1] : undefined;
+
+  return { ...subtask, parentId };
+}
+
+/**
  * Parse metadata from HTML comments in a details block.
  */
 function parseMetadataComments(content: string): {
   id?: string;
+  parent?: string;
   priority?: number;
   completed?: boolean;
   created_at?: string;
@@ -165,6 +276,9 @@ function parseMetadataComments(content: string): {
     switch (key) {
       case "id":
         metadata.id = value;
+        break;
+      case "parent":
+        metadata.parent = value;
         break;
       case "priority":
         metadata.priority = parseInt(value, 10);
@@ -325,4 +439,133 @@ export function getNextSubtaskIndex(
   }
 
   return maxIndex + 1;
+}
+
+/**
+ * Collect all descendants of a task in depth-first order with hierarchy info.
+ * @param allTasks - All tasks in the store
+ * @param rootId - The root task ID to collect descendants from
+ * @returns Array of tasks with depth information
+ */
+export function collectDescendants(
+  allTasks: Task[],
+  rootId: string
+): HierarchicalTask[] {
+  const result: HierarchicalTask[] = [];
+
+  function collect(parentId: string, depth: number): void {
+    const children = allTasks
+      .filter((t) => t.parent_id === parentId)
+      .sort((a, b) => a.priority - b.priority);
+
+    for (const child of children) {
+      result.push({ task: child, depth, parentId });
+      collect(child.id, depth + 1);
+    }
+  }
+
+  collect(rootId, 0);
+  return result;
+}
+
+/**
+ * Render an issue body with hierarchical task tree and details.
+ * @param context - The root task context
+ * @param descendants - All descendant tasks with hierarchy info
+ * @returns The rendered markdown body
+ */
+export function renderHierarchicalIssueBody(
+  context: string,
+  descendants: HierarchicalTask[]
+): string {
+  if (descendants.length === 0) {
+    return context;
+  }
+
+  const lines: string[] = [context, ""];
+
+  // Task Tree section - quick overview with checkboxes
+  lines.push("## Task Tree");
+  lines.push("");
+  for (const { task, depth } of descendants) {
+    const indent = "  ".repeat(depth);
+    const checkbox = task.completed ? "x" : " ";
+    lines.push(`${indent}- [${checkbox}] **${task.description}** \`${task.id}\``);
+  }
+  lines.push("");
+
+  // Task Details section - expandable details for each task
+  lines.push("## Task Details");
+  lines.push("");
+  for (const { task, depth, parentId } of descendants) {
+    lines.push(renderHierarchicalTaskBlock(task, depth, parentId));
+    lines.push("");
+  }
+
+  return lines.join("\n");
+}
+
+/**
+ * Render a single task as a <details> block with depth indicator.
+ */
+function renderHierarchicalTaskBlock(
+  task: Task,
+  depth: number,
+  parentId: string | null
+): string {
+  const checkbox = task.completed ? "x" : " ";
+  const depthArrow = depth > 0 ? "↳".repeat(depth) + " " : "";
+  const lines: string[] = [];
+
+  lines.push("<details>");
+  lines.push(
+    `<summary>[${checkbox}] ${depthArrow}<b>${task.description}</b> <code>${task.id}</code></summary>`
+  );
+  lines.push(`<!-- dex:subtask:id:${task.id} -->`);
+  if (parentId) {
+    lines.push(`<!-- dex:subtask:parent:${parentId} -->`);
+  }
+  lines.push(`<!-- dex:subtask:priority:${task.priority} -->`);
+  lines.push(`<!-- dex:subtask:completed:${task.completed} -->`);
+  lines.push(`<!-- dex:subtask:created_at:${task.created_at} -->`);
+  lines.push(`<!-- dex:subtask:updated_at:${task.updated_at} -->`);
+  lines.push(
+    `<!-- dex:subtask:completed_at:${task.completed_at ?? "null"} -->`
+  );
+
+  // Render commit metadata if present
+  if (task.metadata?.commit) {
+    const commit = task.metadata.commit;
+    lines.push(`<!-- dex:subtask:commit_sha:${commit.sha} -->`);
+    if (commit.message) {
+      lines.push(`<!-- dex:subtask:commit_message:${commit.message} -->`);
+    }
+    if (commit.branch) {
+      lines.push(`<!-- dex:subtask:commit_branch:${commit.branch} -->`);
+    }
+    if (commit.url) {
+      lines.push(`<!-- dex:subtask:commit_url:${commit.url} -->`);
+    }
+    if (commit.timestamp) {
+      lines.push(`<!-- dex:subtask:commit_timestamp:${commit.timestamp} -->`);
+    }
+  }
+
+  lines.push("");
+
+  if (task.context) {
+    lines.push("### Context");
+    lines.push(task.context);
+    lines.push("");
+  }
+
+  if (task.result) {
+    lines.push("### Result");
+    lines.push(task.result);
+    lines.push("");
+  }
+
+  lines.push("</details>");
+
+  return lines.join("\n");
 }

@@ -1,6 +1,7 @@
 import { customAlphabet } from "nanoid";
 import { StorageEngine } from "./storage-engine.js";
 import { FileStorage } from "./storage.js";
+import { GitHubSyncService } from "./github-sync.js";
 import {
   Task,
   TaskStore,
@@ -12,15 +13,56 @@ import { NotFoundError, ValidationError } from "../errors.js";
 
 const generateId = customAlphabet("0123456789abcdefghijklmnopqrstuvwxyz", 8);
 
+function isStorageEngine(obj: unknown): obj is StorageEngine {
+  return (
+    typeof obj === "object" &&
+    obj !== null &&
+    ("read" in obj || "readAsync" in obj)
+  );
+}
+
+function resolveStorage(storage: StorageEngine | string | undefined): StorageEngine {
+  if (typeof storage === "string" || storage === undefined) {
+    return new FileStorage(storage);
+  }
+  return storage;
+}
+
+export interface TaskServiceOptions {
+  storage?: StorageEngine | string;
+  syncService?: GitHubSyncService | null;
+}
+
 export class TaskService {
   private storage: StorageEngine;
+  private syncService: GitHubSyncService | null;
 
-  constructor(storage?: StorageEngine | string) {
-    // Accept either a StorageEngine instance or a path string for backward compatibility
-    if (typeof storage === "string" || storage === undefined) {
-      this.storage = new FileStorage(storage);
+  constructor(options?: TaskServiceOptions | StorageEngine | string) {
+    // Handle backward compatibility with old constructor signatures
+    if (typeof options === "string" || options === undefined) {
+      this.storage = new FileStorage(options);
+      this.syncService = null;
+    } else if (isStorageEngine(options)) {
+      this.storage = options;
+      this.syncService = null;
     } else {
-      this.storage = storage;
+      this.storage = resolveStorage(options.storage);
+      this.syncService = options.syncService ?? null;
+    }
+  }
+
+  /**
+   * Sync a task to GitHub if sync service is configured.
+   * Errors are caught and logged but don't fail the operation.
+   */
+  private async syncToGitHub(task: Task): Promise<void> {
+    if (!this.syncService) return;
+
+    try {
+      const store = await this.storage.readAsync();
+      await this.syncService.syncTask(task, store);
+    } catch (err) {
+      console.warn("GitHub sync failed:", err instanceof Error ? err.message : err);
     }
   }
 
@@ -216,6 +258,9 @@ export class TaskService {
 
     await this.storage.writeAsync(store);
 
+    // Sync to GitHub if enabled
+    await this.syncToGitHub(task);
+
     return task;
   }
 
@@ -330,6 +375,9 @@ export class TaskService {
     task.updated_at = now;
     store.tasks[index] = task;
     await this.storage.writeAsync(store);
+
+    // Sync to GitHub if enabled
+    await this.syncToGitHub(task);
 
     return task;
   }

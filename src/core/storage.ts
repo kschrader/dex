@@ -4,6 +4,8 @@ import * as os from "node:os";
 import { Task, TaskStore, TaskStoreSchema, TaskSchema } from "../types.js";
 import { DataCorruptionError, StorageError } from "../errors.js";
 import { StorageEngine } from "./storage-engine.js";
+import { getProjectKey } from "./project-key.js";
+import type { StorageMode } from "./config.js";
 
 function findGitRoot(startDir: string): string | null {
   let currentDir: string;
@@ -28,7 +30,13 @@ function findGitRoot(startDir: string): string | null {
   return null;
 }
 
-function getDefaultStoragePath(): string {
+function getDefaultStoragePath(mode: StorageMode = "in-repo"): string {
+  if (mode === "centralized") {
+    const projectKey = getProjectKey();
+    return path.join(os.homedir(), ".dex", "projects", projectKey);
+  }
+
+  // in-repo mode: use git root or home directory
   const gitRoot = findGitRoot(process.cwd());
   if (gitRoot) {
     return path.join(gitRoot, ".dex");
@@ -36,15 +44,29 @@ function getDefaultStoragePath(): string {
   return path.join(os.homedir(), ".dex");
 }
 
-function getStoragePath(): string {
-  return process.env.DEX_STORAGE_PATH || getDefaultStoragePath();
+function getStoragePath(mode?: StorageMode): string {
+  return process.env.DEX_STORAGE_PATH || getDefaultStoragePath(mode);
+}
+
+export interface FileStorageOptions {
+  /** Explicit storage path (overrides mode) */
+  path?: string;
+  /** Storage mode: "in-repo" (default) or "centralized" */
+  mode?: StorageMode;
 }
 
 export class FileStorage implements StorageEngine {
   private storagePath: string;
 
-  constructor(storagePath?: string) {
-    this.storagePath = storagePath || getStoragePath();
+  constructor(options?: string | FileStorageOptions) {
+    if (typeof options === "string") {
+      // Backward compatibility: accept path as string
+      this.storagePath = options;
+    } else if (options?.path) {
+      this.storagePath = options.path;
+    } else {
+      this.storagePath = getStoragePath(options?.mode);
+    }
   }
 
   private get tasksDir(): string {
