@@ -2,6 +2,19 @@
 
 Task tracking for LLM workflows. CLI + MCP server + Claude Code plugin.
 
+## Quick Start
+
+```
+> Use Dex. Work on the next logical task. When done, run code-simplifier
+  and commit. Keep working until you're done with the next major task.
+```
+
+```
+> Track the work from our plan with /dex-plan and then begin implementation.
+```
+
+That's it. Dex gives your agent persistent memory for complex, multi-session work.
+
 ## Installation
 
 ### Claude Code (via Marketplace)
