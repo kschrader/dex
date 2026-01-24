@@ -79,23 +79,24 @@ that 12 route handlers depend on."
 
     <div class="scenario">
       <div class="scenario-prompt">
-        <span class="prompt-label">When done:</span>
-        <p>"Auth middleware is migrated. Record what changed."</p>
+        <span class="prompt-label">From a plan:</span>
+        <p>"/dex-plan" after finishing plan mode</p>
       </div>
       <Terminal title="Terminal">
-        <pre class="cli-output"><span class="cli-dim">$</span> dex complete p7n4j9q2 -r "Replaced passport.js with hono/jwt.
-User context now accessed via c.get('user') instead of req.user.
-Added middleware to src/middleware/auth.ts. Tests passing."
-<span class="cli-green">Completed</span> task <span class="cli-bold">p7n4j9q2</span>
-<span class="cli-green">[x]</span> <span class="cli-bold">p7n4j9q2</span>: Migrate auth middleware
+        <pre class="cli-output"><span class="cli-dim">$</span> dex plan ~/.claude/plans/auth-system.md
+<span class="cli-green">Created</span> task <span class="cli-bold">k9m3x7p1</span>
+<span class="cli-yellow">[ ]</span> <span class="cli-bold">k9m3x7p1</span>: Add JWT Authentication
 
 <span class="cli-bold">Context:</span>
-  Current auth uses passport.js with JWT strategy in
-  src/middleware/auth.ts. Hono equivalent is hono/jwt.
+  ## Summary
+  Add JWT-based authentication to the API...
 
-<span class="cli-bold">Result:</span>
-  <span class="cli-green">Replaced passport.js with hono/jwt. User context now accessed
-  via c.get('user') instead of req.user. Tests passing.</span></pre>
+Analyzed plan structure: Found 4 implementation steps
+<span class="cli-green">Created</span> 4 subtasks:
+  <span class="cli-dim">•</span> <span class="cli-bold">a2b4c6d8</span>: Create User model with password hashing
+  <span class="cli-dim">•</span> <span class="cli-bold">e1f3g5h7</span>: Add /auth/register endpoint
+  <span class="cli-dim">•</span> <span class="cli-bold">i8j6k4l2</span>: Add /auth/login endpoint
+  <span class="cli-dim">•</span> <span class="cli-bold">m9n7o5p3</span>: Create JWT middleware</pre>
       </Terminal>
     </div>
   </section>
