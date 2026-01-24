@@ -26,8 +26,12 @@ const base = import.meta.env.BASE_URL.replace(/\/$/, '');
     <h2>Quick Start</h2>
     <p>Install the dex skill for Claude Code:</p>
     <Terminal title="Terminal">
-      <pre class="cli-output"><span class="cli-dim">$</span> claude mcp add dex -- npx -y @anthropic-ai/dex
+      <pre class="cli-output"><span class="cli-dim">$</span> claude mcp add dex -- npx -y @zeeg/dex
 <span class="cli-green">Added</span> MCP server dex</pre>
+    </Terminal>
+    <p>Or with <a href="https://github.com/anthropics/skills">skills</a>:</p>
+    <Terminal title="Terminal">
+      <pre class="cli-output"><span class="cli-dim">$</span> npx skills add dcramer/dex</pre>
     </Terminal>
     <p>Restart Claude Code, then use <code>/dex</code> to manage tasks.</p>
   </section>
@@ -46,11 +50,10 @@ that 12 route handlers depend on."
 <span class="cli-green">Created</span> task <span class="cli-bold">p7n4j9q2</span>
 <span class="cli-yellow">[ ]</span> <span class="cli-bold">p7n4j9q2</span>: Migrate auth middleware
 
-<span class="cli-dim">$</span> dex create -d "Migrate route handlers to Hono" --context "After
-auth middleware is migrated, update handlers in src/routes/ to
-use Hono's c.get('user') instead of req.user." --blocked-by p7n4j9q2
-<span class="cli-green">Created</span> task <span class="cli-bold">w5t2v8b3</span>
-<span class="cli-yellow">[ ]</span> <span class="cli-bold">w5t2v8b3</span> <span class="cli-red">[B: p7n4j9q2]</span>: Migrate route handlers to Hono</pre>
+<span class="cli-bold">Context:</span>
+  Current auth uses passport.js with JWT strategy in
+  src/middleware/auth.ts. Hono equivalent is hono/jwt. Must
+  preserve req.user pattern that 12 route handlers depend on.</pre>
       </Terminal>
     </div>
 

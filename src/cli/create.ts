@@ -3,12 +3,12 @@ import {
   colors,
   createService,
   formatCliError,
-  formatTask,
   getBooleanFlag,
   getStringFlag,
   parseArgs,
   parseIntFlag,
 } from "./utils.js";
+import { formatTaskShow } from "./show.js";
 
 export async function createCommand(args: string[], options: CliOptions): Promise<void> {
   const { flags } = parseArgs(args, {
@@ -74,8 +74,12 @@ ${colors.bold}EXAMPLE:${colors.reset}
       blocked_by: blockedBy,
     });
 
+    // Fetch related info for richer output
+    const ancestors = await service.getAncestors(task.id);
+    const blockedByTasks = await service.getIncompleteBlockers(task.id);
+
     console.log(`${colors.green}Created${colors.reset} task ${colors.bold}${task.id}${colors.reset}`);
-    console.log(formatTask(task, {}));
+    console.log(formatTaskShow(task, { ancestors, blockedByTasks }));
   } catch (err) {
     console.error(formatCliError(err));
     process.exit(1);
