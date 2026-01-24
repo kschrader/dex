@@ -244,10 +244,10 @@ export function truncateText(text: string, maxLength: number): string {
 export function formatTask(task: Task, options: FormatTaskOptions = {}): string {
   const { verbose = false, treePrefix = "", truncateDescription } = options;
 
-  const statusIcon = task.status === "completed" ? "[x]" : "[ ]";
-  const statusColor = task.status === "completed" ? colors.green : colors.yellow;
+  const statusIcon = task.completed ? "[x]" : "[ ]";
+  const statusColor = task.completed ? colors.green : colors.yellow;
   const priority = task.priority !== 1 ? ` ${colors.cyan}[p${task.priority}]${colors.reset}` : "";
-  const completionAge = task.status === "completed" && task.completed_at
+  const completionAge = task.completed && task.completed_at
     ? ` ${colors.dim}(${formatAge(task.completed_at)})${colors.reset}`
     : "";
 

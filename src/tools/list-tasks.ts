@@ -1,10 +1,10 @@
 import { z } from "zod";
 import { TaskService } from "../core/task-service.js";
-import { TaskStatusSchema, ListTasksInput } from "../types.js";
+import { ListTasksInput } from "../types.js";
 import { jsonResponse, McpToolResponse } from "./response.js";
 
 export const ListTasksArgsSchema = z.object({
-  status: TaskStatusSchema.optional().describe("Filter by status"),
+  completed: z.boolean().optional().describe("Filter by completion status (true = completed, false = pending)"),
   query: z.string().optional().describe("Search in description and context"),
   all: z.boolean().optional().describe("Show all tasks (pending and completed)"),
 });

@@ -54,7 +54,7 @@ describe("MCP Server", () => {
       expect(task.id).toBeDefined();
       expect(task.description).toBe("Test task");
       expect(task.context).toBe("Test context for the task");
-      expect(task.status).toBe("pending");
+      expect(task.completed).toBe(false);
       expect(task.priority).toBe(1);
       expect(task.parent_id).toBeNull();
     });
@@ -162,7 +162,7 @@ describe("MCP Server", () => {
 
       await ctx.client.callTool({
         name: "update_task",
-        arguments: { id: toComplete.id, status: "completed", result: "Done" },
+        arguments: { id: toComplete.id, completed: true, result: "Done" },
       });
 
       // List without filters (should only show pending)
@@ -176,7 +176,7 @@ describe("MCP Server", () => {
       expect(tasks[0].description).toBe("Pending task");
     });
 
-    it("filters by status", async () => {
+    it("filters by completed", async () => {
       // Create tasks
       const createResult = await ctx.client.callTool({
         name: "create_task",
@@ -186,18 +186,18 @@ describe("MCP Server", () => {
 
       await ctx.client.callTool({
         name: "update_task",
-        arguments: { id: task.id, status: "completed", result: "Done" },
+        arguments: { id: task.id, completed: true, result: "Done" },
       });
 
-      // Filter by completed status
+      // Filter by completed
       const result = await ctx.client.callTool({
         name: "list_tasks",
-        arguments: { status: "completed" },
+        arguments: { completed: true },
       });
 
       const tasks = parseToolResponse<Task[]>(result);
       expect(tasks).toHaveLength(1);
-      expect(tasks[0].status).toBe("completed");
+      expect(tasks[0].completed).toBe(true);
     });
 
     it("returns all tasks with all flag", async () => {
@@ -216,7 +216,7 @@ describe("MCP Server", () => {
 
       await ctx.client.callTool({
         name: "update_task",
-        arguments: { id: toComplete.id, status: "completed", result: "Done" },
+        arguments: { id: toComplete.id, completed: true, result: "Done" },
       });
 
       // List all
@@ -310,13 +310,13 @@ describe("MCP Server", () => {
         name: "update_task",
         arguments: {
           id: task.id,
-          status: "completed",
+          completed: true,
           result: "Task completed successfully with these changes...",
         },
       });
 
       const completed = parseToolResponse<Task>(updateResult);
-      expect(completed.status).toBe("completed");
+      expect(completed.completed).toBe(true);
       expect(completed.result).toBe("Task completed successfully with these changes...");
       expect(completed.completed_at).toBeTruthy();
     });

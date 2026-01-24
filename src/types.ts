@@ -1,8 +1,5 @@
 import { z } from "zod";
 
-export const TaskStatusSchema = z.enum(["pending", "completed"]);
-export type TaskStatus = z.infer<typeof TaskStatusSchema>;
-
 export const CommitMetadataSchema = z.object({
   sha: z.string().min(1),
   message: z.string().optional(),
@@ -19,19 +16,33 @@ export const TaskMetadataSchema = z.object({
 
 export type TaskMetadata = z.infer<typeof TaskMetadataSchema>;
 
-export const TaskSchema = z.object({
+// Schema that handles backwards compatibility with old `status` field
+const TaskSchemaBase = z.object({
   id: z.string().min(1, "Task ID is required"),
   parent_id: z.string().min(1).nullable().default(null),
   description: z.string().min(1, "Description is required"),
   context: z.string().min(1, "Context is required"),
   priority: z.number().int().min(0).default(1),
-  status: TaskStatusSchema.default("pending"),
+  completed: z.boolean().default(false),
   result: z.string().nullable().default(null),
   metadata: TaskMetadataSchema.default(null),
   created_at: z.string().datetime(),
   updated_at: z.string().datetime(),
   completed_at: z.string().datetime().nullable().default(null),
 });
+
+// Preprocess to convert old `status` field to `completed` for backwards compatibility
+export const TaskSchema = z.preprocess((data) => {
+  if (typeof data === "object" && data !== null && "status" in data) {
+    const { status, ...rest } = data as Record<string, unknown>;
+    // Only convert if `completed` is not already present
+    if (!("completed" in rest)) {
+      return { ...rest, completed: status === "completed" };
+    }
+    return rest;
+  }
+  return data;
+}, TaskSchemaBase);
 
 export type Task = z.infer<typeof TaskSchema>;
 
@@ -56,7 +67,7 @@ export const UpdateTaskInputSchema = z.object({
   context: z.string().min(1, "Context cannot be empty").optional(),
   parent_id: z.string().min(1).nullable().optional(),
   priority: z.number().int().min(0).optional(),
-  status: TaskStatusSchema.optional(),
+  completed: z.boolean().optional(),
   result: z.string().optional(),
   metadata: TaskMetadataSchema.optional(),
   delete: z.boolean().optional(),
@@ -65,7 +76,7 @@ export const UpdateTaskInputSchema = z.object({
 export type UpdateTaskInput = z.infer<typeof UpdateTaskInputSchema>;
 
 export const ListTasksInputSchema = z.object({
-  status: TaskStatusSchema.optional(),
+  completed: z.boolean().optional(),
   query: z.string().optional(),
   all: z.boolean().optional(),
 });

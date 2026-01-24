@@ -1,6 +1,6 @@
 import { Octokit } from "@octokit/rest";
 import { StorageEngine } from "./storage-engine.js";
-import { Task, TaskStore, TaskStatus } from "../types.js";
+import { Task, TaskStore } from "../types.js";
 import { StorageError } from "../errors.js";
 import {
   parseIssueBody,
@@ -217,7 +217,7 @@ export class GitHubIssuesStorage implements StorageEngine {
     return [
       this.labelPrefix,
       `${this.labelPrefix}:priority-${task.priority}`,
-      `${this.labelPrefix}:${task.status === "completed" ? "completed" : "pending"}`,
+      `${this.labelPrefix}:${task.completed ? "completed" : "pending"}`,
     ];
   }
 
@@ -239,8 +239,7 @@ export class GitHubIssuesStorage implements StorageEngine {
    * Convert GitHub issue to dex task (parent task only, subtasks parsed separately)
    */
   private issueToTask(issue: any): Task {
-    const status: TaskStatus =
-      issue.state === "closed" ? "completed" : "pending";
+    const completed = issue.state === "closed";
     const priority = this.extractPriority(issue.labels);
     const parsed = parseIssueBody(issue.body || "");
 
@@ -250,7 +249,7 @@ export class GitHubIssuesStorage implements StorageEngine {
       description: issue.title,
       context: parsed.context,
       priority,
-      status,
+      completed,
       result: null,
       metadata: null,
       created_at: issue.created_at,
@@ -303,7 +302,7 @@ export class GitHubIssuesStorage implements StorageEngine {
     }
 
     // If task is completed, close it
-    if (parent.status === "completed") {
+    if (parent.completed) {
       await this.octokit.issues.update({
         owner: this.owner,
         repo: this.repo,
@@ -354,7 +353,7 @@ export class GitHubIssuesStorage implements StorageEngine {
       title: parent.description,
       body: renderIssueBody(parent.context, embeddedSubtasks),
       labels: this.buildLabels(parent),
-      state: parent.status === "completed" ? "closed" : "open",
+      state: parent.completed ? "closed" : "open",
     });
   }
 

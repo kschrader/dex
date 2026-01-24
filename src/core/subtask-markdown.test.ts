@@ -78,7 +78,7 @@ Subtask context here.
       description: "First subtask",
       context: "Subtask context here.",
       priority: 5,
-      status: "pending",
+      completed: false,
       result: null,
     });
   });
@@ -111,7 +111,7 @@ The task was completed successfully.
     expect(result.subtasks[0]).toMatchObject({
       id: "9-2",
       description: "Completed task",
-      status: "completed",
+      completed: true,
       result: "The task was completed successfully.",
     });
   });
@@ -222,7 +222,7 @@ describe("renderIssueBody", () => {
       description: "First subtask",
       context: "Subtask context.",
       priority: 5,
-      status: "pending",
+      completed: false,
       result: null,
       metadata: null,
       created_at: "2024-01-22T10:00:00Z",
@@ -238,7 +238,7 @@ describe("renderIssueBody", () => {
     expect(result).toContain("<summary>[ ] First subtask</summary>");
     expect(result).toContain("<!-- dex:subtask:id:9-1 -->");
     expect(result).toContain("<!-- dex:subtask:priority:5 -->");
-    expect(result).toContain("<!-- dex:subtask:status:pending -->");
+    expect(result).toContain("<!-- dex:subtask:completed:false -->");
     expect(result).toContain("### Context");
     expect(result).toContain("Subtask context.");
     expect(result).toContain("</details>");
@@ -250,7 +250,7 @@ describe("renderIssueBody", () => {
       description: "Done task",
       context: "Context.",
       priority: 1,
-      status: "completed",
+      completed: true,
       result: "Completed successfully.",
       metadata: null,
       created_at: "2024-01-22T10:00:00Z",
@@ -261,7 +261,7 @@ describe("renderIssueBody", () => {
     const result = renderIssueBody("Parent context.", [subtask]);
 
     expect(result).toContain("<summary>[x] Done task</summary>");
-    expect(result).toContain("<!-- dex:subtask:status:completed -->");
+    expect(result).toContain("<!-- dex:subtask:completed:true -->");
     expect(result).toContain("### Result");
     expect(result).toContain("Completed successfully.");
   });
@@ -273,7 +273,7 @@ describe("renderIssueBody", () => {
         description: "First",
         context: "Context 1",
         priority: 1,
-        status: "pending",
+        completed: false,
         result: null,
         metadata: null,
         created_at: "2024-01-22T10:00:00Z",
@@ -285,7 +285,7 @@ describe("renderIssueBody", () => {
         description: "Second",
         context: "Context 2",
         priority: 2,
-        status: "completed",
+        completed: true,
         result: "Done",
         metadata: null,
         created_at: "2024-01-22T10:00:00Z",
@@ -310,7 +310,7 @@ describe("round-trip parsing/rendering", () => {
       description: "Test subtask",
       context: "Test context.",
       priority: 3,
-      status: "pending",
+      completed: false,
       result: null,
       metadata: null,
       created_at: "2024-01-22T10:00:00Z",
@@ -328,7 +328,7 @@ describe("round-trip parsing/rendering", () => {
       description: "Test subtask",
       context: "Test context.",
       priority: 3,
-      status: "pending",
+      completed: false,
     });
   });
 
@@ -338,7 +338,7 @@ describe("round-trip parsing/rendering", () => {
       description: "Completed",
       context: "Context.",
       priority: 1,
-      status: "completed",
+      completed: true,
       result: "All done!",
       metadata: null,
       created_at: "2024-01-22T10:00:00Z",
@@ -350,7 +350,7 @@ describe("round-trip parsing/rendering", () => {
     const parsed = parseIssueBody(rendered);
 
     expect(parsed.subtasks).toHaveLength(1);
-    expect(parsed.subtasks[0].status).toBe("completed");
+    expect(parsed.subtasks[0].completed).toBe(true);
     expect(parsed.subtasks[0].result).toBe("All done!");
   });
 });
@@ -362,7 +362,7 @@ describe("embeddedSubtaskToTask", () => {
       description: "Subtask",
       context: "Context",
       priority: 2,
-      status: "pending",
+      completed: false,
       result: null,
       metadata: null,
       created_at: "2024-01-22T10:00:00Z",
@@ -378,7 +378,7 @@ describe("embeddedSubtaskToTask", () => {
       description: "Subtask",
       context: "Context",
       priority: 2,
-      status: "pending",
+      completed: false,
       result: null,
       metadata: null,
       created_at: "2024-01-22T10:00:00Z",
@@ -396,7 +396,7 @@ describe("taskToEmbeddedSubtask", () => {
       description: "Subtask",
       context: "Context",
       priority: 2,
-      status: "pending",
+      completed: false,
       result: null,
       metadata: null,
       created_at: "2024-01-22T10:00:00Z",
@@ -411,7 +411,7 @@ describe("taskToEmbeddedSubtask", () => {
       description: "Subtask",
       context: "Context",
       priority: 2,
-      status: "pending",
+      completed: false,
       result: null,
       metadata: null,
       created_at: "2024-01-22T10:00:00Z",
@@ -433,7 +433,7 @@ describe("getNextSubtaskIndex", () => {
         description: "First",
         context: "",
         priority: 1,
-        status: "pending",
+        completed: false,
         result: null,
         metadata: null,
         created_at: "",
@@ -445,7 +445,7 @@ describe("getNextSubtaskIndex", () => {
         description: "Third",
         context: "",
         priority: 1,
-        status: "pending",
+        completed: false,
         result: null,
         metadata: null,
         created_at: "",
@@ -464,7 +464,7 @@ describe("getNextSubtaskIndex", () => {
         description: "Other parent",
         context: "",
         priority: 1,
-        status: "pending",
+        completed: false,
         result: null,
         metadata: null,
         created_at: "",

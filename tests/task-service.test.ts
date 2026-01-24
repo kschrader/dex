@@ -29,7 +29,7 @@ describe("TaskService", () => {
       expect(task.id).toBeDefined();
       expect(task.description).toBe("Test task");
       expect(task.context).toBe("Test context");
-      expect(task.status).toBe("pending");
+      expect(task.completed).toBe(false);
       expect(task.priority).toBe(1);
       expect(task.parent_id).toBeNull();
       expect(task.result).toBeNull();
@@ -354,7 +354,7 @@ describe("TaskService", () => {
       });
       await service.update({
         id: toComplete.id,
-        status: "completed",
+        completed: true,
       });
 
       const tasks = await service.list();
@@ -362,17 +362,17 @@ describe("TaskService", () => {
       expect(tasks[0].id).toBe(pending.id);
     });
 
-    it("filters by status", async () => {
+    it("filters by completed", async () => {
       await service.create({ description: "Pending", context: "Context" });
       const completed = await service.create({
         description: "Completed",
         context: "Context",
       });
-      await service.update({ id: completed.id, status: "completed" });
+      await service.update({ id: completed.id, completed: true });
 
-      const tasks = await service.list({ status: "completed" });
+      const tasks = await service.list({ completed: true });
       expect(tasks).toHaveLength(1);
-      expect(tasks[0].status).toBe("completed");
+      expect(tasks[0].completed).toBe(true);
     });
 
     it("returns all tasks when all flag is true", async () => {
@@ -381,7 +381,7 @@ describe("TaskService", () => {
         description: "Completed",
         context: "Context",
       });
-      await service.update({ id: completed.id, status: "completed" });
+      await service.update({ id: completed.id, completed: true });
 
       const tasks = await service.list({ all: true });
       expect(tasks).toHaveLength(2);
@@ -455,7 +455,7 @@ describe("TaskService", () => {
 
       const completed = await service.complete(task.id, "Done successfully");
 
-      expect(completed.status).toBe("completed");
+      expect(completed.completed).toBe(true);
       expect(completed.result).toBe("Done successfully");
     });
 
@@ -506,7 +506,7 @@ describe("TaskService", () => {
         context: "Context",
         parent_id: grandparent.id,
       });
-      await service.update({ id: parent.id, status: "completed" });
+      await service.update({ id: parent.id, completed: true });
 
       await service.create({
         description: "Grandchild",
@@ -529,10 +529,10 @@ describe("TaskService", () => {
         context: "Context",
         parent_id: parent.id,
       });
-      await service.update({ id: child.id, status: "completed" });
+      await service.update({ id: child.id, completed: true });
 
       const completed = await service.complete(parent.id, "Done");
-      expect(completed.status).toBe("completed");
+      expect(completed.completed).toBe(true);
     });
   });
 

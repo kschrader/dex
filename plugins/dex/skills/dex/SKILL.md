@@ -147,7 +147,7 @@ dex create -d "Add auth" --context "Need to add authentication"
 ```bash
 dex list                      # Show pending tasks (default)
 dex list --all                # Include completed
-dex list --status completed   # Only completed
+dex list --completed          # Only completed
 dex list --query "login"      # Search in description/context
 ```
 
@@ -573,7 +573,7 @@ Each task is stored as a JSON file with the following structure:
   "description": "One-line summary",
   "context": "Full implementation details...",
   "priority": 1,
-  "status": "pending",
+  "completed": false,
   "result": null,
   "created_at": "2026-01-01T00:00:00.000Z",
   "updated_at": "2026-01-01T00:00:00.000Z",

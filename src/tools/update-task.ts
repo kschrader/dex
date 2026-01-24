@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { TaskService } from "../core/task-service.js";
-import { TaskStatusSchema, UpdateTaskInput } from "../types.js";
+import { UpdateTaskInput } from "../types.js";
 import { jsonResponse, McpToolResponse } from "./response.js";
 
 export const UpdateTaskArgsSchema = z.object({
@@ -9,7 +9,7 @@ export const UpdateTaskArgsSchema = z.object({
   context: z.string().min(1).optional().describe("Updated context"),
   parent_id: z.string().min(1).nullable().optional().describe("Parent task ID (null to remove parent)"),
   priority: z.number().int().min(0).optional().describe("Updated priority"),
-  status: TaskStatusSchema.optional().describe("Updated status"),
+  completed: z.boolean().optional().describe("Mark task as completed (true) or pending (false)"),
   result: z.string().optional().describe("Implementation summary like a PR description. Explain what was implemented and how the solution works, key decisions made and their rationale, trade-offs or alternatives you considered, and any follow-up work or tech debt. Write naturally so anyone can understand the solution without reading code. See .dex/tasks/c2w75okn.json for a real example."),
   commit_sha: z.string().optional().describe("Git commit SHA that implements this task"),
   commit_message: z.string().optional().describe("Commit message"),

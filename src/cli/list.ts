@@ -1,4 +1,4 @@
-import { Task, TaskStatus } from "../types.js";
+import { Task } from "../types.js";
 import {
   CliOptions,
   colors,
@@ -39,7 +39,7 @@ function printTaskTree(tasks: Task[], parentId: string | null, prefix: string = 
 export async function listCommand(args: string[], options: CliOptions): Promise<void> {
   const { positional, flags } = parseArgs(args, {
     all: { short: "a", hasValue: false },
-    status: { short: "s", hasValue: true },
+    completed: { short: "c", hasValue: false },
     query: { short: "q", hasValue: true },
     flat: { short: "f", hasValue: false },
     json: { hasValue: false },
@@ -57,7 +57,7 @@ ${colors.bold}ARGUMENTS:${colors.reset}
 
 ${colors.bold}OPTIONS:${colors.reset}
   -a, --all                  Include completed tasks
-  -s, --status <status>      Filter by status (pending, completed)
+  -c, --completed            Show only completed tasks
   -q, --query <text>         Search in description and context (deprecated: use positional)
   -f, --flat                 Show flat list instead of tree view
   --json                     Output as JSON
@@ -68,7 +68,7 @@ ${colors.bold}EXAMPLES:${colors.reset}
   dex list abc123            # Show task abc123 and its subtree
   dex list "auth"            # Search for tasks containing "auth"
   dex list --all             # Include completed tasks
-  dex list -q "login" --flat # Search and show flat list (deprecated)
+  dex list --completed       # Show only completed tasks
   dex list --json | jq '.'   # Output JSON for scripting
 `);
     return;
@@ -89,15 +89,7 @@ ${colors.bold}EXAMPLES:${colors.reset}
     }
   }
 
-  const statusValue = getStringFlag(flags, "status");
-  let status: TaskStatus | undefined;
-  if (statusValue !== undefined) {
-    if (statusValue !== "pending" && statusValue !== "completed") {
-      console.error(`${colors.red}Error:${colors.reset} Invalid value for --status: expected "pending" or "completed", got "${statusValue}"`);
-      process.exit(1);
-    }
-    status = statusValue;
-  }
+  const completedFilter = getBooleanFlag(flags, "completed") ? true : undefined;
 
   const service = createService(options);
 
@@ -113,7 +105,7 @@ ${colors.bold}EXAMPLES:${colors.reset}
 
   const tasks = await service.list({
     all: getBooleanFlag(flags, "all") || undefined,
-    status,
+    completed: completedFilter,
     query: queryFilter ?? getStringFlag(flags, "query"),
   });
 

@@ -1,4 +1,4 @@
-import { Task, TaskStatus, CommitMetadata } from "../types.js";
+import { Task, CommitMetadata } from "../types.js";
 
 /**
  * Represents a subtask parsed from or to be embedded in a GitHub issue body.
@@ -129,7 +129,7 @@ function parseDetailsBlock(content: string): EmbeddedSubtask | null {
     description,
     context,
     priority: metadata.priority ?? 1,
-    status: metadata.status ?? (isCompleted ? "completed" : "pending"),
+    completed: metadata.completed ?? isCompleted,
     result,
     metadata: metadata.commit ? { commit: metadata.commit } : null,
     created_at: metadata.created_at ?? new Date().toISOString(),
@@ -144,7 +144,7 @@ function parseDetailsBlock(content: string): EmbeddedSubtask | null {
 function parseMetadataComments(content: string): {
   id?: string;
   priority?: number;
-  status?: TaskStatus;
+  completed?: boolean;
   created_at?: string;
   updated_at?: string;
   completed_at?: string | null;
@@ -166,9 +166,13 @@ function parseMetadataComments(content: string): {
       case "priority":
         metadata.priority = parseInt(value, 10);
         break;
+      case "completed":
+        metadata.completed = value === "true";
+        break;
+      // Backwards compatibility: read old status field
       case "status":
-        if (value === "pending" || value === "completed") {
-          metadata.status = value;
+        if (metadata.completed === undefined) {
+          metadata.completed = value === "completed";
         }
         break;
       case "created_at":
@@ -229,14 +233,14 @@ export function renderIssueBody(
  * Render a single subtask as a <details> block.
  */
 function renderSubtaskBlock(subtask: EmbeddedSubtask): string {
-  const checkbox = subtask.status === "completed" ? "x" : " ";
+  const checkbox = subtask.completed ? "x" : " ";
   const lines: string[] = [];
 
   lines.push("<details>");
   lines.push(`<summary>[${checkbox}] ${subtask.description}</summary>`);
   lines.push(`<!-- dex:subtask:id:${subtask.id} -->`);
   lines.push(`<!-- dex:subtask:priority:${subtask.priority} -->`);
-  lines.push(`<!-- dex:subtask:status:${subtask.status} -->`);
+  lines.push(`<!-- dex:subtask:completed:${subtask.completed} -->`);
   lines.push(`<!-- dex:subtask:created_at:${subtask.created_at} -->`);
   lines.push(`<!-- dex:subtask:updated_at:${subtask.updated_at} -->`);
   lines.push(

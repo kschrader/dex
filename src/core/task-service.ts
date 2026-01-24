@@ -51,7 +51,7 @@ export class TaskService {
       description: input.description,
       context: input.context,
       priority: input.priority ?? 1,
-      status: "pending",
+      completed: false,
       result: null,
       metadata: null,
       created_at: now,
@@ -116,14 +116,14 @@ export class TaskService {
       task.parent_id = input.parent_id;
     }
     if (input.priority !== undefined) task.priority = input.priority;
-    if (input.status !== undefined) {
-      // Handle completed_at timestamp based on status transition
-      if (input.status === "completed" && task.status !== "completed") {
+    if (input.completed !== undefined) {
+      // Handle completed_at timestamp based on completion transition
+      if (input.completed && !task.completed) {
         task.completed_at = now;
-      } else if (input.status === "pending" && task.status === "completed") {
+      } else if (!input.completed && task.completed) {
         task.completed_at = null;
       }
-      task.status = input.status;
+      task.completed = input.completed;
     }
     if (input.result !== undefined) task.result = input.result;
     if (input.metadata !== undefined) {
@@ -241,8 +241,9 @@ export class TaskService {
     let tasks = store.tasks;
 
     if (!input.all) {
-      const statusFilter = input.status ?? "pending";
-      tasks = tasks.filter((t) => t.status === statusFilter);
+      // Default to showing non-completed (pending) tasks
+      const completedFilter = input.completed ?? false;
+      tasks = tasks.filter((t) => t.completed === completedFilter);
     }
 
     if (input.query) {
@@ -265,7 +266,7 @@ export class TaskService {
     this.collectDescendants(store.tasks, id, descendants);
 
     const pendingDescendants = store.tasks.filter(
-      (t) => descendants.has(t.id) && t.status === "pending"
+      (t) => descendants.has(t.id) && !t.completed
     );
 
     if (pendingDescendants.length > 0) {
@@ -277,7 +278,7 @@ export class TaskService {
 
     return await this.update({
       id,
-      status: "completed",
+      completed: true,
       result,
       metadata,
     });

@@ -48,8 +48,8 @@ function formatTreeTask(task: Task, options: {
   childCount?: number;
 }): string {
   const { prefix = "", isCurrent = false, truncateDescription = SHOW_TREE_DESCRIPTION_MAX_LENGTH, childCount } = options;
-  const statusIcon = task.status === "completed" ? "[x]" : "[ ]";
-  const statusColor = task.status === "completed" ? colors.green : colors.yellow;
+  const statusIcon = task.completed ? "[x]" : "[ ]";
+  const statusColor = task.completed ? colors.green : colors.yellow;
   const desc = truncateText(task.description, truncateDescription);
   const childInfo = childCount !== undefined && childCount > 0
     ? ` ${colors.dim}(${childCount} ${pluralize(childCount, "subtask")})${colors.reset}`
@@ -102,10 +102,10 @@ function formatHierarchyTree(task: Task, ancestors: Task[], children: Task[], gr
   if (children.length > 0) {
     const childIndent = ancestors.length > 0 ? currentIndent + "    " : "";
 
-    // Sort by priority then status (pending first)
+    // Sort by priority then completion status (pending first)
     const sortedChildren = [...children].sort((a, b) => {
       if (a.priority !== b.priority) return a.priority - b.priority;
-      if (a.status !== b.status) return a.status === "pending" ? -1 : 1;
+      if (a.completed !== b.completed) return a.completed ? 1 : -1;
       return 0;
     });
 
@@ -140,8 +140,8 @@ export function formatTaskShow(task: Task, options: FormatTaskShowOptions = {}):
     lines.push(""); // Blank line after tree
   } else {
     // No hierarchy - just show the task header
-    const statusIcon = task.status === "completed" ? "[x]" : "[ ]";
-    const statusColor = task.status === "completed" ? colors.green : colors.yellow;
+    const statusIcon = task.completed ? "[x]" : "[ ]";
+    const statusColor = task.completed ? colors.green : colors.yellow;
     lines.push(`${statusColor}${statusIcon}${colors.reset} ${colors.bold}${task.id}${colors.reset}${priority}: ${task.description}`);
     lines.push(""); // Blank line after header
   }
@@ -259,8 +259,8 @@ ${colors.bold}EXAMPLE:${colors.reset}
 
   // JSON output mode
   if (getBooleanFlag(flags, "json")) {
-    const pending = children.filter((c) => c.status === "pending");
-    const pendingGrandchildren = grandchildren.filter((c) => c.status === "pending");
+    const pending = children.filter((c) => !c.completed);
+    const pendingGrandchildren = grandchildren.filter((c) => !c.completed);
     const jsonOutput = {
       ...task,
       ancestors: ancestors.map((a) => ({ id: a.id, description: a.description })),
