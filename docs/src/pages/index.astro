@@ -1,7 +1,6 @@
 ---
 import Base from '../layouts/Base.astro';
 import Terminal from '../components/Terminal.astro';
-import { Code } from 'astro:components';
 
 const base = import.meta.env.BASE_URL.replace(/\/$/, '');
 ---
@@ -27,35 +26,74 @@ const base = import.meta.env.BASE_URL.replace(/\/$/, '');
     <h2>Quick Start</h2>
     <p>Install the dex skill for Claude Code:</p>
     <Terminal title="Terminal">
-      <Code
-        code={`claude plugin marketplace add dcramer/dex
-claude plugin install dex@dex`}
-        lang="bash"
-        theme="vitesse-black"
-      />
+      <pre class="cli-output"><span class="cli-dim">$</span> claude mcp add dex -- npx -y @anthropic-ai/dex
+<span class="cli-green">Added</span> MCP server dex</pre>
     </Terminal>
     <p>Restart Claude Code, then use <code>/dex</code> to manage tasks.</p>
   </section>
 
-  <section class="section">
-    <h2>When to use dex</h2>
-    <div class="feature-grid">
-      <div class="feature">
-        <h3>Large refactors</h3>
-        <p>Break down a migration into tracked steps. Pick up exactly where you left off, even across sessions.</p>
+  <section class="section scenarios">
+    <div class="scenario">
+      <div class="scenario-prompt">
+        <span class="prompt-label">You say:</span>
+        <p>"Migrate our API from Express to Hono. Use dex to track it."</p>
       </div>
-      <div class="feature">
-        <h3>Multi-step features</h3>
-        <p>Plan the work, track what's done, and record decisions made along the way.</p>
+      <Terminal title="Terminal">
+        <pre class="cli-output"><span class="cli-dim">$</span> dex create -d "Migrate auth middleware" --context "Current auth
+uses passport.js with JWT strategy in src/middleware/auth.ts.
+Hono equivalent is hono/jwt. Must preserve req.user pattern
+that 12 route handlers depend on."
+<span class="cli-green">Created</span> task <span class="cli-bold">p7n4j9q2</span>
+<span class="cli-yellow">[ ]</span> <span class="cli-bold">p7n4j9q2</span>: Migrate auth middleware
+
+<span class="cli-dim">$</span> dex create -d "Migrate route handlers to Hono" --context "After
+auth middleware is migrated, update handlers in src/routes/ to
+use Hono's c.get('user') instead of req.user." --blocked-by p7n4j9q2
+<span class="cli-green">Created</span> task <span class="cli-bold">w5t2v8b3</span>
+<span class="cli-yellow">[ ]</span> <span class="cli-bold">w5t2v8b3</span> <span class="cli-red">[B: p7n4j9q2]</span>: Migrate route handlers to Hono</pre>
+      </Terminal>
+    </div>
+
+    <div class="scenario">
+      <div class="scenario-prompt">
+        <span class="prompt-label">Next session:</span>
+        <p>"Continue working on the Hono migration."</p>
       </div>
-      <div class="feature">
-        <h3>Context handoff</h3>
-        <p>Document findings and progress so future sessions (or teammates) can continue seamlessly.</p>
+      <Terminal title="Terminal">
+        <pre class="cli-output"><span class="cli-dim">$</span> dex list
+<span class="cli-yellow">[ ]</span> <span class="cli-bold">p7n4j9q2</span>: Migrate auth middleware
+<span class="cli-yellow">[ ]</span> <span class="cli-bold">w5t2v8b3</span> <span class="cli-red">[B: p7n4j9q2]</span>: Migrate route handlers to Hono
+
+<span class="cli-dim">$</span> dex show p7n4j9q2
+<span class="cli-yellow">[ ]</span> <span class="cli-bold">p7n4j9q2</span>: Migrate auth middleware
+
+<span class="cli-bold">Context:</span>
+  Current auth uses passport.js with JWT strategy in
+  src/middleware/auth.ts. Hono equivalent is hono/jwt. Must
+  preserve req.user pattern that 12 route handlers depend on.</pre>
+      </Terminal>
+    </div>
+
+    <div class="scenario">
+      <div class="scenario-prompt">
+        <span class="prompt-label">When done:</span>
+        <p>"Auth middleware is migrated. Record what changed."</p>
       </div>
-      <div class="feature">
-        <h3>Complex debugging</h3>
-        <p>Track hypotheses, record what you've tried, and build up knowledge as you investigate.</p>
-      </div>
+      <Terminal title="Terminal">
+        <pre class="cli-output"><span class="cli-dim">$</span> dex complete p7n4j9q2 -r "Replaced passport.js with hono/jwt.
+User context now accessed via c.get('user') instead of req.user.
+Added middleware to src/middleware/auth.ts. Tests passing."
+<span class="cli-green">Completed</span> task <span class="cli-bold">p7n4j9q2</span>
+<span class="cli-green">[x]</span> <span class="cli-bold">p7n4j9q2</span>: Migrate auth middleware
+
+<span class="cli-bold">Context:</span>
+  Current auth uses passport.js with JWT strategy in
+  src/middleware/auth.ts. Hono equivalent is hono/jwt.
+
+<span class="cli-bold">Result:</span>
+  <span class="cli-green">Replaced passport.js with hono/jwt. User context now accessed
+  via c.get('user') instead of req.user. Tests passing.</span></pre>
+      </Terminal>
     </div>
   </section>
 </Base>
@@ -103,5 +141,71 @@ claude plugin install dex@dex`}
     50% {
       border-color: transparent;
     }
+  }
+
+  /* Scenarios */
+  .scenario {
+    margin-bottom: 3rem;
+  }
+
+  .scenario:last-child {
+    margin-bottom: 0;
+  }
+
+  .scenario-prompt {
+    margin-bottom: 1rem;
+  }
+
+  .prompt-label {
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--text-tertiary);
+    display: block;
+    margin-bottom: 0.5rem;
+  }
+
+  .scenario-prompt p {
+    font-size: 1.125rem;
+    line-height: 1.5;
+    color: var(--text);
+    margin: 0;
+  }
+
+  /* CLI output colors */
+  .cli-output {
+    font-family: var(--font-mono);
+    font-size: 0.875rem;
+    line-height: 1.6;
+    color: #e5e5e5;
+    margin: 0;
+    white-space: pre-wrap;
+    word-break: break-word;
+  }
+
+  .cli-green {
+    color: #4ade80;
+  }
+
+  .cli-yellow {
+    color: #facc15;
+  }
+
+  .cli-cyan {
+    color: #22d3ee;
+  }
+
+  .cli-red {
+    color: #f87171;
+  }
+
+  .cli-bold {
+    font-weight: 600;
+    color: #fff;
+  }
+
+  .cli-dim {
+    color: #737373;
   }
 </style>
