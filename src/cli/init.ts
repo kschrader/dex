@@ -12,32 +12,29 @@ interface ShellConfig {
   detectCommand?: string;
 }
 
-const SHELLS: ShellConfig[] = [
-  {
-    name: "bash",
-    configFile: path.join(os.homedir(), ".bashrc"),
-    completionLine: 'eval "$(dex completion bash)"',
-  },
-  {
-    name: "zsh",
-    configFile: path.join(os.homedir(), ".zshrc"),
-    completionLine: 'eval "$(dex completion zsh)"',
-  },
-  {
-    name: "fish",
-    configFile: path.join(os.homedir(), ".config", "fish", "config.fish"),
-    completionLine: "dex completion fish | source",
-  },
-];
+function getShellConfigs(homeDir?: string): ShellConfig[] {
+  const home = homeDir || os.homedir();
+  return [
+    {
+      name: "bash",
+      configFile: path.join(home, ".bashrc"),
+      completionLine: 'eval "$(dex completion bash)"',
+    },
+    {
+      name: "zsh",
+      configFile: path.join(home, ".zshrc"),
+      completionLine: 'eval "$(dex completion zsh)"',
+    },
+    {
+      name: "fish",
+      configFile: path.join(home, ".config", "fish", "config.fish"),
+      completionLine: "dex completion fish | source",
+    },
+  ];
+}
 
-function detectShells(): ShellConfig[] {
-  const detected: ShellConfig[] = [];
-  for (const shell of SHELLS) {
-    if (fs.existsSync(shell.configFile)) {
-      detected.push(shell);
-    }
-  }
-  return detected;
+function detectShells(homeDir?: string): ShellConfig[] {
+  return getShellConfigs(homeDir).filter((shell) => fs.existsSync(shell.configFile));
 }
 
 function isCompletionConfigured(shell: ShellConfig): boolean {
@@ -73,10 +70,17 @@ async function promptYesNo(question: string): Promise<boolean> {
   });
 }
 
-export async function initCommand(args: string[]): Promise<void> {
+export interface InitOptions {
+  configDir?: string;
+  homeDir?: string;
+}
+
+export async function initCommand(args: string[], options: InitOptions = {}): Promise<void> {
   const { flags } = parseArgs(args, {
     yes: { short: "y", hasValue: false },
     help: { short: "h", hasValue: false },
+    "config-dir": { hasValue: true },
+    "home-dir": { hasValue: true },
   }, "init");
 
   if (getBooleanFlag(flags, "help")) {
@@ -86,8 +90,10 @@ ${colors.bold}USAGE:${colors.reset}
   dex init [options]
 
 ${colors.bold}OPTIONS:${colors.reset}
-  -y, --yes    Accept all defaults (skip prompts)
-  -h, --help   Show this help message
+  -y, --yes           Accept all defaults (skip prompts)
+  --config-dir PATH   Override config directory (default: ~/.config/dex)
+  --home-dir PATH     Override home directory for shell detection
+  -h, --help          Show this help message
 
 ${colors.bold}DESCRIPTION:${colors.reset}
   Creates the dex configuration file and optionally configures
@@ -97,7 +103,12 @@ ${colors.bold}DESCRIPTION:${colors.reset}
   }
 
   const autoYes = getBooleanFlag(flags, "yes");
-  const configPath = getConfigPath();
+  const configDirOverride = (flags["config-dir"] as string) || options.configDir;
+  const homeDirOverride = (flags["home-dir"] as string) || options.homeDir;
+
+  const configPath = configDirOverride
+    ? path.join(configDirOverride, "dex.toml")
+    : getConfigPath();
   const dexConfigDir = path.dirname(configPath);
 
   // Check if config already exists
@@ -158,7 +169,7 @@ engine = "file"
   console.log(`${colors.green}✓${colors.reset} Created config file at ${colors.cyan}${configPath}${colors.reset}`);
 
   // Detect and configure shell completions
-  const detectedShells = detectShells();
+  const detectedShells = detectShells(homeDirOverride);
   const unconfiguredShells = detectedShells.filter((s) => !isCompletionConfigured(s));
 
   if (unconfiguredShells.length > 0) {
