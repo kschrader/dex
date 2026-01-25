@@ -13,7 +13,10 @@ import {
   GitHubRepo,
 } from "../core/git-remote.js";
 import { loadConfig } from "../core/config.js";
-import { parseHierarchicalIssueBody } from "../core/subtask-markdown.js";
+import {
+  parseHierarchicalIssueBody,
+  parseRootTaskMetadata,
+} from "../core/subtask-markdown.js";
 import { Task } from "../types.js";
 import { Octokit } from "@octokit/rest";
 
@@ -26,6 +29,7 @@ export async function importCommand(
     {
       all: { hasValue: false },
       "dry-run": { hasValue: false },
+      update: { hasValue: false },
       help: { short: "h", hasValue: false },
     },
     "import"
@@ -39,12 +43,14 @@ ${colors.bold}USAGE:${colors.reset}
   dex import <url>         # Import by full URL
   dex import --all         # Import all dex-labeled issues
   dex import --dry-run     # Preview without importing
+  dex import #123 --update # Update existing task from GitHub
 
 ${colors.bold}ARGUMENTS:${colors.reset}
   <ref>                   Issue reference: #N, URL, or owner/repo#N
 
 ${colors.bold}OPTIONS:${colors.reset}
   --all                   Import all issues with dex label
+  --update                Update existing task if already imported
   --dry-run               Show what would be imported without making changes
   -h, --help              Show this help message
 
@@ -57,6 +63,7 @@ ${colors.bold}EXAMPLE:${colors.reset}
   dex import https://github.com/user/repo/issues/42
   dex import user/repo#42
   dex import --all                            # Import all dex issues
+  dex import #42 --update                     # Refresh local task from GitHub
 `);
     return;
   }
@@ -64,6 +71,7 @@ ${colors.bold}EXAMPLE:${colors.reset}
   const issueRef = positional[0];
   const importAll = getBooleanFlag(flags, "all");
   const dryRun = getBooleanFlag(flags, "dry-run");
+  const update = getBooleanFlag(flags, "update");
 
   if (!issueRef && !importAll) {
     console.error(
@@ -95,14 +103,16 @@ ${colors.bold}EXAMPLE:${colors.reset}
         octokit,
         service,
         labelPrefix,
-        dryRun
+        dryRun,
+        update
       );
     } else {
       await importSingleIssue(
         octokit,
         service,
         issueRef,
-        dryRun
+        dryRun,
+        update
       );
     }
   } catch (err) {
@@ -115,7 +125,8 @@ async function importSingleIssue(
   octokit: Octokit,
   service: ReturnType<typeof createService>,
   issueRef: string,
-  dryRun: boolean
+  dryRun: boolean,
+  update: boolean
 ): Promise<void> {
   const defaultRepo = getGitHubRepo();
   const parsed = parseGitHubIssueRef(issueRef, defaultRepo ?? undefined);
@@ -134,20 +145,43 @@ async function importSingleIssue(
     (t) => getGitHubIssueNumber(t) === parsed.number
   );
 
-  if (alreadyImported) {
-    console.log(
-      `${colors.yellow}Skipped${colors.reset} issue #${parsed.number}: ` +
-        `already imported as task ${colors.bold}${alreadyImported.id}${colors.reset}`
-    );
-    return;
-  }
-
   // Fetch the issue
   const { data: issue } = await octokit.issues.get({
     owner: parsed.owner,
     repo: parsed.repo,
     issue_number: parsed.number,
   });
+
+  if (alreadyImported) {
+    if (update) {
+      if (dryRun) {
+        console.log(
+          `Would update task ${colors.bold}${alreadyImported.id}${colors.reset} ` +
+            `from issue #${parsed.number}`
+        );
+        return;
+      }
+
+      const updatedTask = await updateTaskFromIssue(
+        service,
+        alreadyImported,
+        issue,
+        parsed
+      );
+      console.log(
+        `${colors.green}Updated${colors.reset} task ${colors.bold}${updatedTask.id}${colors.reset} ` +
+          `from issue #${parsed.number}`
+      );
+      return;
+    }
+
+    console.log(
+      `${colors.yellow}Skipped${colors.reset} issue #${parsed.number}: ` +
+        `already imported as task ${colors.bold}${alreadyImported.id}${colors.reset}\n` +
+        `  Use --update to refresh from GitHub`
+    );
+    return;
+  }
 
   if (dryRun) {
     console.log(`Would import from ${colors.cyan}${parsed.owner}/${parsed.repo}${colors.reset}:`);
@@ -161,6 +195,7 @@ async function importSingleIssue(
     return;
   }
 
+  const body = issue.body || "";
   const task = await importIssueAsTask(service, issue, parsed);
   console.log(
     `${colors.green}Imported${colors.reset} issue #${parsed.number} as task ` +
@@ -168,7 +203,6 @@ async function importSingleIssue(
   );
 
   // Import subtasks
-  const body = issue.body || "";
   const { subtasks } = parseHierarchicalIssueBody(body);
 
   if (subtasks.length > 0) {
@@ -192,7 +226,8 @@ async function importAllIssues(
   octokit: Octokit,
   service: ReturnType<typeof createService>,
   labelPrefix: string,
-  dryRun: boolean
+  dryRun: boolean,
+  update: boolean
 ): Promise<void> {
   const repo = getGitHubRepo();
   if (!repo) {
@@ -222,29 +257,45 @@ async function importAllIssues(
 
   // Get existing tasks to check for duplicates
   const existingTasks = await service.list({ all: true });
-  const importedNumbers = new Set(
+  const importedByNumber = new Map(
     existingTasks
-      .map(getGitHubIssueNumber)
-      .filter((n): n is number => n !== null)
+      .map((t) => [getGitHubIssueNumber(t), t] as const)
+      .filter((pair): pair is [number, Task] => pair[0] !== null)
   );
 
-  const toImport = realIssues.filter((i) => !importedNumbers.has(i.number));
-  const skipped = realIssues.length - toImport.length;
+  const toImport = realIssues.filter((i) => !importedByNumber.has(i.number));
+  const toUpdate = update
+    ? realIssues.filter((i) => importedByNumber.has(i.number))
+    : [];
+  const skipped = realIssues.length - toImport.length - toUpdate.length;
 
   if (dryRun) {
-    console.log(
-      `Would import ${toImport.length} issue(s) from ${colors.cyan}${repo.owner}/${repo.repo}${colors.reset}:`
-    );
-    for (const issue of toImport) {
-      console.log(`  #${issue.number}: ${issue.title}`);
+    if (toImport.length > 0) {
+      console.log(
+        `Would import ${toImport.length} issue(s) from ${colors.cyan}${repo.owner}/${repo.repo}${colors.reset}:`
+      );
+      for (const issue of toImport) {
+        console.log(`  #${issue.number}: ${issue.title}`);
+      }
+    }
+    if (toUpdate.length > 0) {
+      console.log(
+        `Would update ${toUpdate.length} task(s) from ${colors.cyan}${repo.owner}/${repo.repo}${colors.reset}:`
+      );
+      for (const issue of toUpdate) {
+        const existingTask = importedByNumber.get(issue.number)!;
+        console.log(`  #${issue.number} → ${existingTask.id}`);
+      }
     }
     if (skipped > 0) {
-      console.log(`  (${skipped} already imported)`);
+      console.log(`  (${skipped} already imported, use --update to refresh)`);
     }
     return;
   }
 
   let imported = 0;
+  let updated = 0;
+
   for (const issue of toImport) {
     const task = await importIssueAsTask(service, issue, repo);
     console.log(
@@ -253,52 +304,122 @@ async function importAllIssues(
     imported++;
   }
 
+  for (const issue of toUpdate) {
+    const existingTask = importedByNumber.get(issue.number)!;
+    await updateTaskFromIssue(service, existingTask, issue, repo);
+    console.log(
+      `${colors.green}Updated${colors.reset} #${issue.number} → ${colors.bold}${existingTask.id}${colors.reset}`
+    );
+    updated++;
+  }
+
   console.log(
-    `\nImported ${imported} issue(s) from ${colors.cyan}${repo.owner}/${repo.repo}${colors.reset}`
+    `\nImported ${imported}, updated ${updated} issue(s) from ${colors.cyan}${repo.owner}/${repo.repo}${colors.reset}`
   );
   if (skipped > 0) {
-    console.log(`Skipped ${skipped} already imported`);
+    console.log(`Skipped ${skipped} already imported (use --update to refresh)`);
   }
 }
 
-async function importIssueAsTask(
-  service: ReturnType<typeof createService>,
-  issue: { number: number; title: string; body?: string | null; state: string },
-  repo: GitHubRepo
-): Promise<Task> {
-  const body = issue.body || "";
+type GitHubIssue = {
+  number: number;
+  title: string;
+  body?: string | null;
+  state: string;
+};
 
-  // Parse the issue body
+interface ParsedIssueData {
+  cleanContext: string;
+  rootMetadata: ReturnType<typeof parseRootTaskMetadata>;
+  githubMetadata: {
+    issueNumber: number;
+    issueUrl: string;
+    repo: string;
+  };
+}
+
+function parseIssueData(issue: GitHubIssue, repo: GitHubRepo): ParsedIssueData {
+  const body = issue.body || "";
   const { context } = parseHierarchicalIssueBody(body);
 
-  // Strip the dex task comment if present
   const cleanContext = context
-    .replace(/<!-- dex:task:.*? -->\n?/, "")
+    .replace(/<!-- dex:task:\w+:.*? -->\n?/g, "")
     .trim();
 
-  const task = await service.create({
-    description: issue.title,
-    context: cleanContext || `Imported from GitHub issue #${issue.number}`,
-  });
-
-  // Update with proper github metadata (matching sync format) and completion status
+  const rootMetadata = parseRootTaskMetadata(body);
   const repoString = `${repo.owner}/${repo.repo}`;
-  const githubMetadata = {
-    ...task.metadata,
-    github: {
+
+  return {
+    cleanContext,
+    rootMetadata,
+    githubMetadata: {
       issueNumber: issue.number,
       issueUrl: `https://github.com/${repoString}/issues/${issue.number}`,
       repo: repoString,
     },
   };
+}
+
+async function importIssueAsTask(
+  service: ReturnType<typeof createService>,
+  issue: GitHubIssue,
+  repo: GitHubRepo
+): Promise<Task> {
+  const { cleanContext, rootMetadata, githubMetadata } = parseIssueData(
+    issue,
+    repo
+  );
+
+  const task = await service.create({
+    description: issue.title,
+    context: cleanContext || `Imported from GitHub issue #${issue.number}`,
+    priority: rootMetadata?.priority,
+  });
 
   return await service.update({
     id: task.id,
-    metadata: githubMetadata,
+    metadata: {
+      ...task.metadata,
+      github: githubMetadata,
+      ...(rootMetadata?.commit && { commit: rootMetadata.commit }),
+    },
     ...(issue.state === "closed" && {
       completed: true,
-      result: "Imported as completed from GitHub",
+      result: rootMetadata?.result || "Imported as completed from GitHub",
     }),
+  });
+}
+
+async function updateTaskFromIssue(
+  service: ReturnType<typeof createService>,
+  existingTask: Task,
+  issue: GitHubIssue,
+  repo: GitHubRepo
+): Promise<Task> {
+  const { cleanContext, rootMetadata, githubMetadata } = parseIssueData(
+    issue,
+    repo
+  );
+
+  return await service.update({
+    id: existingTask.id,
+    description: issue.title,
+    context: cleanContext || existingTask.context,
+    priority: rootMetadata?.priority ?? existingTask.priority,
+    metadata: {
+      ...existingTask.metadata,
+      github: githubMetadata,
+      ...(rootMetadata?.commit && { commit: rootMetadata.commit }),
+    },
+    ...(issue.state === "closed"
+      ? {
+          completed: true,
+          result:
+            rootMetadata?.result ||
+            existingTask.result ||
+            "Updated from closed GitHub issue",
+        }
+      : { completed: false }),
   });
 }
 
