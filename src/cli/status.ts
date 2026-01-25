@@ -7,12 +7,155 @@ import {
   getBooleanFlag,
   getIncompleteBlockerIds,
   parseArgs,
-  pluralize,
+  truncateText,
 } from "./utils.js";
 
 // Limits for displayed tasks in each section
 const READY_LIMIT = 5;
 const COMPLETED_LIMIT = 5;
+
+// Max description length for status view
+const STATUS_DESCRIPTION_MAX_LENGTH = 50;
+
+interface PrintContext {
+  childrenMap: Map<string, Task[]>;
+  allTasks: Task[];
+  printed: Set<string>;
+  count: number;
+  limit: number;
+  getBlockedByIds?: (task: Task) => string[];
+}
+
+/**
+ * Build a map of parent ID to children that are in the section.
+ */
+function buildChildrenMap(sectionTasks: Task[]): Map<string, Task[]> {
+  const map = new Map<string, Task[]>();
+  for (const task of sectionTasks) {
+    if (task.parent_id) {
+      if (!map.has(task.parent_id)) {
+        map.set(task.parent_id, []);
+      }
+      map.get(task.parent_id)!.push(task);
+    }
+  }
+  // Sort children by priority within each group
+  for (const children of map.values()) {
+    children.sort((a, b) => a.priority - b.priority);
+  }
+  return map;
+}
+
+/**
+ * Calculate the continuation prefix for nested children.
+ * Converts tree connectors to vertical lines or spaces for proper alignment.
+ */
+function getContinuationPrefix(prefix: string): string {
+  return prefix.replace(/├── $/, "│   ").replace(/└── $/, "    ");
+}
+
+/**
+ * Print a task and recursively print its children that are in the section.
+ */
+function printTaskWithChildren(
+  task: Task,
+  ctx: PrintContext,
+  prefix: string
+): void {
+  if (ctx.count >= ctx.limit || ctx.printed.has(task.id)) return;
+
+  const blockedByIds = ctx.getBlockedByIds?.(task) || [];
+
+  console.log(formatTask(task, {
+    treePrefix: prefix,
+    truncateDescription: STATUS_DESCRIPTION_MAX_LENGTH,
+    blockedByIds,
+  }));
+  ctx.printed.add(task.id);
+  ctx.count++;
+
+  // Print children that are in the section
+  const children = (ctx.childrenMap.get(task.id) || []).filter((c) => !ctx.printed.has(c.id));
+
+  for (let i = 0; i < children.length && ctx.count < ctx.limit; i++) {
+    const isLast = i === children.length - 1 || ctx.count + 1 >= ctx.limit;
+    const connector = isLast ? "└── " : "├── ";
+    const childPrefix = getContinuationPrefix(prefix) + connector;
+
+    printTaskWithChildren(children[i], ctx, childPrefix);
+  }
+}
+
+/**
+ * Print tasks grouped by parent with tree connectors.
+ * Tasks with children in the section show those children nested underneath.
+ * Tasks whose parent is not in the section show a dimmed parent header.
+ */
+function printGroupedTasks(
+  sectionTasks: Task[],
+  allTasks: Task[],
+  limit: number,
+  options: { blockedByIds?: (task: Task) => string[] } = {}
+): void {
+  const sectionTaskIds = new Set(sectionTasks.map((t) => t.id));
+  const childrenMap = buildChildrenMap(sectionTasks);
+
+  const ctx: PrintContext = {
+    childrenMap,
+    allTasks,
+    printed: new Set<string>(),
+    count: 0,
+    limit,
+    getBlockedByIds: options.blockedByIds,
+  };
+
+  // Separate tasks into root tasks and orphans (tasks whose parent is not in section)
+  const rootTasks: Task[] = [];
+  const orphansByParent = new Map<string, Task[]>();
+
+  for (const task of sectionTasks) {
+    if (!task.parent_id) {
+      rootTasks.push(task);
+    } else if (!sectionTaskIds.has(task.parent_id)) {
+      // Parent exists but not in section - group under parent
+      const siblings = orphansByParent.get(task.parent_id) || [];
+      siblings.push(task);
+      orphansByParent.set(task.parent_id, siblings);
+    }
+    // Tasks with parent in section will be printed as children
+  }
+
+  // Sort root tasks by priority and print them
+  rootTasks.sort((a, b) => a.priority - b.priority);
+  for (const task of rootTasks) {
+    if (ctx.count >= limit) break;
+    printTaskWithChildren(task, ctx, "");
+  }
+
+  // Print orphan groups with dimmed parent headers
+  for (const [parentId, children] of orphansByParent) {
+    if (ctx.count >= limit) break;
+
+    children.sort((a, b) => a.priority - b.priority);
+    const remainingChildren = children.filter((c) => !ctx.printed.has(c.id));
+    if (remainingChildren.length === 0) continue;
+
+    // Show dimmed parent header
+    const parent = allTasks.find((t) => t.id === parentId);
+    if (parent) {
+      const parentDesc = truncateText(parent.description, STATUS_DESCRIPTION_MAX_LENGTH);
+      const parentIcon = parent.completed ? "[x]" : "[ ]";
+      console.log(`${colors.dim}${parentIcon} ${parent.id}: ${parentDesc}${colors.reset}`);
+    }
+
+    // Print children with tree connectors
+    for (let i = 0; i < remainingChildren.length && ctx.count < limit; i++) {
+      const isLast = i === remainingChildren.length - 1 || ctx.count + 1 >= limit;
+      const connector = isLast ? "└── " : "├── ";
+      printTaskWithChildren(remainingChildren[i], ctx, connector);
+    }
+  }
+}
 
 interface StatusStats {
   total: number;
@@ -152,10 +295,7 @@ ${colors.bold}EXAMPLES:${colors.reset}
     console.log("");
     console.log(`${colors.bold}Ready to Work (${readyTasks.length})${colors.reset}`);
     console.log(`${colors.dim}────────────────────${colors.reset}`);
-    const displayReady = readyTasks.slice(0, READY_LIMIT);
-    for (const task of displayReady) {
-      console.log(formatTask(task, { truncateDescription: 50 }));
-    }
+    printGroupedTasks(readyTasks, allTasks, READY_LIMIT);
     if (readyTasks.length > READY_LIMIT) {
       const remaining = readyTasks.length - READY_LIMIT;
       console.log(`${colors.dim}... and ${remaining} more (dex list --ready)${colors.reset}`);
@@ -167,10 +307,9 @@ ${colors.bold}EXAMPLES:${colors.reset}
     console.log("");
     console.log(`${colors.bold}Blocked (${blockedTasks.length})${colors.reset}`);
     console.log(`${colors.dim}────────────────────${colors.reset}`);
-    for (const task of blockedTasks) {
-      const blockerIds = getIncompleteBlockerIds(allTasks, task);
-      console.log(formatTask(task, { truncateDescription: 50, blockedByIds: blockerIds }));
-    }
+    printGroupedTasks(blockedTasks, allTasks, blockedTasks.length, {
+      blockedByIds: (task) => getIncompleteBlockerIds(allTasks, task),
+    });
   }
 
   // Recently Completed section
@@ -178,9 +317,6 @@ ${colors.bold}EXAMPLES:${colors.reset}
     console.log("");
     console.log(`${colors.bold}Recently Completed${colors.reset}`);
     console.log(`${colors.dim}────────────────────${colors.reset}`);
-    const displayCompleted = recentlyCompleted.slice(0, COMPLETED_LIMIT);
-    for (const task of displayCompleted) {
-      console.log(formatTask(task, { truncateDescription: 50 }));
-    }
+    printGroupedTasks(recentlyCompleted, allTasks, COMPLETED_LIMIT);
   }
 }
