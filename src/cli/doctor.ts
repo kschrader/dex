@@ -1,5 +1,6 @@
 import * as fs from "node:fs";
-import { parse as parseToml } from "smol-toml";
+import * as path from "node:path";
+import { parse as parseToml, stringify as stringifyToml } from "smol-toml";
 import {
   CliOptions,
   colors,
@@ -12,6 +13,14 @@ import {
   getProjectConfigPath,
   loadConfig,
 } from "../core/config.js";
+import { getGitHubToken } from "../core/github-sync.js";
+
+/**
+ * Default auto-sync configuration to add when missing.
+ */
+const DEFAULT_AUTO_SYNC_CONFIG = {
+  on_change: true,
+};
 
 export interface DoctorIssue {
   type: "error" | "warning";
@@ -197,16 +206,88 @@ async function checkConfig(options: CliOptions): Promise<DoctorIssue[]> {
   // Check GitHub sync config if enabled
   if (config.sync?.github?.enabled) {
     const tokenEnv = config.sync.github.token_env || "GITHUB_TOKEN";
-    if (!process.env[tokenEnv]) {
+    const token = getGitHubToken(tokenEnv);
+    if (!token) {
       issues.push({
         type: "warning",
         category: "config",
-        message: `GitHub sync enabled but ${tokenEnv} environment variable not set`,
+        message: `GitHub sync enabled but no token found (checked ${tokenEnv} env var and gh CLI)`,
+      });
+    }
+
+    // Check for missing auto-sync configuration in both global and project configs
+    // We check each file that has sync.github.enabled and warn if it's missing the auto section
+    const configsToCheck: { path: string; label: string }[] = [];
+
+    // Check global config
+    if (fs.existsSync(globalConfigPath)) {
+      const globalParsed = parseConfigFileRaw(globalConfigPath);
+      if (globalParsed?.sync?.github?.enabled && !globalParsed?.sync?.github?.auto) {
+        configsToCheck.push({ path: globalConfigPath, label: "global" });
+      }
+    }
+
+    // Check project config
+    const projectConfigPath = storagePath ? getProjectConfigPath(storagePath) : null;
+    if (projectConfigPath && fs.existsSync(projectConfigPath)) {
+      const projectParsed = parseConfigFileRaw(projectConfigPath);
+      if (projectParsed?.sync?.github?.enabled && !projectParsed?.sync?.github?.auto) {
+        configsToCheck.push({ path: projectConfigPath, label: "project" });
+      }
+    }
+
+    for (const { path: configPath, label } of configsToCheck) {
+      issues.push({
+        type: "warning",
+        category: "config",
+        message: `Missing [sync.github.auto] in ${label} config (${configPath})`,
+        fix: async () => {
+          await addAutoSyncConfig(configPath);
+        },
       });
     }
   }
 
   return issues;
+}
+
+/**
+ * Parse a TOML config file and return raw parsed object.
+ */
+function parseConfigFileRaw(configPath: string): any | null {
+  if (!fs.existsSync(configPath)) {
+    return null;
+  }
+  try {
+    const content = fs.readFileSync(configPath, "utf-8");
+    return parseToml(content);
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Add auto-sync config section to an existing config file.
+ * Preserves existing content and appends the new section.
+ */
+async function addAutoSyncConfig(configPath: string): Promise<void> {
+  const content = fs.readFileSync(configPath, "utf-8");
+  const parsed = parseToml(content) as any;
+
+  // Ensure sync.github exists
+  if (!parsed.sync) {
+    parsed.sync = {};
+  }
+  if (!parsed.sync.github) {
+    parsed.sync.github = { enabled: true };
+  }
+
+  // Add auto section with defaults
+  parsed.sync.github.auto = { ...DEFAULT_AUTO_SYNC_CONFIG };
+
+  // Write back as TOML
+  const newContent = stringifyToml(parsed);
+  fs.writeFileSync(configPath, newContent, "utf-8");
 }
 
 async function checkStorage(

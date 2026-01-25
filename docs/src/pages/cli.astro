@@ -10,6 +10,31 @@ import { Code } from 'astro:components';
   <h2>Core Commands</h2>
 
   <div class="command-card">
+    <h3>dex status</h3>
+    <div class="synopsis">dex status [options]</div>
+    <p>Show a dashboard overview of your tasks. <strong>This is the default command</strong> — running <code>dex</code> with no arguments runs <code>dex status</code>.</p>
+    <ul>
+      <li><code>--json</code> — Output as JSON for scripting</li>
+    </ul>
+    <p>The dashboard shows:</p>
+    <ul>
+      <li><strong>Stats</strong> — Total, pending, completed, blocked, and ready counts</li>
+      <li><strong>Ready to Work</strong> — Pending tasks with no blockers (up to 5)</li>
+      <li><strong>Blocked</strong> — Tasks waiting on dependencies</li>
+      <li><strong>Recently Completed</strong> — Latest completed tasks (up to 5)</li>
+    </ul>
+    <Terminal title="Terminal">
+      <Code
+        code={`dex                    # Show dashboard (default)
+dex status             # Same as above
+dex status --json      # Output as JSON`}
+        lang="bash"
+        theme="vitesse-black"
+      />
+    </Terminal>
+  </div>
+
+  <div class="command-card">
     <h3>dex create</h3>
     <div class="synopsis">dex create -d &lt;description&gt; --context &lt;context&gt; [options]</div>
     <p>Create a new task with description and context.</p>
@@ -153,6 +178,30 @@ dex plan feature.md --parent abc123`}
     <p>Import a GitHub Issue as a dex task.</p>
     <Terminal title="Terminal">
       <Code code="dex import https://github.com/owner/repo/issues/123" lang="bash" theme="vitesse-black" />
+    </Terminal>
+  </div>
+
+  <h2>Diagnostics</h2>
+
+  <div class="command-card">
+    <h3>dex doctor</h3>
+    <div class="synopsis">dex doctor [options]</div>
+    <p>Check dex configuration and storage for issues, with optional auto-repair.</p>
+    <ul>
+      <li><code>--fix</code> — Automatically fix detected issues</li>
+    </ul>
+    <p>Checks performed:</p>
+    <ul>
+      <li><strong>Config</strong> — Valid TOML syntax, deprecated settings, missing environment variables</li>
+      <li><strong>Storage</strong> — Task file validity, relationship consistency, orphaned references, depth limits</li>
+    </ul>
+    <Terminal title="Terminal">
+      <Code
+        code={`dex doctor             # Check for issues (read-only)
+dex doctor --fix       # Check and fix issues`}
+        lang="bash"
+        theme="vitesse-black"
+      />
     </Terminal>
   </div>
 
