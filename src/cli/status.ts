@@ -1,5 +1,6 @@
 import { Task } from "../types.js";
 import {
+  ASCII_BANNER,
   CliOptions,
   colors,
   createService,
@@ -266,10 +267,7 @@ ${colors.bold}EXAMPLES:${colors.reset}
   const { stats, readyTasks, blockedTasks, recentlyCompleted } = statusData;
 
   // ASCII art header
-  console.log(`${colors.bold} ___  ___ _  _`);
-  console.log(`|   \\| __\\ \\/ /`);
-  console.log(`| |) | _| >  < `);
-  console.log(`|___/|___|_/\\_\\${colors.reset}`);
+  console.log(`${colors.bold}${ASCII_BANNER}${colors.reset}`);
   console.log("");
 
   // Metric cards - big numbers with labels below, centered over each label

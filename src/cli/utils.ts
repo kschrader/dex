@@ -46,6 +46,12 @@ export const colors = {
   cyan: useColors ? "\x1b[36m" : "",
 };
 
+// ASCII art banner for CLI headers
+export const ASCII_BANNER = ` ____  _____ __ __
+|    \\|   __|  |  |
+|  |  |   __|-   -|
+|____/|_____|__|__|`;
+
 // Available commands for suggestions
 export const COMMANDS = ["create", "list", "ls", "show", "edit", "update", "complete", "done", "delete", "rm", "remove", "plan", "sync", "import", "doctor", "status", "help", "mcp", "completion"];
 

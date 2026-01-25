@@ -39,7 +39,7 @@ describe("status command", () => {
     await runCli(["status"], { storage });
 
     const out = output.stdout.join("\n");
-    expect(out).toContain("|___/|___|_/\\_\\"); // ASCII art header
+    expect(out).toContain("|____/|_____|__|__|"); // ASCII art header
     expect(out).toContain("complete   ready   blocked"); // metric labels
     expect(out).toContain("0%"); // 0 completed of 2
     expect(out).toMatch(/ready.*blocked/); // metrics row
@@ -137,7 +137,7 @@ describe("status command", () => {
 
     const out = output.stdout.join("\n");
     // Should show status output, not list output
-    expect(out).toContain("|___/|___|_/\\_\\"); // ASCII art header
+    expect(out).toContain("|____/|_____|__|__|"); // ASCII art header
     expect(out).toContain("Ready to Work");
   });
 

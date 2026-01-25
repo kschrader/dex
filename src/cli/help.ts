@@ -1,7 +1,8 @@
-import { colors } from "./utils.js";
+import { ASCII_BANNER, colors } from "./utils.js";
 
 export function helpCommand(): void {
-  console.log(`${colors.bold}dex${colors.reset} - Task tracking tool
+  console.log(`${colors.bold}${ASCII_BANNER}${colors.reset}
+Task tracking tool
 
 ${colors.bold}USAGE:${colors.reset}
   dex <command> [options]
