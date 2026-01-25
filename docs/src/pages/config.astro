@@ -108,6 +108,56 @@ enabled = true`}
 
   <p>Use <code>dex sync</code> to push tasks, or <code>dex import &lt;issue-url&gt;</code> to pull a GitHub Issue into dex.</p>
 
+  <h3>Auto-Sync</h3>
+
+  <p>By default, tasks sync to GitHub automatically whenever you create, update, or complete a task. You can customize this behavior:</p>
+
+  <Terminal title=".dex/config.toml">
+    <Code
+      code={`[sync.github]
+enabled = true
+
+[sync.github.auto]
+# Sync immediately on task mutations (default: true)
+on_change = true
+
+# If on_change=false, sync only when last sync exceeds max_age
+# Format: "30m", "1h", "1d"
+max_age = "1h"`}
+      lang="toml"
+      theme="vitesse-black"
+    />
+  </Terminal>
+
+  <table>
+    <thead>
+      <tr>
+        <th>Setting</th>
+        <th>Default</th>
+        <th>Description</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><code>on_change</code></td>
+        <td><code>true</code></td>
+        <td>Sync immediately after task create/update/complete</td>
+      </tr>
+      <tr>
+        <td><code>max_age</code></td>
+        <td><em>none</em></td>
+        <td>If <code>on_change=false</code>, sync on mutation only when last sync exceeds this duration</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <p><strong>Common configurations:</strong></p>
+  <ul>
+    <li><strong>Always sync</strong> (default): <code>on_change = true</code></li>
+    <li><strong>Periodic sync</strong>: <code>on_change = false</code> + <code>max_age = "1h"</code> — syncs only if stale</li>
+    <li><strong>Manual only</strong>: <code>on_change = false</code> — only sync via <code>dex sync</code></li>
+  </ul>
+
   <h2>Environment Variables</h2>
 
   <table>

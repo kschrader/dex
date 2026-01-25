@@ -1,6 +1,7 @@
 import { TaskService } from "../core/task-service.js";
 import { StorageEngine } from "../core/storage-engine.js";
 import { GitHubSyncService } from "../core/github-sync.js";
+import { GitHubSyncConfig } from "../core/config.js";
 import { Task } from "../types.js";
 import { extractErrorInfo } from "../errors.js";
 import * as readline from "readline";
@@ -8,6 +9,7 @@ import * as readline from "readline";
 export interface CliOptions {
   storage: StorageEngine;
   syncService?: GitHubSyncService | null;
+  syncConfig?: GitHubSyncConfig | null;
 }
 
 export interface ParsedArgs {
@@ -51,6 +53,7 @@ export function createService(options: CliOptions): TaskService {
   return new TaskService({
     storage: options.storage,
     syncService: options.syncService,
+    syncConfig: options.syncConfig,
   });
 }
 

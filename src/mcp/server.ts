@@ -5,6 +5,7 @@ import { ZodError, ZodType } from "zod";
 import { TaskService } from "../core/task-service.js";
 import { StorageEngine } from "../core/storage-engine.js";
 import { GitHubSyncService } from "../core/github-sync.js";
+import { GitHubSyncConfig } from "../core/config.js";
 import { CreateTaskArgsSchema, handleCreateTask } from "../tools/create-task.js";
 import { UpdateTaskArgsSchema, handleUpdateTask } from "../tools/update-task.js";
 import { ListTasksArgsSchema, handleListTasks } from "../tools/list-tasks.js";
@@ -41,9 +42,10 @@ function wrapHandler<T>(
  */
 export function createMcpServer(
   storage: StorageEngine,
-  syncService?: GitHubSyncService | null
+  syncService?: GitHubSyncService | null,
+  syncConfig?: GitHubSyncConfig | null
 ): McpServer {
-  const service = new TaskService({ storage, syncService });
+  const service = new TaskService({ storage, syncService, syncConfig });
   const server = new McpServer({
     name: "dex",
     version: "1.0.0",
@@ -80,8 +82,9 @@ export function createMcpServer(
 export async function startMcpServer(
   storage: StorageEngine,
   syncService?: GitHubSyncService | null,
+  syncConfig?: GitHubSyncConfig | null,
   transport?: Transport
 ): Promise<void> {
-  const server = createMcpServer(storage, syncService);
+  const server = createMcpServer(storage, syncService, syncConfig);
   await server.connect(transport ?? new StdioServerTransport());
 }

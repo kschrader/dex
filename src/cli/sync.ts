@@ -15,6 +15,7 @@ import {
   SyncResult,
 } from "../core/github-sync.js";
 import { loadConfig } from "../core/config.js";
+import { updateSyncState } from "../core/sync-state.js";
 import { Task } from "../types.js";
 
 export async function syncCommand(
@@ -104,6 +105,9 @@ ${colors.bold}EXAMPLE:${colors.reset}
       if (result) {
         await saveGithubMetadata(service, result);
       }
+
+      // Update sync state timestamp
+      updateSyncState(options.storage.getIdentifier(), { lastSync: new Date().toISOString() });
 
       console.log(
         `${colors.green}Synced${colors.reset} task ${colors.bold}${rootTask.id}${colors.reset} to ${colors.cyan}${repo.owner}/${repo.repo}${colors.reset}`
@@ -204,6 +208,9 @@ ${colors.bold}EXAMPLE:${colors.reset}
           await saveGithubMetadata(service, result);
         }
       }
+
+      // Update sync state timestamp
+      updateSyncState(options.storage.getIdentifier(), { lastSync: new Date().toISOString() });
 
       const created = results.filter((r) => r.created).length;
       const updated = results.filter((r) => !r.created && !r.skipped).length;

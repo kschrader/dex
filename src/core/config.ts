@@ -9,6 +9,16 @@ import { parse as parseToml } from "smol-toml";
 export type StorageMode = "in-repo" | "centralized";
 
 /**
+ * Auto-sync configuration for GitHub.
+ */
+export interface GitHubSyncAuto {
+  /** Sync immediately on mutations (default: true) */
+  on_change?: boolean;
+  /** Max age before sync is considered stale (e.g., "1h", "30m", "1d") */
+  max_age?: string;
+}
+
+/**
  * GitHub sync configuration.
  * Note: owner/repo are always inferred from git remote, not configured.
  */
@@ -19,6 +29,8 @@ export interface GitHubSyncConfig {
   token_env?: string;
   /** Label prefix for dex tasks (default: "dex") */
   label_prefix?: string;
+  /** Auto-sync settings */
+  auto?: GitHubSyncAuto;
 }
 
 /**
@@ -139,6 +151,28 @@ function parseConfigFile(configPath: string): Partial<Config> | null {
 }
 
 /**
+ * Merge sync configuration, with b taking precedence over a.
+ */
+function mergeSyncConfig(
+  a: SyncConfig | undefined,
+  b: SyncConfig | undefined
+): SyncConfig | undefined {
+  if (b === undefined) return a;
+
+  const mergedAuto = b.github?.auto !== undefined
+    ? { ...a?.github?.auto, ...b.github.auto }
+    : a?.github?.auto;
+
+  return {
+    github: {
+      ...a?.github,
+      ...b.github,
+      auto: mergedAuto,
+    },
+  };
+}
+
+/**
  * Deep merge two config objects, with b taking precedence over a.
  */
 function mergeConfig(a: Config, b: Partial<Config> | null): Config {
@@ -151,12 +185,7 @@ function mergeConfig(a: Config, b: Partial<Config> | null): Config {
       "github-issues": b.storage?.["github-issues"] ?? a.storage["github-issues"],
       "github-projects": b.storage?.["github-projects"] ?? a.storage["github-projects"],
     },
-    sync: b.sync !== undefined ? {
-      github: {
-        ...a.sync?.github,
-        ...b.sync?.github,
-      },
-    } : a.sync,
+    sync: mergeSyncConfig(a.sync, b.sync),
   };
 }
 

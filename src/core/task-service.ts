@@ -2,6 +2,8 @@ import { customAlphabet } from "nanoid";
 import { StorageEngine } from "./storage-engine.js";
 import { FileStorage } from "./storage.js";
 import { GitHubSyncService } from "./github-sync.js";
+import { GitHubSyncConfig } from "./config.js";
+import { isSyncStale, updateSyncState } from "./sync-state.js";
 import {
   Task,
   TaskStore,
@@ -31,36 +33,65 @@ function resolveStorage(storage: StorageEngine | string | undefined): StorageEng
 export interface TaskServiceOptions {
   storage?: StorageEngine | string;
   syncService?: GitHubSyncService | null;
+  syncConfig?: GitHubSyncConfig | null;
 }
 
 export class TaskService {
   private storage: StorageEngine;
   private syncService: GitHubSyncService | null;
+  private syncConfig: GitHubSyncConfig | null;
 
   constructor(options?: TaskServiceOptions | StorageEngine | string) {
     // Handle backward compatibility with old constructor signatures
     if (typeof options === "string" || options === undefined) {
       this.storage = new FileStorage(options);
       this.syncService = null;
+      this.syncConfig = null;
     } else if (isStorageEngine(options)) {
       this.storage = options;
       this.syncService = null;
+      this.syncConfig = null;
     } else {
       this.storage = resolveStorage(options.storage);
       this.syncService = options.syncService ?? null;
+      this.syncConfig = options.syncConfig ?? null;
     }
   }
 
   /**
    * Sync a task to GitHub if sync service is configured.
+   * Respects auto-sync settings (on_change and max_age).
    * Errors are caught and logged but don't fail the operation.
    */
   private async syncToGitHub(task: Task): Promise<void> {
     if (!this.syncService) return;
 
+    const autoConfig = this.syncConfig?.auto;
+    const onChange = autoConfig?.on_change !== false; // default: true
+
+    if (onChange) {
+      // Sync immediately
+      await this.doSync(task);
+      return;
+    }
+
+    // on_change is false - check max_age
+    const maxAge = autoConfig?.max_age;
+    if (maxAge && isSyncStale(this.storage.getIdentifier(), maxAge)) {
+      await this.doSync(task);
+    }
+  }
+
+  /**
+   * Perform the actual sync to GitHub and update sync state.
+   */
+  private async doSync(task: Task): Promise<void> {
+    if (!this.syncService) return;
+
     try {
       const store = await this.storage.readAsync();
       await this.syncService.syncTask(task, store);
+      updateSyncState(this.storage.getIdentifier(), { lastSync: new Date().toISOString() });
     } catch (err) {
       console.warn("GitHub sync failed:", err instanceof Error ? err.message : err);
     }

@@ -109,10 +109,14 @@ function createStorageEngine(cliStoragePath?: string): StorageEngine {
 
 /**
  * Create GitHub sync service if configured.
+ * Returns both the service and the config for auto-sync settings.
  */
-function createSyncService(): GitHubSyncService | null {
+function createSyncService() {
   const config = loadConfig();
-  return createGitHubSyncService(config.sync?.github);
+  return {
+    syncService: createGitHubSyncService(config.sync?.github),
+    syncConfig: config.sync?.github ?? null,
+  };
 }
 
 const command = filteredArgs[0];
@@ -146,15 +150,15 @@ ${bold}EXAMPLE:${reset}
   }
 
   const storage = createStorageEngine(storagePath);
-  const syncService = createSyncService();
-  startMcpServer(storage, syncService).catch((err) => {
+  const { syncService, syncConfig } = createSyncService();
+  startMcpServer(storage, syncService, syncConfig).catch((err) => {
     console.error("MCP server error:", err);
     process.exit(1);
   });
 } else {
   const storage = createStorageEngine(storagePath);
-  const syncService = createSyncService();
-  runCli(filteredArgs, { storage, syncService }).catch((err) => {
+  const { syncService, syncConfig } = createSyncService();
+  runCli(filteredArgs, { storage, syncService, syncConfig }).catch((err) => {
     console.error("Error:", err);
     process.exit(1);
   });
