@@ -1,7 +1,11 @@
 {
   "name": "@zeeg/dex",
-  "version": "0.3.0",
+  "version": "0.1.0",
   "description": "Task tracking tool with MCP server and CLI interfaces",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/dcramer/dex"
+  },
   "license": "MIT",
   "type": "module",
   "main": "./dist/index.js",
