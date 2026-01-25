@@ -183,42 +183,50 @@ async function importSingleIssue(
     return;
   }
 
+  const body = issue.body || "";
+  const { subtasks } = parseHierarchicalIssueBody(body);
+
   if (dryRun) {
     console.log(`Would import from ${colors.cyan}${parsed.owner}/${parsed.repo}${colors.reset}:`);
     console.log(`  #${issue.number}: ${issue.title}`);
-
-    const body = issue.body || "";
-    const { subtasks } = parseHierarchicalIssueBody(body);
     if (subtasks.length > 0) {
       console.log(`  (${subtasks.length} subtasks)`);
     }
     return;
   }
 
-  const body = issue.body || "";
   const task = await importIssueAsTask(service, issue, parsed);
   console.log(
     `${colors.green}Imported${colors.reset} issue #${parsed.number} as task ` +
       `${colors.bold}${task.id}${colors.reset}: "${task.description}"`
   );
 
-  // Import subtasks
-  const { subtasks } = parseHierarchicalIssueBody(body);
-
   if (subtasks.length > 0) {
-    let subtaskCount = 0;
+    // Track ID mapping: original ID -> local ID (for hierarchy reconstruction)
+    const idMapping = new Map<string, string>();
+
     for (const subtask of subtasks) {
-      // All subtasks are imported under the root task
-      // (parentId from the issue refers to original IDs which don't exist locally)
-      await service.create({
+      const localParentId = subtask.parentId
+        ? idMapping.get(subtask.parentId) || task.id
+        : task.id;
+
+      const createdSubtask = await service.create({
+        id: subtask.id,
         description: subtask.description,
         context: subtask.context || "Imported from GitHub issue",
-        parent_id: task.id,
+        parent_id: localParentId,
         priority: subtask.priority,
+        completed: subtask.completed,
+        result: subtask.result,
+        created_at: subtask.created_at,
+        updated_at: subtask.updated_at,
+        completed_at: subtask.completed_at,
+        metadata: subtask.metadata,
       });
-      subtaskCount++;
+
+      idMapping.set(subtask.id, createdSubtask.id);
     }
-    console.log(`  Created ${subtaskCount} subtask(s)`);
+    console.log(`  Created ${idMapping.size} subtask(s)`);
   }
 }
 
