@@ -168,6 +168,9 @@ export class GitHubSyncService {
     const parentTasks = store.tasks.filter((t) => !t.parent_id);
     const total = parentTasks.length;
 
+    // Fetch all issues once at start for efficient lookups
+    const issueCache = await this.fetchAllDexIssues();
+
     for (let i = 0; i < parentTasks.length; i++) {
       const parent = parentTasks[i];
 
@@ -179,7 +182,13 @@ export class GitHubSyncService {
         phase: "checking",
       });
 
-      const result = await this.syncParentTask(parent, store, { skipUnchanged, onProgress, currentIndex: i + 1, total });
+      const result = await this.syncParentTask(parent, store, {
+        skipUnchanged,
+        onProgress,
+        currentIndex: i + 1,
+        total,
+        issueCache,
+      });
       if (result) {
         results.push(result);
       }
@@ -217,16 +226,26 @@ export class GitHubSyncService {
   private async syncParentTask(
     parent: Task,
     store: TaskStore,
-    options: { skipUnchanged?: boolean; onProgress?: (progress: SyncProgress) => void; currentIndex?: number; total?: number } = {}
+    options: {
+      skipUnchanged?: boolean;
+      onProgress?: (progress: SyncProgress) => void;
+      currentIndex?: number;
+      total?: number;
+      issueCache?: Map<string, CachedIssue>;
+    } = {}
   ): Promise<SyncResult | null> {
-    const { skipUnchanged = true, onProgress, currentIndex = 1, total = 1 } = options;
+    const { skipUnchanged = true, onProgress, currentIndex = 1, total = 1, issueCache } = options;
 
     // Collect ALL descendants, not just immediate children
     const descendants = collectDescendants(store.tasks, parent.id);
 
-    // Check for existing issue: first metadata, then search by task ID
+    // Check for existing issue: first metadata, then cache, then API fallback
     let issueNumber = getGitHubIssueNumber(parent);
-    if (!issueNumber) {
+    if (!issueNumber && issueCache) {
+      const cached = issueCache.get(parent.id);
+      if (cached) issueNumber = cached.number;
+    } else if (!issueNumber) {
+      // Fallback for single-task sync (no cache)
       issueNumber = await this.findIssueByTaskId(parent.id);
     }
 
@@ -250,13 +269,11 @@ export class GitHubSyncService {
         const expectedBody = this.renderBody(parent, descendants);
         const expectedLabels = this.buildLabels(parent, shouldClose);
 
-        const hasChanges = await this.hasIssueChanged(
-          issueNumber,
-          parent.description,
-          expectedBody,
-          expectedLabels,
-          shouldClose
-        );
+        // Use cached data for change detection when available
+        const cached = issueCache?.get(parent.id);
+        const hasChanges = cached
+          ? this.hasIssueChangedFromCache(cached, parent.description, expectedBody, expectedLabels, shouldClose)
+          : await this.hasIssueChanged(issueNumber, parent.description, expectedBody, expectedLabels, shouldClose);
 
         if (!hasChanges) {
           onProgress?.({ current: currentIndex, total, task: parent, phase: "skipped" });
@@ -277,6 +294,29 @@ export class GitHubSyncService {
   }
 
   /**
+   * Compare issue data against expected values.
+   * Returns true if any field differs (issue needs updating).
+   */
+  private issueNeedsUpdate(
+    issue: { title: string; body: string; state: string; labels: string[] },
+    expectedTitle: string,
+    expectedBody: string,
+    expectedLabels: string[],
+    shouldClose: boolean
+  ): boolean {
+    const expectedState = shouldClose ? "closed" : "open";
+    const sortedLabels = [...issue.labels].sort();
+    const sortedExpected = [...expectedLabels].sort();
+
+    return (
+      issue.title !== expectedTitle ||
+      issue.body.trim() !== expectedBody.trim() ||
+      issue.state !== expectedState ||
+      JSON.stringify(sortedLabels) !== JSON.stringify(sortedExpected)
+    );
+  }
+
+  /**
    * Check if an issue has changed compared to what we would push.
    * Returns true if the issue needs updating.
    */
@@ -294,39 +334,42 @@ export class GitHubSyncService {
         issue_number: issueNumber,
       });
 
-      // Check title
-      if (issue.title !== expectedTitle) {
-        return true;
-      }
-
-      // Check body (normalize whitespace)
-      const normalizedBody = (issue.body || "").trim();
-      const normalizedExpected = expectedBody.trim();
-      if (normalizedBody !== normalizedExpected) {
-        return true;
-      }
-
-      // Check state
-      const expectedState = shouldClose ? "closed" : "open";
-      if (issue.state !== expectedState) {
-        return true;
-      }
-
-      // Check labels (just the dex-prefixed ones)
-      const issueLabels = (issue.labels || [])
+      const labels = (issue.labels || [])
         .map((l) => (typeof l === "string" ? l : l.name || ""))
-        .filter((l) => l.startsWith(this.labelPrefix))
-        .sort();
-      const sortedExpected = [...expectedLabels].sort();
-      if (JSON.stringify(issueLabels) !== JSON.stringify(sortedExpected)) {
-        return true;
-      }
+        .filter((l) => l.startsWith(this.labelPrefix));
 
-      return false;
+      return this.issueNeedsUpdate(
+        { title: issue.title, body: issue.body || "", state: issue.state, labels },
+        expectedTitle,
+        expectedBody,
+        expectedLabels,
+        shouldClose
+      );
     } catch {
       // If we can't fetch the issue, assume it needs updating
       return true;
     }
+  }
+
+  /**
+   * Check if an issue has changed compared to what we would push using cached data.
+   * Synchronous version of hasIssueChanged for use with issue cache.
+   * Returns true if the issue needs updating.
+   */
+  private hasIssueChangedFromCache(
+    cached: CachedIssue,
+    expectedTitle: string,
+    expectedBody: string,
+    expectedLabels: string[],
+    shouldClose: boolean
+  ): boolean {
+    return this.issueNeedsUpdate(
+      { title: cached.title, body: cached.body, state: cached.state, labels: cached.labels },
+      expectedTitle,
+      expectedBody,
+      expectedLabels,
+      shouldClose
+    );
   }
 
   /**

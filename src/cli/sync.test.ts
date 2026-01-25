@@ -229,8 +229,19 @@ describe("sync command", () => {
       await runCli(["sync", taskId], { storage });
       output.stdout.length = 0;
 
-      // Second sync triggers update
-      githubMock.getIssue("test-owner", "test-repo", 400, createIssueFixture({ number: 400, title: "Old title" }));
+      // Second sync triggers update - listIssues for fetchAllDexIssues cache
+      // The body must contain the task ID so the cache can map it
+      // Page 1 with data
+      githubMock.listIssues("test-owner", "test-repo", [
+        createIssueFixture({
+          number: 400,
+          title: "Old title",
+          body: `<!-- dex:task:id:${taskId} -->\nOld body`,
+          labels: [{ name: "dex" }],
+        }),
+      ]);
+      // Page 2 empty (end of pagination)
+      githubMock.listIssues("test-owner", "test-repo", []);
       githubMock.updateIssue("test-owner", "test-repo", 400, createIssueFixture({ number: 400, title: "Already synced" }));
 
       await runCli(["sync"], { storage });
