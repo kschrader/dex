@@ -7,6 +7,7 @@ import {
   collectDescendants,
   renderHierarchicalIssueBody,
   HierarchicalTask,
+  encodeMetadataValue,
 } from "./subtask-markdown.js";
 
 /**
@@ -174,6 +175,27 @@ export class GitHubSyncService {
   }
 
   /**
+   * Build a SyncResult for an existing issue.
+   */
+  private buildSyncResult(
+    taskId: string,
+    issueNumber: number,
+    created: boolean,
+    skipped?: boolean
+  ): SyncResult {
+    return {
+      taskId,
+      github: {
+        issueNumber,
+        issueUrl: `https://github.com/${this.owner}/${this.repo}/issues/${issueNumber}`,
+        repo: this.getRepoString(),
+      },
+      created,
+      skipped,
+    };
+  }
+
+  /**
    * Sync a parent task (with all descendants) to GitHub.
    * Returns sync result with github metadata.
    */
@@ -200,27 +222,13 @@ export class GitHubSyncService {
       // Fast path: if task is completed and already synced, skip without API call
       // This assumes completed tasks don't change after completion
       if (skipUnchanged && shouldClose && parent.metadata?.github?.issueNumber === issueNumber) {
-        onProgress?.({
-          current: currentIndex,
-          total,
-          task: parent,
-          phase: "skipped",
-        });
-        return {
-          taskId: parent.id,
-          github: {
-            issueNumber,
-            issueUrl: `https://github.com/${this.owner}/${this.repo}/issues/${issueNumber}`,
-            repo: this.getRepoString(),
-          },
-          created: false,
-          skipped: true,
-        };
+        onProgress?.({ current: currentIndex, total, task: parent, phase: "skipped" });
+        return this.buildSyncResult(parent.id, issueNumber, false, true);
       }
 
       // Check if we can skip this update by comparing with GitHub
       if (skipUnchanged) {
-        const expectedBody = this.renderBody(parent.context, descendants, parent.id);
+        const expectedBody = this.renderBody(parent, descendants);
         const expectedLabels = this.buildLabels(parent, shouldClose);
 
         const hasChanges = await this.hasIssueChanged(
@@ -232,56 +240,20 @@ export class GitHubSyncService {
         );
 
         if (!hasChanges) {
-          onProgress?.({
-            current: currentIndex,
-            total,
-            task: parent,
-            phase: "skipped",
-          });
-          return {
-            taskId: parent.id,
-            github: {
-              issueNumber,
-              issueUrl: `https://github.com/${this.owner}/${this.repo}/issues/${issueNumber}`,
-              repo: this.getRepoString(),
-            },
-            created: false,
-            skipped: true,
-          };
+          onProgress?.({ current: currentIndex, total, task: parent, phase: "skipped" });
+          return this.buildSyncResult(parent.id, issueNumber, false, true);
         }
       }
 
-      onProgress?.({
-        current: currentIndex,
-        total,
-        task: parent,
-        phase: "updating",
-      });
+      onProgress?.({ current: currentIndex, total, task: parent, phase: "updating" });
 
       await this.updateIssue(parent, descendants, issueNumber, shouldClose);
-      return {
-        taskId: parent.id,
-        github: {
-          issueNumber,
-          issueUrl: `https://github.com/${this.owner}/${this.repo}/issues/${issueNumber}`,
-          repo: this.getRepoString(),
-        },
-        created: false,
-      };
+      return this.buildSyncResult(parent.id, issueNumber, false);
     } else {
-      onProgress?.({
-        current: currentIndex,
-        total,
-        task: parent,
-        phase: "creating",
-      });
+      onProgress?.({ current: currentIndex, total, task: parent, phase: "creating" });
 
       const github = await this.createIssue(parent, descendants, shouldClose);
-      return {
-        taskId: parent.id,
-        github,
-        created: true,
-      };
+      return { taskId: parent.id, github, created: true };
     }
   }
 
@@ -348,7 +320,7 @@ export class GitHubSyncService {
     descendants: HierarchicalTask[],
     shouldClose: boolean
   ): Promise<GithubMetadata> {
-    const body = this.renderBody(parent.context, descendants, parent.id);
+    const body = this.renderBody(parent, descendants);
 
     const { data: issue } = await this.octokit.issues.create({
       owner: this.owner,
@@ -394,7 +366,7 @@ export class GitHubSyncService {
     issueNumber: number,
     shouldClose: boolean
   ): Promise<void> {
-    const body = this.renderBody(parent.context, descendants, parent.id);
+    const body = this.renderBody(parent, descendants);
 
     await this.octokit.issues.update({
       owner: this.owner,
@@ -409,15 +381,47 @@ export class GitHubSyncService {
 
   /**
    * Render the issue body with hierarchical task tree.
+   * Includes root task metadata encoded in HTML comments for round-trip support.
    */
   private renderBody(
-    context: string,
-    descendants: HierarchicalTask[],
-    taskId: string
+    task: Task,
+    descendants: HierarchicalTask[]
   ): string {
-    const body = renderHierarchicalIssueBody(context, descendants);
-    // Add task ID as hidden comment for reference
-    return `<!-- dex:task:${taskId} -->\n${body}`;
+    // Build root task metadata comments
+    const rootMeta: string[] = [
+      `<!-- dex:task:id:${task.id} -->`,
+      `<!-- dex:task:priority:${task.priority} -->`,
+      `<!-- dex:task:completed:${task.completed} -->`,
+      `<!-- dex:task:created_at:${task.created_at} -->`,
+      `<!-- dex:task:updated_at:${task.updated_at} -->`,
+      `<!-- dex:task:completed_at:${task.completed_at ?? "null"} -->`,
+    ];
+
+    // Add result if present (base64 encoded for multi-line support)
+    if (task.result) {
+      rootMeta.push(`<!-- dex:task:result:${encodeMetadataValue(task.result)} -->`);
+    }
+
+    // Add commit metadata if present
+    if (task.metadata?.commit) {
+      const commit = task.metadata.commit;
+      rootMeta.push(`<!-- dex:task:commit_sha:${commit.sha} -->`);
+      if (commit.message) {
+        rootMeta.push(`<!-- dex:task:commit_message:${encodeMetadataValue(commit.message)} -->`);
+      }
+      if (commit.branch) {
+        rootMeta.push(`<!-- dex:task:commit_branch:${commit.branch} -->`);
+      }
+      if (commit.url) {
+        rootMeta.push(`<!-- dex:task:commit_url:${commit.url} -->`);
+      }
+      if (commit.timestamp) {
+        rootMeta.push(`<!-- dex:task:commit_timestamp:${commit.timestamp} -->`);
+      }
+    }
+
+    const body = renderHierarchicalIssueBody(task.context, descendants);
+    return `${rootMeta.join("\n")}\n${body}`;
   }
 
   /**
@@ -498,7 +502,8 @@ export class GitHubSyncService {
       for (const issue of issues) {
         if (issue.pull_request) continue;
         const body = issue.body || "";
-        if (body.includes(`<!-- dex:task:${taskId} -->`)) {
+        // Check for new format (<!-- dex:task:id:{taskId} -->) or legacy format (<!-- dex:task:{taskId} -->)
+        if (body.includes(`<!-- dex:task:id:${taskId} -->`) || body.includes(`<!-- dex:task:${taskId} -->`)) {
           return issue.number;
         }
       }

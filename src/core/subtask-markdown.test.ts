@@ -7,6 +7,9 @@ import {
   embeddedSubtaskToTask,
   taskToEmbeddedSubtask,
   getNextSubtaskIndex,
+  encodeMetadataValue,
+  decodeMetadataValue,
+  parseRootTaskMetadata,
   EmbeddedSubtask,
 } from "./subtask-markdown.js";
 import { Task } from "../types.js";
@@ -513,5 +516,166 @@ describe("getNextSubtaskIndex", () => {
     ];
 
     expect(getNextSubtaskIndex(subtasks, "9")).toBe(1);
+  });
+});
+
+describe("encodeMetadataValue", () => {
+  it("returns plain value for simple strings", () => {
+    expect(encodeMetadataValue("simple text")).toBe("simple text");
+    expect(encodeMetadataValue("another value")).toBe("another value");
+  });
+
+  it("base64 encodes strings with newlines", () => {
+    const input = "line1\nline2\nline3";
+    const encoded = encodeMetadataValue(input);
+    expect(encoded).toMatch(/^base64:/);
+    expect(encoded).not.toContain("\n");
+  });
+
+  it("base64 encodes strings with HTML comment end marker", () => {
+    const input = "some --> text";
+    const encoded = encodeMetadataValue(input);
+    expect(encoded).toMatch(/^base64:/);
+    expect(encoded).not.toContain("-->");
+  });
+
+  it("base64 encodes strings that start with base64:", () => {
+    const input = "base64:pretending to be encoded";
+    const encoded = encodeMetadataValue(input);
+    expect(encoded).toMatch(/^base64:/);
+    // Should be double-encoded
+    const decoded = decodeMetadataValue(encoded);
+    expect(decoded).toBe(input);
+  });
+});
+
+describe("decodeMetadataValue", () => {
+  it("returns plain value for non-encoded strings", () => {
+    expect(decodeMetadataValue("simple text")).toBe("simple text");
+    expect(decodeMetadataValue("another value")).toBe("another value");
+  });
+
+  it("decodes base64 encoded strings", () => {
+    const original = "line1\nline2\nline3";
+    const encoded = encodeMetadataValue(original);
+    expect(decodeMetadataValue(encoded)).toBe(original);
+  });
+
+  it("round-trips complex strings", () => {
+    const testCases = [
+      "simple",
+      "with\nnewlines\neverywhere",
+      "contains --> html comment end",
+      "base64:fake encoded",
+      "mixed\ncontent --> with\neverything",
+    ];
+
+    for (const original of testCases) {
+      const encoded = encodeMetadataValue(original);
+      const decoded = decodeMetadataValue(encoded);
+      expect(decoded).toBe(original);
+    }
+  });
+});
+
+describe("parseRootTaskMetadata", () => {
+  it("returns null for body without dex metadata", () => {
+    const body = "Just some regular content\n\nNo metadata here.";
+    expect(parseRootTaskMetadata(body)).toBeNull();
+  });
+
+  it("parses legacy format with just task ID", () => {
+    const body = "<!-- dex:task:abc123 -->\n\nSome content here.";
+    const metadata = parseRootTaskMetadata(body);
+    expect(metadata).toEqual({ id: "abc123" });
+  });
+
+  it("parses new format with full metadata", () => {
+    const body = `<!-- dex:task:id:abc123 -->
+<!-- dex:task:priority:2 -->
+<!-- dex:task:completed:true -->
+<!-- dex:task:created_at:2024-01-22T10:00:00Z -->
+<!-- dex:task:updated_at:2024-01-22T11:00:00Z -->
+<!-- dex:task:completed_at:2024-01-22T11:00:00Z -->
+
+Some context here.`;
+
+    const metadata = parseRootTaskMetadata(body);
+    expect(metadata).toEqual({
+      id: "abc123",
+      priority: 2,
+      completed: true,
+      created_at: "2024-01-22T10:00:00Z",
+      updated_at: "2024-01-22T11:00:00Z",
+      completed_at: "2024-01-22T11:00:00Z",
+    });
+  });
+
+  it("parses metadata with null completed_at", () => {
+    const body = `<!-- dex:task:id:abc123 -->
+<!-- dex:task:completed:false -->
+<!-- dex:task:completed_at:null -->
+
+Content here.`;
+
+    const metadata = parseRootTaskMetadata(body);
+    expect(metadata?.completed).toBe(false);
+    expect(metadata?.completed_at).toBeNull();
+  });
+
+  it("parses metadata with base64-encoded result", () => {
+    const result = "Line 1\nLine 2\nLine 3";
+    const encodedResult = encodeMetadataValue(result);
+    const body = `<!-- dex:task:id:abc123 -->
+<!-- dex:task:result:${encodedResult} -->
+
+Content here.`;
+
+    const metadata = parseRootTaskMetadata(body);
+    expect(metadata?.result).toBe(result);
+  });
+
+  it("parses metadata with commit info", () => {
+    const body = `<!-- dex:task:id:abc123 -->
+<!-- dex:task:commit_sha:abcdef1234567890 -->
+<!-- dex:task:commit_message:Fix bug -->
+<!-- dex:task:commit_branch:main -->
+<!-- dex:task:commit_url:https://github.com/owner/repo/commit/abcdef -->
+<!-- dex:task:commit_timestamp:2024-01-22T11:00:00Z -->
+
+Content here.`;
+
+    const metadata = parseRootTaskMetadata(body);
+    expect(metadata?.commit).toEqual({
+      sha: "abcdef1234567890",
+      message: "Fix bug",
+      branch: "main",
+      url: "https://github.com/owner/repo/commit/abcdef",
+      timestamp: "2024-01-22T11:00:00Z",
+    });
+  });
+
+  it("parses commit with base64-encoded multi-line message", () => {
+    const message = "First line\n\nSecond paragraph\n- bullet 1\n- bullet 2";
+    const encodedMessage = encodeMetadataValue(message);
+    const body = `<!-- dex:task:id:abc123 -->
+<!-- dex:task:commit_sha:abcdef1234567890 -->
+<!-- dex:task:commit_message:${encodedMessage} -->
+
+Content here.`;
+
+    const metadata = parseRootTaskMetadata(body);
+    expect(metadata?.commit?.message).toBe(message);
+  });
+
+  it("ignores commit metadata without sha", () => {
+    const body = `<!-- dex:task:id:abc123 -->
+<!-- dex:task:commit_message:No sha here -->
+<!-- dex:task:commit_branch:main -->
+
+Content here.`;
+
+    const metadata = parseRootTaskMetadata(body);
+    expect(metadata?.commit).toBeUndefined();
   });
 });

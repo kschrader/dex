@@ -1,4 +1,119 @@
-import { Task, CommitMetadata } from "../types.js";
+import { Task, CommitMetadata, GithubMetadata } from "../types.js";
+
+/**
+ * Encode a potentially multi-line value for storage in HTML comments.
+ * Uses base64 encoding if the value contains newlines or the delimiter characters.
+ */
+export function encodeMetadataValue(value: string): string {
+  // If the value contains newlines, --> (which would break HTML comment), or
+  // starts with "base64:" (which is our encoding marker), encode it
+  if (value.includes("\n") || value.includes("-->") || value.startsWith("base64:")) {
+    return `base64:${Buffer.from(value, "utf-8").toString("base64")}`;
+  }
+  return value;
+}
+
+/**
+ * Decode a metadata value that may be base64 encoded.
+ */
+export function decodeMetadataValue(value: string): string {
+  if (value.startsWith("base64:")) {
+    return Buffer.from(value.slice(7), "base64").toString("utf-8");
+  }
+  return value;
+}
+
+/**
+ * Parsed root task metadata from a GitHub issue body.
+ */
+export interface ParsedRootTaskMetadata {
+  id?: string;
+  priority?: number;
+  completed?: boolean;
+  created_at?: string;
+  updated_at?: string;
+  completed_at?: string | null;
+  result?: string | null;
+  commit?: CommitMetadata;
+  github?: GithubMetadata;
+}
+
+/**
+ * Parse root task metadata from HTML comments in an issue body.
+ * Extracts metadata encoded with <!-- dex:task:key:value --> format.
+ * @param body - The GitHub issue body
+ * @returns Parsed metadata or null if no dex task metadata found
+ */
+export function parseRootTaskMetadata(body: string): ParsedRootTaskMetadata | null {
+  const metadata: ParsedRootTaskMetadata = {};
+  const commit: Partial<CommitMetadata> = {};
+  let foundAny = false;
+
+  // Match all dex:task: comments (root task metadata uses dex:task: prefix)
+  const commentRegex = /<!-- dex:task:(\w+):(.*?) -->/g;
+  let match;
+
+  while ((match = commentRegex.exec(body)) !== null) {
+    foundAny = true;
+    const [, key, rawValue] = match;
+    const value = decodeMetadataValue(rawValue);
+
+    switch (key) {
+      case "id":
+        metadata.id = value;
+        break;
+      case "priority":
+        metadata.priority = parseInt(value, 10);
+        break;
+      case "completed":
+        metadata.completed = value === "true";
+        break;
+      case "created_at":
+        metadata.created_at = value;
+        break;
+      case "updated_at":
+        metadata.updated_at = value;
+        break;
+      case "completed_at":
+        metadata.completed_at = value === "null" ? null : value;
+        break;
+      case "result":
+        metadata.result = value;
+        break;
+      case "commit_sha":
+        commit.sha = value;
+        break;
+      case "commit_message":
+        commit.message = value;
+        break;
+      case "commit_branch":
+        commit.branch = value;
+        break;
+      case "commit_url":
+        commit.url = value;
+        break;
+      case "commit_timestamp":
+        commit.timestamp = value;
+        break;
+    }
+  }
+
+  if (!foundAny) {
+    // Check for legacy format: <!-- dex:task:{id} -->
+    const legacyMatch = body.match(/<!-- dex:task:([a-zA-Z0-9]+) -->/);
+    if (legacyMatch && !legacyMatch[1].includes(":")) {
+      return { id: legacyMatch[1] };
+    }
+    return null;
+  }
+
+  // Only add commit metadata if we have at least a SHA
+  if (commit.sha) {
+    metadata.commit = commit as CommitMetadata;
+  }
+
+  return metadata;
+}
 
 /**
  * Represents a subtask parsed from or to be embedded in a GitHub issue body.
@@ -272,7 +387,8 @@ function parseMetadataComments(content: string): {
   let match;
 
   while ((match = commentRegex.exec(content)) !== null) {
-    const [, key, value] = match;
+    const [, key, rawValue] = match;
+    const value = decodeMetadataValue(rawValue);
     switch (key) {
       case "id":
         metadata.id = value;
@@ -284,12 +400,12 @@ function parseMetadataComments(content: string): {
         metadata.priority = parseInt(value, 10);
         break;
       case "completed":
-        metadata.completed = value === "true";
+        metadata.completed = rawValue === "true"; // Use raw value for boolean
         break;
       // Backwards compatibility: read old status field
       case "status":
         if (metadata.completed === undefined) {
-          metadata.completed = value === "completed";
+          metadata.completed = rawValue === "completed";
         }
         break;
       case "created_at":
@@ -299,7 +415,7 @@ function parseMetadataComments(content: string): {
         metadata.updated_at = value;
         break;
       case "completed_at":
-        metadata.completed_at = value === "null" ? null : value;
+        metadata.completed_at = rawValue === "null" ? null : value;
         break;
       case "commit_sha":
         commit.sha = value;
@@ -347,6 +463,27 @@ export function renderIssueBody(
 }
 
 /**
+ * Render commit metadata as HTML comment lines.
+ * Returns an array of comment lines to be added to a details block.
+ */
+function renderCommitMetadataComments(commit: CommitMetadata): string[] {
+  const lines: string[] = [`<!-- dex:subtask:commit_sha:${commit.sha} -->`];
+  if (commit.message) {
+    lines.push(`<!-- dex:subtask:commit_message:${encodeMetadataValue(commit.message)} -->`);
+  }
+  if (commit.branch) {
+    lines.push(`<!-- dex:subtask:commit_branch:${commit.branch} -->`);
+  }
+  if (commit.url) {
+    lines.push(`<!-- dex:subtask:commit_url:${commit.url} -->`);
+  }
+  if (commit.timestamp) {
+    lines.push(`<!-- dex:subtask:commit_timestamp:${commit.timestamp} -->`);
+  }
+  return lines;
+}
+
+/**
  * Render a single subtask as a <details> block.
  */
 function renderSubtaskBlock(subtask: EmbeddedSubtask): string {
@@ -364,22 +501,8 @@ function renderSubtaskBlock(subtask: EmbeddedSubtask): string {
     `<!-- dex:subtask:completed_at:${subtask.completed_at ?? "null"} -->`
   );
 
-  // Render commit metadata if present
   if (subtask.metadata?.commit) {
-    const commit = subtask.metadata.commit;
-    lines.push(`<!-- dex:subtask:commit_sha:${commit.sha} -->`);
-    if (commit.message) {
-      lines.push(`<!-- dex:subtask:commit_message:${commit.message} -->`);
-    }
-    if (commit.branch) {
-      lines.push(`<!-- dex:subtask:commit_branch:${commit.branch} -->`);
-    }
-    if (commit.url) {
-      lines.push(`<!-- dex:subtask:commit_url:${commit.url} -->`);
-    }
-    if (commit.timestamp) {
-      lines.push(`<!-- dex:subtask:commit_timestamp:${commit.timestamp} -->`);
-    }
+    lines.push(...renderCommitMetadataComments(subtask.metadata.commit));
   }
 
   lines.push("");
@@ -533,22 +656,8 @@ function renderHierarchicalTaskBlock(
     `<!-- dex:subtask:completed_at:${task.completed_at ?? "null"} -->`
   );
 
-  // Render commit metadata if present
   if (task.metadata?.commit) {
-    const commit = task.metadata.commit;
-    lines.push(`<!-- dex:subtask:commit_sha:${commit.sha} -->`);
-    if (commit.message) {
-      lines.push(`<!-- dex:subtask:commit_message:${commit.message} -->`);
-    }
-    if (commit.branch) {
-      lines.push(`<!-- dex:subtask:commit_branch:${commit.branch} -->`);
-    }
-    if (commit.url) {
-      lines.push(`<!-- dex:subtask:commit_url:${commit.url} -->`);
-    }
-    if (commit.timestamp) {
-      lines.push(`<!-- dex:subtask:commit_timestamp:${commit.timestamp} -->`);
-    }
+    lines.push(...renderCommitMetadataComments(task.metadata.commit));
   }
 
   lines.push("");
