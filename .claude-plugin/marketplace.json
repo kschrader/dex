@@ -1,7 +1,7 @@
 {
   "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
   "name": "dex",
-  "description": "Task tracking for LLM workflows with CLI, MCP, and Claude Code interfaces",
+  "description": "Task tracking for Agents with CLI, MCP, and Claude Code interfaces",
   "owner": {
     "name": "dcramer",
     "email": "dcramer@gmail.com"

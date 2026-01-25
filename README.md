@@ -1,6 +1,6 @@
 # dex
 
-Task tracking for LLM workflows. Gives your agent persistent memory for complex, multi-session work.
+Task tracking for Agents. Gives your agent persistent memory for complex, multi-session work.
 
 ## Why dex?
 
