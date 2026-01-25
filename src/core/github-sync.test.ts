@@ -789,6 +789,596 @@ describe("fetchAllDexIssues", () => {
   });
 });
 
+describe("syncAll with issue cache", () => {
+  let service: GitHubSyncService;
+  let githubMock: GitHubMock;
+
+  beforeEach(() => {
+    process.env.GITHUB_TOKEN = "test-token";
+    githubMock = setupGitHubMock();
+
+    service = new GitHubSyncService({
+      repo: { owner: "test-owner", repo: "test-repo" },
+      token: "test-token",
+    });
+  });
+
+  afterEach(() => {
+    cleanupGitHubMock();
+    delete process.env.GITHUB_TOKEN;
+  });
+
+  it("calls fetchAllDexIssues once at start of syncAll", async () => {
+    const task1 = createTask({ id: "task1", description: "Task 1" });
+    const task2 = createTask({ id: "task2", description: "Task 2" });
+    const store = createStore([task1, task2]);
+
+    // Set up cache fetch (page 1 empty, indicating no existing issues)
+    githubMock.listIssues("test-owner", "test-repo", []);
+
+    // Create issues for both tasks (no additional list calls needed due to cache)
+    githubMock.createIssue("test-owner", "test-repo", createIssueFixture({
+      number: 1,
+      title: "Task 1",
+    }));
+    githubMock.createIssue("test-owner", "test-repo", createIssueFixture({
+      number: 2,
+      title: "Task 2",
+    }));
+
+    const results = await service.syncAll(store);
+
+    expect(results).toHaveLength(2);
+    expect(results[0].created).toBe(true);
+    expect(results[1].created).toBe(true);
+  });
+
+  it("uses cached issue data for change detection instead of individual GET calls", async () => {
+    const task1 = createTask({
+      id: "task1",
+      description: "Task 1",
+      context: "Same context",
+    });
+    const task2 = createTask({
+      id: "task2",
+      description: "Task 2",
+      context: "Same context",
+    });
+    const store = createStore([task1, task2]);
+
+    // Cache fetch returns both issues with matching content
+    // Page 1: both issues
+    githubMock.listIssues("test-owner", "test-repo", [
+      createIssueFixture({
+        number: 1,
+        title: "Task 1",
+        body: `<!-- dex:task:id:task1 -->\n<!-- dex:task:priority:1 -->\n<!-- dex:task:completed:false -->\n<!-- dex:task:created_at:${task1.created_at} -->\n<!-- dex:task:updated_at:${task1.updated_at} -->\n<!-- dex:task:completed_at:null -->\nSame context`,
+        state: "open",
+        labels: [{ name: "dex" }, { name: "dex:priority-1" }, { name: "dex:pending" }],
+      }),
+      createIssueFixture({
+        number: 2,
+        title: "Task 2",
+        body: `<!-- dex:task:id:task2 -->\n<!-- dex:task:priority:1 -->\n<!-- dex:task:completed:false -->\n<!-- dex:task:created_at:${task2.created_at} -->\n<!-- dex:task:updated_at:${task2.updated_at} -->\n<!-- dex:task:completed_at:null -->\nSame context`,
+        state: "open",
+        labels: [{ name: "dex" }, { name: "dex:priority-1" }, { name: "dex:pending" }],
+      }),
+    ]);
+    // Page 2: empty (end of pagination)
+    githubMock.listIssues("test-owner", "test-repo", []);
+
+    // No GET or PATCH calls should be made since content matches
+    const results = await service.syncAll(store);
+
+    expect(results).toHaveLength(2);
+    expect(results[0].skipped).toBe(true);
+    expect(results[1].skipped).toBe(true);
+  });
+
+  it("only calls update for tasks that have changed", async () => {
+    const task1 = createTask({
+      id: "task1",
+      description: "Task 1 Updated",
+      context: "Changed context",
+    });
+    const task2 = createTask({
+      id: "task2",
+      description: "Task 2",
+      context: "Same context",
+    });
+    const store = createStore([task1, task2]);
+
+    // Cache returns task1 with old title, task2 with matching content
+    githubMock.listIssues("test-owner", "test-repo", [
+      createIssueFixture({
+        number: 1,
+        title: "Task 1 Old",
+        body: `<!-- dex:task:id:task1 -->\n<!-- dex:task:priority:1 -->\n<!-- dex:task:completed:false -->\n<!-- dex:task:created_at:${task1.created_at} -->\n<!-- dex:task:updated_at:${task1.updated_at} -->\n<!-- dex:task:completed_at:null -->\nOld context`,
+        state: "open",
+        labels: [{ name: "dex" }, { name: "dex:priority-1" }, { name: "dex:pending" }],
+      }),
+      createIssueFixture({
+        number: 2,
+        title: "Task 2",
+        body: `<!-- dex:task:id:task2 -->\n<!-- dex:task:priority:1 -->\n<!-- dex:task:completed:false -->\n<!-- dex:task:created_at:${task2.created_at} -->\n<!-- dex:task:updated_at:${task2.updated_at} -->\n<!-- dex:task:completed_at:null -->\nSame context`,
+        state: "open",
+        labels: [{ name: "dex" }, { name: "dex:priority-1" }, { name: "dex:pending" }],
+      }),
+    ]);
+    githubMock.listIssues("test-owner", "test-repo", []);
+
+    // Only task1 should be updated
+    githubMock.updateIssue("test-owner", "test-repo", 1, createIssueFixture({
+      number: 1,
+      title: "Task 1 Updated",
+    }));
+
+    const results = await service.syncAll(store);
+
+    expect(results).toHaveLength(2);
+    expect(results[0].skipped).toBeFalsy();
+    expect(results[1].skipped).toBe(true);
+  });
+
+  it("creates issues for tasks not found in cache", async () => {
+    const task1 = createTask({ id: "existingtask", description: "Existing" });
+    const task2 = createTask({ id: "newtask", description: "New" });
+    const store = createStore([task1, task2]);
+
+    // Cache only has task1
+    githubMock.listIssues("test-owner", "test-repo", [
+      createIssueFixture({
+        number: 1,
+        title: "Existing",
+        body: `<!-- dex:task:id:existingtask -->\n<!-- dex:task:priority:1 -->\n<!-- dex:task:completed:false -->\n<!-- dex:task:created_at:${task1.created_at} -->\n<!-- dex:task:updated_at:${task1.updated_at} -->\n<!-- dex:task:completed_at:null -->\nTest context`,
+        state: "open",
+        labels: [{ name: "dex" }, { name: "dex:priority-1" }, { name: "dex:pending" }],
+      }),
+    ]);
+    githubMock.listIssues("test-owner", "test-repo", []);
+
+    // task2 should be created
+    githubMock.createIssue("test-owner", "test-repo", createIssueFixture({
+      number: 2,
+      title: "New",
+    }));
+
+    const results = await service.syncAll(store);
+
+    expect(results).toHaveLength(2);
+    expect(results[0].skipped).toBe(true);
+    expect(results[1].created).toBe(true);
+  });
+});
+
+describe("hasIssueChangedFromCache change detection", () => {
+  let service: GitHubSyncService;
+  let githubMock: GitHubMock;
+
+  beforeEach(() => {
+    process.env.GITHUB_TOKEN = "test-token";
+    githubMock = setupGitHubMock();
+
+    service = new GitHubSyncService({
+      repo: { owner: "test-owner", repo: "test-repo" },
+      token: "test-token",
+    });
+  });
+
+  afterEach(() => {
+    cleanupGitHubMock();
+    delete process.env.GITHUB_TOKEN;
+  });
+
+  it("detects no change when all fields match", async () => {
+    const task = createTask({
+      id: "taskid",
+      description: "Test Task",
+      context: "Test context",
+    });
+    const store = createStore([task]);
+
+    // Cache has matching issue
+    githubMock.listIssues("test-owner", "test-repo", [
+      createIssueFixture({
+        number: 1,
+        title: "Test Task",
+        body: `<!-- dex:task:id:taskid -->\n<!-- dex:task:priority:1 -->\n<!-- dex:task:completed:false -->\n<!-- dex:task:created_at:${task.created_at} -->\n<!-- dex:task:updated_at:${task.updated_at} -->\n<!-- dex:task:completed_at:null -->\nTest context`,
+        state: "open",
+        labels: [{ name: "dex" }, { name: "dex:priority-1" }, { name: "dex:pending" }],
+      }),
+    ]);
+    githubMock.listIssues("test-owner", "test-repo", []);
+
+    const results = await service.syncAll(store);
+
+    expect(results[0].skipped).toBe(true);
+  });
+
+  it("detects change when title differs", async () => {
+    const task = createTask({
+      id: "taskid",
+      description: "New Title",
+      context: "Test context",
+    });
+    const store = createStore([task]);
+
+    githubMock.listIssues("test-owner", "test-repo", [
+      createIssueFixture({
+        number: 1,
+        title: "Old Title",
+        body: `<!-- dex:task:id:taskid -->\n<!-- dex:task:priority:1 -->\n<!-- dex:task:completed:false -->\n<!-- dex:task:created_at:${task.created_at} -->\n<!-- dex:task:updated_at:${task.updated_at} -->\n<!-- dex:task:completed_at:null -->\nTest context`,
+        state: "open",
+        labels: [{ name: "dex" }, { name: "dex:priority-1" }, { name: "dex:pending" }],
+      }),
+    ]);
+    githubMock.listIssues("test-owner", "test-repo", []);
+    githubMock.updateIssue("test-owner", "test-repo", 1, createIssueFixture({ number: 1, title: "New Title" }));
+
+    const results = await service.syncAll(store);
+
+    expect(results[0].skipped).toBeFalsy();
+  });
+
+  it("detects change when body differs", async () => {
+    const task = createTask({
+      id: "taskid",
+      description: "Test Task",
+      context: "New context",
+    });
+    const store = createStore([task]);
+
+    githubMock.listIssues("test-owner", "test-repo", [
+      createIssueFixture({
+        number: 1,
+        title: "Test Task",
+        body: `<!-- dex:task:id:taskid -->\n<!-- dex:task:priority:1 -->\n<!-- dex:task:completed:false -->\n<!-- dex:task:created_at:${task.created_at} -->\n<!-- dex:task:updated_at:${task.updated_at} -->\n<!-- dex:task:completed_at:null -->\nOld context`,
+        state: "open",
+        labels: [{ name: "dex" }, { name: "dex:priority-1" }, { name: "dex:pending" }],
+      }),
+    ]);
+    githubMock.listIssues("test-owner", "test-repo", []);
+    githubMock.updateIssue("test-owner", "test-repo", 1, createIssueFixture({ number: 1, title: "Test Task" }));
+
+    const results = await service.syncAll(store);
+
+    expect(results[0].skipped).toBeFalsy();
+  });
+
+  it("detects change when state differs", async () => {
+    // Mock gitignored storage so local completion status is used
+    const { execSync } = await import("node:child_process");
+    vi.mocked(execSync).mockImplementation((cmd: string) => {
+      if (typeof cmd === "string" && cmd.includes("git check-ignore")) {
+        return ""; // Storage is gitignored
+      }
+      throw new Error("unexpected command");
+    });
+
+    const task = createTask({
+      id: "taskid",
+      description: "Test Task",
+      context: "Test context",
+      completed: true,
+    });
+    const store = createStore([task]);
+
+    githubMock.listIssues("test-owner", "test-repo", [
+      createIssueFixture({
+        number: 1,
+        title: "Test Task",
+        body: `<!-- dex:task:id:taskid -->\nTest context`,
+        state: "open",
+        labels: [{ name: "dex" }, { name: "dex:priority-1" }, { name: "dex:pending" }],
+      }),
+    ]);
+    githubMock.listIssues("test-owner", "test-repo", []);
+    githubMock.updateIssue("test-owner", "test-repo", 1, createIssueFixture({ number: 1, title: "Test Task", state: "closed" }));
+
+    const results = await service.syncAll(store);
+
+    expect(results[0].skipped).toBeFalsy();
+    expect(results[0].github.state).toBe("closed");
+  });
+
+  it("detects change when labels differ", async () => {
+    const task = createTask({
+      id: "taskid",
+      description: "Test Task",
+      context: "Test context",
+      priority: 2,
+    });
+    const store = createStore([task]);
+
+    githubMock.listIssues("test-owner", "test-repo", [
+      createIssueFixture({
+        number: 1,
+        title: "Test Task",
+        body: `<!-- dex:task:id:taskid -->\n<!-- dex:task:priority:2 -->\n<!-- dex:task:completed:false -->\n<!-- dex:task:created_at:${task.created_at} -->\n<!-- dex:task:updated_at:${task.updated_at} -->\n<!-- dex:task:completed_at:null -->\nTest context`,
+        state: "open",
+        labels: [{ name: "dex" }, { name: "dex:priority-1" }, { name: "dex:pending" }],
+      }),
+    ]);
+    githubMock.listIssues("test-owner", "test-repo", []);
+    githubMock.updateIssue("test-owner", "test-repo", 1, createIssueFixture({ number: 1, title: "Test Task" }));
+
+    const results = await service.syncAll(store);
+
+    expect(results[0].skipped).toBeFalsy();
+  });
+
+  it("normalizes whitespace when comparing bodies", async () => {
+    const task = createTask({
+      id: "taskid",
+      description: "Test Task",
+      context: "Test context",
+    });
+    const store = createStore([task]);
+
+    // Body has trailing whitespace but content is the same
+    githubMock.listIssues("test-owner", "test-repo", [
+      createIssueFixture({
+        number: 1,
+        title: "Test Task",
+        body: `<!-- dex:task:id:taskid -->\n<!-- dex:task:priority:1 -->\n<!-- dex:task:completed:false -->\n<!-- dex:task:created_at:${task.created_at} -->\n<!-- dex:task:updated_at:${task.updated_at} -->\n<!-- dex:task:completed_at:null -->\nTest context  \n`,
+        state: "open",
+        labels: [{ name: "dex" }, { name: "dex:priority-1" }, { name: "dex:pending" }],
+      }),
+    ]);
+    githubMock.listIssues("test-owner", "test-repo", []);
+
+    const results = await service.syncAll(store);
+
+    expect(results[0].skipped).toBe(true);
+  });
+});
+
+describe("isStorageGitignored caching", () => {
+  let originalEnv: string | undefined;
+
+  beforeEach(() => {
+    originalEnv = process.env.GITHUB_TOKEN;
+    process.env.GITHUB_TOKEN = "test-token";
+  });
+
+  afterEach(() => {
+    if (originalEnv !== undefined) {
+      process.env.GITHUB_TOKEN = originalEnv;
+    } else {
+      delete process.env.GITHUB_TOKEN;
+    }
+    vi.restoreAllMocks();
+    cleanupGitHubMock();
+  });
+
+  it("caches gitignore check result across multiple calls", async () => {
+    const { execSync } = await import("node:child_process");
+    let gitCheckIgnoreCallCount = 0;
+
+    vi.mocked(execSync).mockImplementation((cmd: string) => {
+      if (typeof cmd === "string" && cmd.includes("git check-ignore")) {
+        gitCheckIgnoreCallCount++;
+        return ""; // Storage is gitignored
+      }
+      if (typeof cmd === "string" && cmd.includes("gh auth token")) {
+        throw new Error("not authenticated");
+      }
+      throw new Error("unexpected command");
+    });
+
+    const githubMock = setupGitHubMock();
+    const service = new GitHubSyncService({
+      repo: { owner: "test-owner", repo: "test-repo" },
+      token: "test-token",
+    });
+
+    const task1 = createTask({ id: "task1", description: "Task 1", completed: true });
+    const task2 = createTask({ id: "task2", description: "Task 2", completed: true });
+    const store = createStore([task1, task2]);
+
+    // Cache fetch
+    githubMock.listIssues("test-owner", "test-repo", []);
+
+    // Both tasks need to be created
+    githubMock.createIssue("test-owner", "test-repo", createIssueFixture({ number: 1, title: "Task 1" }));
+    githubMock.updateIssue("test-owner", "test-repo", 1, createIssueFixture({ number: 1, state: "closed" }));
+    githubMock.createIssue("test-owner", "test-repo", createIssueFixture({ number: 2, title: "Task 2" }));
+    githubMock.updateIssue("test-owner", "test-repo", 2, createIssueFixture({ number: 2, state: "closed" }));
+
+    await service.syncAll(store);
+
+    // git check-ignore should only be called once, not twice
+    expect(gitCheckIgnoreCallCount).toBe(1);
+  });
+
+  it("returns cached value on subsequent sync calls", async () => {
+    const { execSync } = await import("node:child_process");
+    let gitCheckIgnoreCallCount = 0;
+
+    vi.mocked(execSync).mockImplementation((cmd: string) => {
+      if (typeof cmd === "string" && cmd.includes("git check-ignore")) {
+        gitCheckIgnoreCallCount++;
+        throw new Error("not ignored"); // Storage is tracked in git
+      }
+      if (typeof cmd === "string" && cmd.includes("gh auth token")) {
+        throw new Error("not authenticated");
+      }
+      if (typeof cmd === "string" && cmd.includes("git show origin/HEAD")) {
+        throw new Error("not on remote");
+      }
+      return "";
+    });
+
+    const githubMock = setupGitHubMock();
+    const service = new GitHubSyncService({
+      repo: { owner: "test-owner", repo: "test-repo" },
+      token: "test-token",
+    });
+
+    const task = createTask({ id: "task1", description: "Task 1" });
+    const store = createStore([task]);
+
+    // First sync
+    githubMock.listIssues("test-owner", "test-repo", []);
+    githubMock.createIssue("test-owner", "test-repo", createIssueFixture({ number: 1, title: "Task 1" }));
+
+    await service.syncAll(store);
+
+    // Second sync with same service instance
+    githubMock.listIssues("test-owner", "test-repo", [
+      createIssueFixture({
+        number: 1,
+        title: "Task 1",
+        body: `<!-- dex:task:id:task1 -->\nTest context`,
+        labels: [{ name: "dex" }],
+      }),
+    ]);
+    githubMock.listIssues("test-owner", "test-repo", []);
+    githubMock.updateIssue("test-owner", "test-repo", 1, createIssueFixture({ number: 1, title: "Task 1" }));
+
+    await service.syncAll(store);
+
+    // Should only call git check-ignore once despite two syncAll calls
+    expect(gitCheckIgnoreCallCount).toBe(1);
+  });
+});
+
+describe("syncTask without cache (single-task sync)", () => {
+  let service: GitHubSyncService;
+  let githubMock: GitHubMock;
+
+  beforeEach(() => {
+    process.env.GITHUB_TOKEN = "test-token";
+    githubMock = setupGitHubMock();
+
+    service = new GitHubSyncService({
+      repo: { owner: "test-owner", repo: "test-repo" },
+      token: "test-token",
+    });
+  });
+
+  afterEach(() => {
+    cleanupGitHubMock();
+    delete process.env.GITHUB_TOKEN;
+    vi.restoreAllMocks();
+  });
+
+  it("falls back to findIssueByTaskId when no metadata and no cache", async () => {
+    const task = createTask({ id: "unmapped", description: "Unmapped Task" });
+    const store = createStore([task]);
+
+    // findIssueByTaskId is called, finds existing issue
+    githubMock.listIssues("test-owner", "test-repo", [
+      createIssueFixture({
+        number: 42,
+        title: "Unmapped Task",
+        body: "<!-- dex:task:id:unmapped -->\nSome context",
+      }),
+    ]);
+
+    // hasIssueChanged is called via GET since no cache
+    githubMock.getIssue("test-owner", "test-repo", 42, createIssueFixture({
+      number: 42,
+      title: "Unmapped Task",
+      body: "<!-- dex:task:id:unmapped -->\nSome context",
+    }));
+
+    // Update is called since body won't match
+    githubMock.updateIssue("test-owner", "test-repo", 42, createIssueFixture({
+      number: 42,
+      title: "Unmapped Task",
+    }));
+
+    const result = await service.syncTask(task, store);
+
+    expect(result).not.toBeNull();
+    expect(result?.github.issueNumber).toBe(42);
+    expect(result?.created).toBe(false);
+  });
+
+  it("skips findIssueByTaskId when task has metadata", async () => {
+    const task = createTask({
+      id: "mapped",
+      description: "Mapped Task",
+      metadata: {
+        github: {
+          issueNumber: 99,
+          issueUrl: "https://github.com/test-owner/test-repo/issues/99",
+          repo: "test-owner/test-repo",
+        },
+      },
+    });
+    const store = createStore([task]);
+
+    // No listIssues call needed - goes straight to hasIssueChanged
+    githubMock.getIssue("test-owner", "test-repo", 99, createIssueFixture({
+      number: 99,
+      title: "Old Title",
+      body: "Old body",
+    }));
+    githubMock.updateIssue("test-owner", "test-repo", 99, createIssueFixture({
+      number: 99,
+      title: "Mapped Task",
+    }));
+
+    const result = await service.syncTask(task, store);
+
+    expect(result).not.toBeNull();
+    expect(result?.github.issueNumber).toBe(99);
+    expect(result?.created).toBe(false);
+  });
+
+  it("creates new issue when findIssueByTaskId returns null", async () => {
+    const task = createTask({ id: "newone", description: "Brand New Task" });
+    const store = createStore([task]);
+
+    // findIssueByTaskId returns null (no existing issue)
+    githubMock.listIssues("test-owner", "test-repo", []);
+
+    // Create new issue
+    githubMock.createIssue("test-owner", "test-repo", createIssueFixture({
+      number: 100,
+      title: "Brand New Task",
+    }));
+
+    const result = await service.syncTask(task, store);
+
+    expect(result).not.toBeNull();
+    expect(result?.github.issueNumber).toBe(100);
+    expect(result?.created).toBe(true);
+  });
+
+  it("uses hasIssueChanged API call when no cache available", async () => {
+    const task = createTask({
+      id: "checkchange",
+      description: "Check Change Task",
+      metadata: {
+        github: {
+          issueNumber: 77,
+          issueUrl: "https://github.com/test-owner/test-repo/issues/77",
+          repo: "test-owner/test-repo",
+        },
+      },
+    });
+    const store = createStore([task]);
+
+    // hasIssueChanged makes GET call to check if update needed
+    githubMock.getIssue("test-owner", "test-repo", 77, createIssueFixture({
+      number: 77,
+      title: "Check Change Task",
+      body: `<!-- dex:task:id:checkchange -->\n<!-- dex:task:priority:1 -->\n<!-- dex:task:completed:false -->\n<!-- dex:task:created_at:${task.created_at} -->\n<!-- dex:task:updated_at:${task.updated_at} -->\n<!-- dex:task:completed_at:null -->\nTest context`,
+      state: "open",
+      labels: [{ name: "dex" }, { name: "dex:priority-1" }, { name: "dex:pending" }],
+    }));
+
+    // Content matches, so no update needed
+    const result = await service.syncTask(task, store);
+
+    expect(result).not.toBeNull();
+    expect(result?.skipped).toBe(true);
+  });
+});
+
 describe("GitHubSyncService error message quality", () => {
   let service: GitHubSyncService;
   let githubMock: GitHubMock;
