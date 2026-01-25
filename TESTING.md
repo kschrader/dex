@@ -2,11 +2,23 @@
 
 ## Philosophy
 
-Tests should be **comprehensive** and **isolated**. Every test must:
+Tests should be **focused** and **isolated**. Every test must:
 - Run independently without affecting other tests or local state
 - Use temporary directories for storage (never touch real `.dex/`)
 - Mock all network requests (GitHub API, etc.)
 - Clean up resources in `afterEach` hooks
+
+### Coverage Depth
+
+Test core behavior and catch regressions—not every possible edge case. Prioritize:
+- Happy paths and common usage patterns
+- Error cases users will actually hit
+- Past bugs (regression tests)
+
+Skip:
+- Exhaustive input permutations
+- Unlikely edge cases that add maintenance burden without value
+- Implementation details that may change
 
 ## Running Tests
 
@@ -152,7 +164,7 @@ describe("mcp tool", () => {
 ### Do
 - Test behavior, not implementation
 - Use descriptive test names that explain the scenario
-- Test error cases and edge conditions
+- Test error cases users will realistically encounter
 - Group related tests with nested `describe()` blocks
 - Verify cleanup happens (no leftover files, mocks cleared)
 
@@ -165,10 +177,9 @@ describe("mcp tool", () => {
 
 ## Coverage Goals
 
-We aim for comprehensive coverage of:
-- All CLI commands
+Cover core functionality:
+- CLI commands (happy paths + common errors)
 - Core business logic (task-service, storage)
 - MCP server and tool handlers
-- Error handling paths
 
-Coverage tooling and thresholds are configured in `vitest.config.ts`.
+Thresholds configured in `vitest.config.ts`.
