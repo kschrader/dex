@@ -7,13 +7,16 @@ description: Manage tasks via dex CLI. Use when breaking down complex work, trac
 
 ## Command Invocation
 
-Use the bundled `./dex` script in this skill directory to run dex commands:
+Use `dex` directly for all commands:
 
 ```bash
-./dex <command>
+dex <command>
 ```
 
-The script automatically finds a local `dex` installation or falls back to `npx @zeeg/dex`.
+If `dex` is not on PATH, use `npx @zeeg/dex <command>` instead. Check once at the start:
+```bash
+command -v dex &>/dev/null && echo "use: dex" || echo "use: npx @zeeg/dex"
+```
 
 Use dex to act as a **master coordinator** for complex work:
 - Break down large tasks into structured deliverables
