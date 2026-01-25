@@ -10,6 +10,7 @@ import {
   createGitHubSyncServiceOrThrow,
   getGitHubIssueNumber,
   GitHubSyncService,
+  SyncResult,
 } from "../core/github-sync.js";
 import { loadConfig } from "../core/config.js";
 import { Task } from "../types.js";
@@ -95,11 +96,19 @@ ${colors.bold}EXAMPLE:${colors.reset}
       }
 
       const store = await options.storage.readAsync();
-      await syncService.syncTask(rootTask, store);
+      const result = await syncService.syncTask(rootTask, store);
+
+      // Save github metadata to task
+      if (result) {
+        await saveGithubMetadata(service, result);
+      }
 
       console.log(
         `${colors.green}Synced${colors.reset} task ${colors.bold}${rootTask.id}${colors.reset} to ${colors.cyan}${repo.owner}/${repo.repo}${colors.reset}`
       );
+      if (result) {
+        console.log(`  ${colors.dim}${result.github.issueUrl}${colors.reset}`);
+      }
     } else {
       // Sync all root tasks
       const allTasks = await service.list({ all: true });
@@ -124,18 +133,15 @@ ${colors.bold}EXAMPLE:${colors.reset}
       }
 
       const store = await options.storage.readAsync();
-      let created = 0;
-      let updated = 0;
+      const results = await syncService.syncAll(store);
 
-      for (const task of rootTasks) {
-        const isUpdate = !!getGitHubIssueNumber(task);
-        await syncService.syncTask(task, store);
-        if (isUpdate) {
-          updated++;
-        } else {
-          created++;
-        }
+      // Save github metadata for all synced tasks
+      for (const result of results) {
+        await saveGithubMetadata(service, result);
       }
+
+      const created = results.filter((r) => r.created).length;
+      const updated = results.length - created;
 
       console.log(
         `${colors.green}Synced${colors.reset} ${rootTasks.length} task(s) to ${colors.cyan}${repo.owner}/${repo.repo}${colors.reset}`
@@ -151,6 +157,28 @@ ${colors.bold}EXAMPLE:${colors.reset}
     console.error(formatCliError(err));
     process.exit(1);
   }
+}
+
+/**
+ * Save github metadata to a task after syncing.
+ */
+async function saveGithubMetadata(
+  service: ReturnType<typeof createService>,
+  result: SyncResult
+): Promise<void> {
+  const task = await service.get(result.taskId);
+  if (!task) return;
+
+  // Merge with existing metadata
+  const metadata = {
+    ...task.metadata,
+    github: result.github,
+  };
+
+  await service.update({
+    id: result.taskId,
+    metadata,
+  });
 }
 
 /**

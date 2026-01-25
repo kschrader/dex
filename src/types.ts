@@ -10,8 +10,17 @@ export const CommitMetadataSchema = z.object({
 
 export type CommitMetadata = z.infer<typeof CommitMetadataSchema>;
 
+export const GithubMetadataSchema = z.object({
+  issueNumber: z.number().int().positive(),
+  issueUrl: z.string().url(),
+  repo: z.string().min(1), // owner/repo format
+});
+
+export type GithubMetadata = z.infer<typeof GithubMetadataSchema>;
+
 export const TaskMetadataSchema = z.object({
   commit: CommitMetadataSchema.optional(),
+  github: GithubMetadataSchema.optional(),
 }).nullable();
 
 export type TaskMetadata = z.infer<typeof TaskMetadataSchema>;

@@ -1,6 +1,6 @@
 import { execSync } from "node:child_process";
 import { Octokit } from "@octokit/rest";
-import { Task, TaskStore } from "../types.js";
+import { GithubMetadata, Task, TaskStore } from "../types.js";
 import { GitHubSyncConfig } from "./config.js";
 import { getGitHubRepo, GitHubRepo } from "./git-remote.js";
 import {
@@ -8,6 +8,16 @@ import {
   renderHierarchicalIssueBody,
   HierarchicalTask,
 } from "./subtask-markdown.js";
+
+/**
+ * Result of syncing a task to GitHub.
+ * Contains the github metadata that should be saved to the task.
+ */
+export interface SyncResult {
+  taskId: string;
+  github: GithubMetadata;
+  created: boolean;
+}
 
 /**
  * Get GitHub token from environment variable or gh CLI.
@@ -51,14 +61,14 @@ export interface GitHubSyncServiceOptions {
 /**
  * GitHub Sync Service
  *
- * Provides automatic syncing of tasks to GitHub Issues as an enhancement layer.
- * File storage remains the source of truth - this is a one-way push sync.
+ * Provides one-way sync of tasks to GitHub Issues.
+ * File storage remains the source of truth.
  *
  * Behavior:
  * - Top-level tasks (no parent_id) → Create/update GitHub Issue
  * - Subtasks → Embedded in parent issue body as markdown
- * - Task metadata (description, context) → Synced from local filesystem
- * - Completion status → Only synced when pushed to git remote
+ * - Completed tasks → Issue closed only when pushed to remote
+ * - Pending tasks → Issue open
  *
  * Sync-on-push: GitHub issues are only closed when the task completion has been
  * pushed to origin/HEAD. This prevents issues from being prematurely closed
@@ -87,68 +97,106 @@ export class GitHubSyncService {
   }
 
   /**
+   * Get the full repo string (owner/repo format).
+   */
+  getRepoString(): string {
+    return `${this.owner}/${this.repo}`;
+  }
+
+  /**
    * Sync a single task to GitHub.
    * For subtasks, syncs the parent issue instead.
+   * Returns sync result with github metadata.
    */
-  async syncTask(task: Task, store: TaskStore): Promise<void> {
+  async syncTask(task: Task, store: TaskStore): Promise<SyncResult | null> {
     // If this is a subtask, sync the parent instead
     if (task.parent_id) {
       const parent = store.tasks.find((t) => t.id === task.parent_id);
       if (parent) {
-        await this.syncTask(parent, store);
+        return this.syncTask(parent, store);
       }
-      return;
+      return null;
     }
 
-    await this.syncParentTask(task, store);
+    return this.syncParentTask(task, store);
   }
 
   /**
    * Sync all tasks to GitHub.
+   * Returns array of sync results.
    */
-  async syncAll(store: TaskStore): Promise<void> {
+  async syncAll(store: TaskStore): Promise<SyncResult[]> {
+    const results: SyncResult[] = [];
     const parentTasks = store.tasks.filter((t) => !t.parent_id);
     for (const parent of parentTasks) {
-      await this.syncParentTask(parent, store);
+      const result = await this.syncParentTask(parent, store);
+      if (result) {
+        results.push(result);
+      }
     }
+    return results;
   }
 
   /**
    * Sync a parent task (with all descendants) to GitHub.
+   * Returns sync result with github metadata.
    */
-  private async syncParentTask(parent: Task, store: TaskStore): Promise<void> {
+  private async syncParentTask(parent: Task, store: TaskStore): Promise<SyncResult | null> {
     // Collect ALL descendants, not just immediate children
     const descendants = collectDescendants(store.tasks, parent.id);
-    const issueNumber = this.getGitHubIssueNumber(parent);
+
+    // Check for existing issue: first metadata, then search by task ID
+    let issueNumber = getGitHubIssueNumber(parent);
+    if (!issueNumber) {
+      issueNumber = await this.findIssueByTaskId(parent.id);
+    }
+
+    // Determine if task should be marked completed based on remote state
+    const shouldClose = this.shouldMarkCompleted(parent);
 
     if (issueNumber) {
-      await this.updateIssue(parent, descendants, issueNumber);
+      await this.updateIssue(parent, descendants, issueNumber, shouldClose);
+      return {
+        taskId: parent.id,
+        github: {
+          issueNumber,
+          issueUrl: `https://github.com/${this.owner}/${this.repo}/issues/${issueNumber}`,
+          repo: this.getRepoString(),
+        },
+        created: false,
+      };
     } else {
-      await this.createIssue(parent, descendants);
+      const github = await this.createIssue(parent, descendants, shouldClose);
+      return {
+        taskId: parent.id,
+        github,
+        created: true,
+      };
     }
   }
 
   /**
    * Create a new GitHub issue for a task.
-   * Note: Issue is only closed if completion has been pushed to remote.
+   * Returns the github metadata for the created issue.
+   * Issue is created as closed if shouldClose is true.
    */
   private async createIssue(
     parent: Task,
-    descendants: HierarchicalTask[]
-  ): Promise<number> {
+    descendants: HierarchicalTask[],
+    shouldClose: boolean
+  ): Promise<GithubMetadata> {
     const body = this.renderBody(parent.context, descendants, parent.id);
-    const remoteCompleted = this.isTaskCompletedOnRemote(parent.id);
 
     const { data: issue } = await this.octokit.issues.create({
       owner: this.owner,
       repo: this.repo,
       title: parent.description,
       body,
-      labels: this.buildLabels(parent, remoteCompleted),
+      labels: this.buildLabels(parent, shouldClose),
     });
 
-    // Only close if completion has been pushed to remote
-    if (remoteCompleted) {
+    // Close issue if task completion has been pushed to remote
+    if (shouldClose) {
       await this.octokit.issues.update({
         owner: this.owner,
         repo: this.repo,
@@ -157,8 +205,8 @@ export class GitHubSyncService {
       });
     }
 
-    // Add result as comment if present and pushed
-    if (parent.result && remoteCompleted) {
+    // Add result as comment if present and closed
+    if (parent.result && shouldClose) {
       await this.octokit.issues.createComment({
         owner: this.owner,
         repo: this.repo,
@@ -167,20 +215,23 @@ export class GitHubSyncService {
       });
     }
 
-    return issue.number;
+    return {
+      issueNumber: issue.number,
+      issueUrl: issue.html_url,
+      repo: this.getRepoString(),
+    };
   }
 
   /**
    * Update an existing GitHub issue.
-   * Note: Issue is only closed if completion has been pushed to remote.
    */
   private async updateIssue(
     parent: Task,
     descendants: HierarchicalTask[],
-    issueNumber: number
+    issueNumber: number,
+    shouldClose: boolean
   ): Promise<void> {
     const body = this.renderBody(parent.context, descendants, parent.id);
-    const remoteCompleted = this.isTaskCompletedOnRemote(parent.id);
 
     await this.octokit.issues.update({
       owner: this.owner,
@@ -188,8 +239,8 @@ export class GitHubSyncService {
       issue_number: issueNumber,
       title: parent.description,
       body,
-      labels: this.buildLabels(parent, remoteCompleted),
-      state: remoteCompleted ? "closed" : "open",
+      labels: this.buildLabels(parent, shouldClose),
+      state: shouldClose ? "closed" : "open",
     });
   }
 
@@ -208,22 +259,44 @@ export class GitHubSyncService {
 
   /**
    * Build labels for a task.
-   * Uses remote completion state for the status label.
    */
-  private buildLabels(task: Task, remoteCompleted: boolean): string[] {
+  private buildLabels(task: Task, shouldClose: boolean): string[] {
     return [
       this.labelPrefix,
       `${this.labelPrefix}:priority-${task.priority}`,
-      `${this.labelPrefix}:${remoteCompleted ? "completed" : "pending"}`,
+      `${this.labelPrefix}:${shouldClose ? "completed" : "pending"}`,
     ];
   }
 
   /**
-   * Extract GitHub issue number from task metadata.
-   * Returns null if not synced yet.
+   * Check if storage path is gitignored.
    */
-  private getGitHubIssueNumber(task: Task): number | null {
-    return getGitHubIssueNumber(task);
+  private isStorageGitignored(): boolean {
+    try {
+      // git check-ignore returns 0 if ignored, 1 if not ignored
+      execSync(`git check-ignore -q ${this.storagePath}`, {
+        stdio: ["pipe", "pipe", "pipe"],
+      });
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  /**
+   * Determine if a task should be marked as completed in GitHub.
+   *
+   * If storage is gitignored: use local completion status (tasks won't be pushed)
+   * If storage is tracked: use remote completion status (sync-on-push behavior)
+   */
+  private shouldMarkCompleted(task: Task): boolean {
+    // If storage is gitignored, use local status directly
+    if (this.isStorageGitignored()) {
+      return task.completed;
+    }
+
+    // Otherwise, only mark completed if pushed to remote
+    return this.isTaskCompletedOnRemote(task.id);
   }
 
   /**
@@ -278,9 +351,8 @@ export class GitHubSyncService {
  * Returns null if not synced yet.
  */
 export function getGitHubIssueNumber(task: Task): number | null {
-  const metadata = task.metadata as Record<string, unknown> | null;
-  if (metadata && typeof metadata.github_issue_number === "number") {
-    return metadata.github_issue_number;
+  if (task.metadata?.github?.issueNumber) {
+    return task.metadata.github.issueNumber;
   }
   return null;
 }
