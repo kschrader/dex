@@ -181,6 +181,7 @@ export class GitHubSyncService {
     taskId: string,
     issueNumber: number,
     created: boolean,
+    state: "open" | "closed",
     skipped?: boolean
   ): SyncResult {
     return {
@@ -189,6 +190,7 @@ export class GitHubSyncService {
         issueNumber,
         issueUrl: `https://github.com/${this.owner}/${this.repo}/issues/${issueNumber}`,
         repo: this.getRepoString(),
+        state,
       },
       created,
       skipped,
@@ -218,12 +220,16 @@ export class GitHubSyncService {
     // Determine if task should be marked completed based on remote state
     const shouldClose = this.shouldMarkCompleted(parent);
 
+    // Determine expected state for GitHub issue
+    const expectedState = shouldClose ? "closed" : "open";
+
     if (issueNumber) {
-      // Fast path: if task is completed and already synced, skip without API call
-      // This assumes completed tasks don't change after completion
-      if (skipUnchanged && shouldClose && parent.metadata?.github?.issueNumber === issueNumber) {
+      // Fast path: skip completed tasks that are already synced as closed.
+      // The stored state check ensures tasks completed locally (but synced while open) are re-synced.
+      const storedState = parent.metadata?.github?.state;
+      if (skipUnchanged && expectedState === "closed" && storedState === "closed") {
         onProgress?.({ current: currentIndex, total, task: parent, phase: "skipped" });
-        return this.buildSyncResult(parent.id, issueNumber, false, true);
+        return this.buildSyncResult(parent.id, issueNumber, false, expectedState, true);
       }
 
       // Check if we can skip this update by comparing with GitHub
@@ -241,14 +247,14 @@ export class GitHubSyncService {
 
         if (!hasChanges) {
           onProgress?.({ current: currentIndex, total, task: parent, phase: "skipped" });
-          return this.buildSyncResult(parent.id, issueNumber, false, true);
+          return this.buildSyncResult(parent.id, issueNumber, false, expectedState, true);
         }
       }
 
       onProgress?.({ current: currentIndex, total, task: parent, phase: "updating" });
 
       await this.updateIssue(parent, descendants, issueNumber, shouldClose);
-      return this.buildSyncResult(parent.id, issueNumber, false);
+      return this.buildSyncResult(parent.id, issueNumber, false, expectedState);
     } else {
       onProgress?.({ current: currentIndex, total, task: parent, phase: "creating" });
 
@@ -354,6 +360,7 @@ export class GitHubSyncService {
       issueNumber: issue.number,
       issueUrl: issue.html_url,
       repo: this.getRepoString(),
+      state: shouldClose ? "closed" : "open",
     };
   }
 

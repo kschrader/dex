@@ -14,6 +14,7 @@ export const GithubMetadataSchema = z.object({
   issueNumber: z.number().int().positive(),
   issueUrl: z.string().url(),
   repo: z.string().min(1), // owner/repo format
+  state: z.enum(["open", "closed"]).optional(), // Last synced state for fast-path optimization
 });
 
 export type GithubMetadata = z.infer<typeof GithubMetadataSchema>;

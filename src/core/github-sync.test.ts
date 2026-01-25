@@ -208,6 +208,117 @@ describe("GitHubSyncService", () => {
         await expect(service.syncTask(task, store)).rejects.toThrow();
       });
     });
+
+    describe("fast-path state tracking", () => {
+      // Helper to mock gitignored storage so local completion status is used
+      async function mockGitignoredStorage(): Promise<void> {
+        const { execSync } = await import("node:child_process");
+        vi.mocked(execSync).mockImplementation((cmd: string) => {
+          if (typeof cmd === "string" && cmd.includes("git check-ignore")) {
+            return ""; // Storage is gitignored
+          }
+          throw new Error("unexpected command");
+        });
+      }
+
+      it("syncs completed task when previously synced as open", async () => {
+        await mockGitignoredStorage();
+
+        // Bug scenario: task synced while pending (state: "open"), then completed locally
+        // The sync should update the issue to close it
+        const task = createTask({
+          completed: true,
+          metadata: {
+            github: {
+              issueNumber: 100,
+              issueUrl: "https://github.com/test-owner/test-repo/issues/100",
+              repo: "test-owner/test-repo",
+              state: "open", // Previously synced as open
+            },
+          },
+        });
+        const store = createStore([task]);
+
+        // Should fetch the issue and update it (not skip via fast-path)
+        githubMock.getIssue("test-owner", "test-repo", 100, createIssueFixture({
+          number: 100,
+          title: task.description,
+          state: "open",
+        }));
+        githubMock.updateIssue("test-owner", "test-repo", 100, createIssueFixture({
+          number: 100,
+          title: task.description,
+          state: "closed",
+        }));
+
+        const result = await service.syncTask(task, store);
+
+        expect(result).not.toBeNull();
+        expect(result?.skipped).toBeFalsy();
+        expect(result?.github.state).toBe("closed");
+      });
+
+      it("skips completed task when already synced as closed", async () => {
+        await mockGitignoredStorage();
+
+        // Fast-path: completed task with state: "closed" should skip API call
+        const task = createTask({
+          completed: true,
+          metadata: {
+            github: {
+              issueNumber: 101,
+              issueUrl: "https://github.com/test-owner/test-repo/issues/101",
+              repo: "test-owner/test-repo",
+              state: "closed", // Already synced as closed
+            },
+          },
+        });
+        const store = createStore([task]);
+
+        // Should NOT make any API calls (fast-path)
+        const result = await service.syncTask(task, store);
+
+        expect(result).not.toBeNull();
+        expect(result?.skipped).toBe(true);
+        expect(result?.github.state).toBe("closed");
+      });
+
+      it("checks API for open task even with matching state", async () => {
+        // Open tasks can change, so we always check the API (no fast-path for open tasks)
+        const task = createTask({
+          completed: false,
+          metadata: {
+            github: {
+              issueNumber: 102,
+              issueUrl: "https://github.com/test-owner/test-repo/issues/102",
+              repo: "test-owner/test-repo",
+              state: "open",
+            },
+          },
+        });
+        const store = createStore([task]);
+
+        // Should fetch issue to check for changes
+        // Body won't match (mock has null), so update will be called
+        githubMock.getIssue("test-owner", "test-repo", 102, createIssueFixture({
+          number: 102,
+          title: task.description,
+          state: "open",
+        }));
+        githubMock.updateIssue("test-owner", "test-repo", 102, createIssueFixture({
+          number: 102,
+          title: task.description,
+          state: "open",
+        }));
+
+        const result = await service.syncTask(task, store);
+
+        // Open task was checked and updated (not fast-pathed)
+        expect(result).not.toBeNull();
+        expect(result?.skipped).toBeFalsy();
+        expect(result?.github.state).toBe("open");
+      });
+    });
   });
 
   describe("syncAll", () => {
