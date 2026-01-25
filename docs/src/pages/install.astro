@@ -7,11 +7,12 @@ import Terminal from '../components/Terminal.astro';
   <h1>Installation</h1>
 
   <h2>Claude Code</h2>
-  <p>Add dex as an MCP server to Claude Code:</p>
+  <p>Install the dex plugin from the Claude Code marketplace:</p>
   <Terminal title="Terminal">
-    <pre class="cli-output"><span class="cli-dim">$</span> claude mcp add dex -- npx -y @zeeg/dex</pre>
+    <pre class="cli-output"><span class="cli-dim">$</span> claude plugin marketplace add dcramer/dex
+<span class="cli-dim">$</span> claude plugin install dex@dex</pre>
   </Terminal>
-  <p>Restart Claude Code after installation. The <code>/dex</code> skill will be available.</p>
+  <p>The <code>/dex</code> skill will be available immediately.</p>
 
   <h2>Skills CLI</h2>
   <p>If you use the <a href="https://github.com/anthropics/skills">skills CLI</a>:</p>
