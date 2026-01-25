@@ -32,7 +32,7 @@ Then use natural language or slash commands:
 /dex create a task to refactor the authentication module
 ```
 
-**[Read the full documentation →](https://dex.zeeg.me)**
+**[Read the full documentation →](https://dcramer.github.io/dex/)**
 
 ## Contributing
 
