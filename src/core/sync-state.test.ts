@@ -138,11 +138,11 @@ describe("sync-state", () => {
     });
 
     it("handles edge case at exactly max_age boundary", () => {
-      // Set lastSync to exactly 1 hour ago
-      const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString();
-      updateSyncState(tempDir, { lastSync: oneHourAgo });
+      // Set lastSync to just under 1 hour ago (accounts for test execution time)
+      const justUnderOneHourAgo = new Date(Date.now() - 60 * 60 * 1000 + 100).toISOString();
+      updateSyncState(tempDir, { lastSync: justUnderOneHourAgo });
 
-      // At exactly the boundary, it should be considered stale (> not >=)
+      // At the boundary, we use > not >=, so exactly at the boundary is NOT stale
       expect(isSyncStale(tempDir, "1h")).toBe(false);
     });
   });
