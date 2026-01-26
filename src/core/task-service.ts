@@ -179,12 +179,14 @@ export class TaskService {
   /**
    * Check if adding blocker→blocked would create a cycle.
    * A cycle exists if 'blocked' is already in blocker's dependency chain.
+   * Checks both blockedBy and blocks directions for robustness against data inconsistencies.
    */
   private wouldCreateBlockingCycle(
     tasks: Task[],
     blockerId: string,
     blockedId: string
   ): boolean {
+    // Check if blockedId is already upstream of blockerId (via blockedBy chains)
     const visited = new Set<string>();
     const stack = [blockerId];
 
@@ -195,10 +197,33 @@ export class TaskService {
       visited.add(current);
 
       const task = tasks.find((t) => t.id === current);
-      if (task?.blockedBy) {
+      if (task) {
+        // Follow blockedBy: tasks that must complete before this one
         stack.push(...task.blockedBy);
       }
     }
+
+    // Also check via blocks direction: if blockedId already blocks something
+    // that transitively blocks blockerId
+    const blockedTask = tasks.find((t) => t.id === blockedId);
+    if (blockedTask) {
+      const visitedBlocks = new Set<string>();
+      const blocksStack = [...blockedTask.blocks];
+
+      while (blocksStack.length > 0) {
+        const current = blocksStack.pop()!;
+        if (current === blockerId) return true; // Cycle found!
+        if (visitedBlocks.has(current)) continue;
+        visitedBlocks.add(current);
+
+        const task = tasks.find((t) => t.id === current);
+        if (task) {
+          // Follow blocks: tasks this one must complete before
+          blocksStack.push(...task.blocks);
+        }
+      }
+    }
+
     return false;
   }
 
