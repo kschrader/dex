@@ -3,49 +3,8 @@ import * as path from "node:path";
 import { Task, TaskStore, TaskSchema } from "../../types.js";
 import { DataCorruptionError, StorageError } from "../../errors.js";
 import { StorageEngine } from "./engine.js";
-import { getProjectKey } from "../project-key.js";
-import { getDexHome, type StorageMode } from "../config.js";
-
-function findGitRoot(startDir: string): string | null {
-  let currentDir: string;
-  try {
-    currentDir = fs.realpathSync(startDir);
-  } catch {
-    // If path doesn't exist or is inaccessible, fall back to input
-    currentDir = startDir;
-  }
-
-  while (currentDir !== path.dirname(currentDir)) {
-    const gitPath = path.join(currentDir, ".git");
-    try {
-      // Check if .git exists (file for worktrees, directory for regular repos)
-      fs.statSync(gitPath);
-      return currentDir;
-    } catch {
-      // .git doesn't exist at this level, continue traversing
-    }
-    currentDir = path.dirname(currentDir);
-  }
-  return null;
-}
-
-function getDefaultStoragePath(mode: StorageMode = "in-repo"): string {
-  if (mode === "centralized") {
-    const projectKey = getProjectKey();
-    return path.join(getDexHome(), "projects", projectKey);
-  }
-
-  // in-repo mode: use git root or dex home directory
-  const gitRoot = findGitRoot(process.cwd());
-  if (gitRoot) {
-    return path.join(gitRoot, ".dex");
-  }
-  return path.join(getDexHome(), "local");
-}
-
-function getStoragePath(mode?: StorageMode): string {
-  return process.env.DEX_STORAGE_PATH || getDefaultStoragePath(mode);
-}
+import { type StorageMode } from "../config.js";
+import { getStoragePath } from "./paths.js";
 
 export interface JsonlStorageOptions {
   /** Explicit storage path (overrides mode) */

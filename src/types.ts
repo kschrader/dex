@@ -169,3 +169,40 @@ export const ListTasksInputSchema = z.object({
 });
 
 export type ListTasksInput = z.infer<typeof ListTasksInputSchema>;
+
+// Archived task schema - compacted version of Task for long-term storage
+// Drops: context, blockedBy, blocks, children, created_at, updated_at, priority
+// Keeps: id, parent_id, description, completed_at, archived_at, result, metadata.github
+// Adds: archived_children for rolled-up subtasks
+export const ArchivedChildSchema = z.object({
+  id: z.string().min(1),
+  description: z.string().min(1),
+  result: z.string().nullable().default(null),
+});
+
+export type ArchivedChild = z.infer<typeof ArchivedChildSchema>;
+
+export const ArchivedTaskSchema = z.object({
+  id: z.string().min(1, "Task ID is required"),
+  parent_id: z.string().min(1).nullable().default(null),
+  description: z.string().min(1, "Description is required"),
+  result: z.string().nullable().default(null),
+  completed_at: z.string().datetime().nullable().default(null),
+  archived_at: z.string().datetime(),
+  metadata: z
+    .object({
+      github: GithubMetadataSchema.optional(),
+      commit: CommitMetadataSchema.optional(),
+    })
+    .nullable()
+    .default(null),
+  archived_children: z.array(ArchivedChildSchema).default([]),
+});
+
+export type ArchivedTask = z.infer<typeof ArchivedTaskSchema>;
+
+export const ArchiveStoreSchema = z.object({
+  tasks: z.array(ArchivedTaskSchema),
+});
+
+export type ArchiveStore = z.infer<typeof ArchiveStoreSchema>;
