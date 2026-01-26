@@ -294,3 +294,70 @@ export function createLegacyIssueBody(options: {
   lines.push(options.context);
   return lines.join("\n");
 }
+
+// ============ CLI Test Fixtures ============
+
+import { vi } from "vitest";
+import { runCli } from "./index.js";
+
+export interface CliTestFixture {
+  storage: FileStorage;
+  output: CapturedOutput;
+  mockExit: ReturnType<typeof vi.spyOn>;
+  cleanup: () => void;
+}
+
+/**
+ * Create a complete CLI test fixture with storage, output capture, and mocked process.exit.
+ * Use in beforeEach and call fixture.cleanup() in afterEach.
+ */
+export function createCliTestFixture(): CliTestFixture {
+  const temp = createTempStorage();
+  const output = captureOutput();
+  const mockExit = vi.spyOn(process, "exit").mockImplementation((() => {
+    throw new Error("process.exit called");
+  }) as () => never);
+
+  return {
+    storage: temp.storage,
+    output,
+    mockExit,
+    cleanup: () => {
+      output.restore();
+      temp.cleanup();
+      mockExit.mockRestore();
+    },
+  };
+}
+
+/**
+ * Create a task via CLI and return its ID.
+ * Clears output after capturing the ID.
+ */
+export async function createTaskAndGetId(
+  fixture: CliTestFixture,
+  description: string,
+  options: { parent?: string; blockedBy?: string; context?: string } = {},
+): Promise<string> {
+  const args = ["create", description];
+  if (options.context) {
+    args.push("--context", options.context);
+  }
+  if (options.parent) {
+    args.push("--parent", options.parent);
+  }
+  if (options.blockedBy) {
+    args.push("--blocked-by", options.blockedBy);
+  }
+
+  await runCli(args, { storage: fixture.storage });
+
+  const taskId = fixture.output.stdout.join("\n").match(TASK_ID_REGEX)?.[1];
+  if (!taskId) {
+    throw new Error("Failed to extract task ID from output");
+  }
+  fixture.output.stdout.length = 0;
+  fixture.output.stderr.length = 0;
+
+  return taskId;
+}

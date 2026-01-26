@@ -1,83 +1,167 @@
-import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
-import { FileStorage } from "../core/storage/index.js";
+import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import { runCli } from "./index.js";
 import {
-  captureOutput,
-  createTempStorage,
-  CapturedOutput,
+  createCliTestFixture,
+  createTaskAndGetId,
+  CliTestFixture,
 } from "./test-helpers.js";
 
 describe("create command", () => {
-  let storage: FileStorage;
-  let cleanup: () => void;
-  let output: CapturedOutput;
-  let mockExit: ReturnType<typeof vi.spyOn>;
+  let fixture: CliTestFixture;
 
   beforeEach(() => {
-    const temp = createTempStorage();
-    storage = temp.storage;
-    cleanup = temp.cleanup;
-    output = captureOutput();
-    mockExit = vi.spyOn(process, "exit").mockImplementation((() => {
-      throw new Error("process.exit called");
-    }) as () => never);
+    fixture = createCliTestFixture();
   });
 
   afterEach(() => {
-    output.restore();
-    cleanup();
-    mockExit.mockRestore();
+    fixture.cleanup();
   });
 
   it("creates a task with positional description", async () => {
-    await runCli(["create", "Test task"], { storage });
+    await runCli(["create", "Test task"], { storage: fixture.storage });
 
-    const out = output.stdout.join("\n");
+    const out = fixture.output.stdout.join("\n");
     expect(out).toContain("Created");
     expect(out).toContain("Test task");
+
+    const tasks = await fixture.storage.readAsync();
+    expect(tasks.tasks).toHaveLength(1);
+    expect(tasks.tasks[0].description).toBe("Test task");
   });
 
   it("creates a task with positional description and context", async () => {
     await runCli(["create", "Test task", "--context", "Test context"], {
-      storage,
+      storage: fixture.storage,
     });
 
-    const out = output.stdout.join("\n");
+    const out = fixture.output.stdout.join("\n");
     expect(out).toContain("Created");
     expect(out).toContain("Test task");
+
+    const tasks = await fixture.storage.readAsync();
+    expect(tasks.tasks).toHaveLength(1);
+    expect(tasks.tasks[0].description).toBe("Test task");
+    expect(tasks.tasks[0].context).toBe("Test context");
   });
 
   it("creates a task with legacy -d flag (backward compatibility)", async () => {
     await runCli(["create", "-d", "Test task", "--context", "Test context"], {
-      storage,
+      storage: fixture.storage,
     });
 
-    const out = output.stdout.join("\n");
+    const out = fixture.output.stdout.join("\n");
     expect(out).toContain("Created");
     expect(out).toContain("Test task");
+
+    const tasks = await fixture.storage.readAsync();
+    expect(tasks.tasks).toHaveLength(1);
+    expect(tasks.tasks[0].description).toBe("Test task");
   });
 
   it("shows help with --help flag", async () => {
-    await runCli(["create", "--help"], { storage });
+    await runCli(["create", "--help"], { storage: fixture.storage });
 
-    const out = output.stdout.join("\n");
+    const out = fixture.output.stdout.join("\n");
     expect(out).toContain("dex create");
     expect(out).toContain("--description");
   });
 
   it("requires description", async () => {
-    await expect(runCli(["create"], { storage })).rejects.toThrow(
-      "process.exit",
+    await expect(
+      runCli(["create"], { storage: fixture.storage }),
+    ).rejects.toThrow("process.exit");
+
+    expect(fixture.output.stderr.join("\n")).toContain(
+      "description is required",
     );
 
-    expect(output.stderr.join("\n")).toContain("description is required");
+    const tasks = await fixture.storage.readAsync();
+    expect(tasks.tasks).toHaveLength(0);
   });
 
   it("accepts task without context", async () => {
-    await runCli(["create", "Task without context"], { storage });
+    await runCli(["create", "Task without context"], {
+      storage: fixture.storage,
+    });
 
-    const out = output.stdout.join("\n");
+    const out = fixture.output.stdout.join("\n");
     expect(out).toContain("Created");
     expect(out).toContain("Task without context");
+
+    const tasks = await fixture.storage.readAsync();
+    expect(tasks.tasks).toHaveLength(1);
+    expect(tasks.tasks[0].context).toBe("");
+  });
+
+  it("creates a task with custom priority", async () => {
+    await runCli(["create", "High priority task", "-p", "5"], {
+      storage: fixture.storage,
+    });
+
+    const tasks = await fixture.storage.readAsync();
+    expect(tasks.tasks).toHaveLength(1);
+    expect(tasks.tasks[0].priority).toBe(5);
+  });
+
+  it("creates a task with parent", async () => {
+    const parentId = await createTaskAndGetId(fixture, "Parent task");
+
+    await runCli(["create", "Child task", "--parent", parentId], {
+      storage: fixture.storage,
+    });
+
+    const tasks = await fixture.storage.readAsync();
+    expect(tasks.tasks).toHaveLength(2);
+
+    const parent = tasks.tasks.find((t) => t.id === parentId);
+    const child = tasks.tasks.find((t) => t.id !== parentId);
+    expect(child?.parent_id).toBe(parentId);
+    expect(parent?.children).toContain(child?.id);
+  });
+
+  it("creates a task with blocker", async () => {
+    const blockerId = await createTaskAndGetId(fixture, "Blocker task");
+
+    await runCli(["create", "Blocked task", "--blocked-by", blockerId], {
+      storage: fixture.storage,
+    });
+
+    const tasks = await fixture.storage.readAsync();
+    expect(tasks.tasks).toHaveLength(2);
+
+    const blocker = tasks.tasks.find((t) => t.id === blockerId);
+    const blocked = tasks.tasks.find((t) => t.id !== blockerId);
+    expect(blocked?.blockedBy).toContain(blockerId);
+    expect(blocker?.blocks).toContain(blocked?.id);
+  });
+
+  it("fails when parent does not exist", async () => {
+    await expect(
+      runCli(["create", "Orphan task", "--parent", "nonexistent"], {
+        storage: fixture.storage,
+      }),
+    ).rejects.toThrow("process.exit");
+
+    expect(fixture.output.stderr.join("\n")).toContain("not found");
+
+    const tasks = await fixture.storage.readAsync();
+    expect(tasks.tasks).toHaveLength(0);
+  });
+
+  it("sets default values correctly", async () => {
+    await runCli(["create", "Default task"], { storage: fixture.storage });
+
+    const tasks = await fixture.storage.readAsync();
+    const task = tasks.tasks[0];
+
+    expect(task.completed).toBe(false);
+    expect(task.priority).toBe(1);
+    expect(task.parent_id).toBeNull();
+    expect(task.result).toBeNull();
+    expect(task.blockedBy).toEqual([]);
+    expect(task.blocks).toEqual([]);
+    expect(task.children).toEqual([]);
+    expect(task.created_at).toBeTruthy();
+    expect(task.updated_at).toBeTruthy();
   });
 });
