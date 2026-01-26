@@ -14,8 +14,49 @@ import {
   renderHierarchicalIssueBody,
   collectDescendants,
   EmbeddedSubtask,
-} from "./github/index.js";
-import { Task } from "../types.js";
+} from "./index.js";
+import { Task } from "../../types.js";
+
+const DEFAULT_TIMESTAMP = "2024-01-22T10:00:00Z";
+
+function createTestSubtask(overrides: Partial<EmbeddedSubtask> = {}): EmbeddedSubtask {
+  return {
+    id: "9-1",
+    description: "Test subtask",
+    context: "",
+    priority: 1,
+    completed: false,
+    result: null,
+    metadata: null,
+    created_at: DEFAULT_TIMESTAMP,
+    updated_at: DEFAULT_TIMESTAMP,
+    completed_at: null,
+    blockedBy: [],
+    blocks: [],
+    children: [],
+    ...overrides,
+  };
+}
+
+function createTestTask(overrides: Partial<Task> = {}): Task {
+  return {
+    id: "test",
+    parent_id: null,
+    description: "Test task",
+    context: "",
+    priority: 1,
+    completed: false,
+    result: null,
+    metadata: null,
+    created_at: DEFAULT_TIMESTAMP,
+    updated_at: DEFAULT_TIMESTAMP,
+    completed_at: null,
+    blockedBy: [],
+    blocks: [],
+    children: [],
+    ...overrides,
+  };
+}
 
 describe("parseSubtaskId", () => {
   it("parses valid compound ID", () => {
@@ -223,21 +264,11 @@ describe("renderIssueBody", () => {
   });
 
   it("renders body with one subtask", () => {
-    const subtask: EmbeddedSubtask = {
-      id: "9-1",
+    const subtask = createTestSubtask({
       description: "First subtask",
       context: "Subtask context.",
       priority: 5,
-      completed: false,
-      result: null,
-      metadata: null,
-      created_at: "2024-01-22T10:00:00Z",
-      updated_at: "2024-01-22T10:00:00Z",
-      completed_at: null,
-      blockedBy: [],
-      blocks: [],
-      children: [],
-    };
+    });
 
     const result = renderIssueBody("Parent context.", [subtask]);
 
@@ -254,21 +285,14 @@ describe("renderIssueBody", () => {
   });
 
   it("renders completed subtask with checkbox", () => {
-    const subtask: EmbeddedSubtask = {
-      id: "9-1",
+    const subtask = createTestSubtask({
       description: "Done task",
       context: "Context.",
-      priority: 1,
       completed: true,
       result: "Completed successfully.",
-      metadata: null,
-      created_at: "2024-01-22T10:00:00Z",
       updated_at: "2024-01-22T11:00:00Z",
       completed_at: "2024-01-22T11:00:00Z",
-      blockedBy: [],
-      blocks: [],
-      children: [],
-    };
+    });
 
     const result = renderIssueBody("Parent context.", [subtask]);
 
@@ -279,37 +303,18 @@ describe("renderIssueBody", () => {
   });
 
   it("renders multiple subtasks", () => {
-    const subtasks: EmbeddedSubtask[] = [
-      {
-        id: "9-1",
-        description: "First",
-        context: "Context 1",
-        priority: 1,
-        completed: false,
-        result: null,
-        metadata: null,
-        created_at: "2024-01-22T10:00:00Z",
-        updated_at: "2024-01-22T10:00:00Z",
-        completed_at: null,
-        blockedBy: [],
-        blocks: [],
-        children: [],
-      },
-      {
+    const subtasks = [
+      createTestSubtask({ id: "9-1", description: "First", context: "Context 1" }),
+      createTestSubtask({
         id: "9-2",
         description: "Second",
         context: "Context 2",
         priority: 2,
         completed: true,
         result: "Done",
-        metadata: null,
-        created_at: "2024-01-22T10:00:00Z",
         updated_at: "2024-01-22T11:00:00Z",
         completed_at: "2024-01-22T11:00:00Z",
-        blockedBy: [],
-        blocks: [],
-        children: [],
-      },
+      }),
     ];
 
     const result = renderIssueBody("Parent.", subtasks);
@@ -323,21 +328,11 @@ describe("renderIssueBody", () => {
 
 describe("round-trip parsing/rendering", () => {
   it("round-trips body with subtasks", () => {
-    const subtask: EmbeddedSubtask = {
-      id: "9-1",
+    const subtask = createTestSubtask({
       description: "Test subtask",
       context: "Test context.",
       priority: 3,
-      completed: false,
-      result: null,
-      metadata: null,
-      created_at: "2024-01-22T10:00:00Z",
-      updated_at: "2024-01-22T10:00:00Z",
-      completed_at: null,
-      blockedBy: [],
-      blocks: [],
-      children: [],
-    };
+    });
 
     const rendered = renderIssueBody("Parent context.", [subtask]);
     const parsed = parseIssueBody(rendered);
@@ -354,21 +349,15 @@ describe("round-trip parsing/rendering", () => {
   });
 
   it("round-trips completed subtask with result", () => {
-    const subtask: EmbeddedSubtask = {
+    const subtask = createTestSubtask({
       id: "9-2",
       description: "Completed",
       context: "Context.",
-      priority: 1,
       completed: true,
       result: "All done!",
-      metadata: null,
-      created_at: "2024-01-22T10:00:00Z",
       updated_at: "2024-01-22T11:00:00Z",
       completed_at: "2024-01-22T11:00:00Z",
-      blockedBy: [],
-      blocks: [],
-      children: [],
-    };
+    });
 
     const rendered = renderIssueBody("Parent.", [subtask]);
     const parsed = parseIssueBody(rendered);
@@ -381,21 +370,11 @@ describe("round-trip parsing/rendering", () => {
 
 describe("embeddedSubtaskToTask", () => {
   it("converts embedded subtask to task", () => {
-    const subtask: EmbeddedSubtask = {
-      id: "9-1",
+    const subtask = createTestSubtask({
       description: "Subtask",
       context: "Context",
       priority: 2,
-      completed: false,
-      result: null,
-      metadata: null,
-      created_at: "2024-01-22T10:00:00Z",
-      updated_at: "2024-01-22T10:00:00Z",
-      completed_at: null,
-      blockedBy: [],
-      blocks: [],
-      children: [],
-    };
+    });
 
     const task = embeddedSubtaskToTask(subtask, "9");
 
@@ -408,8 +387,8 @@ describe("embeddedSubtaskToTask", () => {
       completed: false,
       result: null,
       metadata: null,
-      created_at: "2024-01-22T10:00:00Z",
-      updated_at: "2024-01-22T10:00:00Z",
+      created_at: DEFAULT_TIMESTAMP,
+      updated_at: DEFAULT_TIMESTAMP,
       completed_at: null,
       blockedBy: [],
       blocks: [],
@@ -420,22 +399,13 @@ describe("embeddedSubtaskToTask", () => {
 
 describe("taskToEmbeddedSubtask", () => {
   it("converts task to embedded subtask", () => {
-    const task: Task = {
+    const task = createTestTask({
       id: "9-1",
       parent_id: "9",
       description: "Subtask",
       context: "Context",
       priority: 2,
-      completed: false,
-      result: null,
-      metadata: null,
-      created_at: "2024-01-22T10:00:00Z",
-      updated_at: "2024-01-22T10:00:00Z",
-      completed_at: null,
-      blockedBy: [],
-      blocks: [],
-      children: [],
-    };
+    });
 
     const subtask = taskToEmbeddedSubtask(task);
 
@@ -447,8 +417,8 @@ describe("taskToEmbeddedSubtask", () => {
       completed: false,
       result: null,
       metadata: null,
-      created_at: "2024-01-22T10:00:00Z",
-      updated_at: "2024-01-22T10:00:00Z",
+      created_at: DEFAULT_TIMESTAMP,
+      updated_at: DEFAULT_TIMESTAMP,
       completed_at: null,
       blockedBy: [],
       blocks: [],
@@ -463,60 +433,16 @@ describe("getNextSubtaskIndex", () => {
   });
 
   it("returns next index after existing subtasks", () => {
-    const subtasks: EmbeddedSubtask[] = [
-      {
-        id: "9-1",
-        description: "First",
-        context: "",
-        priority: 1,
-        completed: false,
-        result: null,
-        metadata: null,
-        created_at: "",
-        updated_at: "",
-        completed_at: null,
-        blockedBy: [],
-        blocks: [],
-        children: [],
-      },
-      {
-        id: "9-3",
-        description: "Third",
-        context: "",
-        priority: 1,
-        completed: false,
-        result: null,
-        metadata: null,
-        created_at: "",
-        updated_at: "",
-        completed_at: null,
-        blockedBy: [],
-        blocks: [],
-        children: [],
-      },
+    const subtasks = [
+      createTestSubtask({ id: "9-1", description: "First" }),
+      createTestSubtask({ id: "9-3", description: "Third" }),
     ];
 
     expect(getNextSubtaskIndex(subtasks, "9")).toBe(4);
   });
 
   it("ignores subtasks from other parents", () => {
-    const subtasks: EmbeddedSubtask[] = [
-      {
-        id: "10-5",
-        description: "Other parent",
-        context: "",
-        priority: 1,
-        completed: false,
-        result: null,
-        metadata: null,
-        created_at: "",
-        updated_at: "",
-        completed_at: null,
-        blockedBy: [],
-        blocks: [],
-        children: [],
-      },
-    ];
+    const subtasks = [createTestSubtask({ id: "10-5", description: "Other parent" })];
 
     expect(getNextSubtaskIndex(subtasks, "9")).toBe(1);
   });
@@ -685,56 +611,27 @@ Content here.`;
 
 describe("hierarchical issue body round-trip", () => {
   it("round-trips nested subtasks with parent relationships", () => {
-    const tasks: Task[] = [
-      {
+    const tasks = [
+      createTestTask({
         id: "root",
-        parent_id: null,
         description: "Root task",
         context: "Root context",
-        priority: 1,
-        completed: false,
-        result: null,
-        metadata: null,
-        created_at: "2024-01-22T10:00:00Z",
-        updated_at: "2024-01-22T10:00:00Z",
-        completed_at: null,
-        blockedBy: [],
-        blocks: [],
         children: ["child1", "child2"],
-      },
-      {
+      }),
+      createTestTask({
         id: "child1",
         parent_id: "root",
         description: "First child",
         context: "Child 1 context",
-        priority: 1,
-        completed: false,
-        result: null,
-        metadata: null,
-        created_at: "2024-01-22T10:00:00Z",
-        updated_at: "2024-01-22T10:00:00Z",
-        completed_at: null,
-        blockedBy: [],
-        blocks: [],
         children: ["grandchild1"],
-      },
-      {
+      }),
+      createTestTask({
         id: "grandchild1",
         parent_id: "child1",
         description: "Grandchild",
         context: "Grandchild context",
-        priority: 1,
-        completed: false,
-        result: null,
-        metadata: null,
-        created_at: "2024-01-22T10:00:00Z",
-        updated_at: "2024-01-22T10:00:00Z",
-        completed_at: null,
-        blockedBy: [],
-        blocks: [],
-        children: [],
-      },
-      {
+      }),
+      createTestTask({
         id: "child2",
         parent_id: "root",
         description: "Second child",
@@ -742,14 +639,9 @@ describe("hierarchical issue body round-trip", () => {
         priority: 2,
         completed: true,
         result: "Done",
-        metadata: null,
-        created_at: "2024-01-22T10:00:00Z",
         updated_at: "2024-01-22T11:00:00Z",
         completed_at: "2024-01-22T11:00:00Z",
-        blockedBy: [],
-        blocks: [],
-        children: [],
-      },
+      }),
     ];
 
     const descendants = collectDescendants(tasks, "root");
@@ -759,7 +651,6 @@ describe("hierarchical issue body round-trip", () => {
     expect(parsed.context).toBe("Root context");
     expect(parsed.subtasks).toHaveLength(3);
 
-    // Check parent relationships preserved
     const child1 = parsed.subtasks.find((s) => s.id === "child1");
     const grandchild1 = parsed.subtasks.find((s) => s.id === "grandchild1");
     const child2 = parsed.subtasks.find((s) => s.id === "child2");
@@ -770,47 +661,31 @@ describe("hierarchical issue body round-trip", () => {
   });
 
   it("round-trips subtask with commit metadata", () => {
-    const tasks: Task[] = [
-      {
+    const commitMetadata = {
+      sha: "abc123def456",
+      message: "feat: Add feature",
+      branch: "main",
+      url: "https://github.com/owner/repo/commit/abc123def456",
+      timestamp: "2024-01-22T11:00:00Z",
+    };
+    const tasks = [
+      createTestTask({
         id: "root",
-        parent_id: null,
         description: "Root",
         context: "Root context",
-        priority: 1,
-        completed: false,
-        result: null,
-        metadata: null,
-        created_at: "2024-01-22T10:00:00Z",
-        updated_at: "2024-01-22T10:00:00Z",
-        completed_at: null,
-        blockedBy: [],
-        blocks: [],
         children: ["withcommit"],
-      },
-      {
+      }),
+      createTestTask({
         id: "withcommit",
         parent_id: "root",
         description: "Task with commit",
         context: "Commit context",
-        priority: 1,
         completed: true,
         result: "Implemented",
-        metadata: {
-          commit: {
-            sha: "abc123def456",
-            message: "feat: Add feature",
-            branch: "main",
-            url: "https://github.com/owner/repo/commit/abc123def456",
-            timestamp: "2024-01-22T11:00:00Z",
-          },
-        },
-        created_at: "2024-01-22T10:00:00Z",
+        metadata: { commit: commitMetadata },
         updated_at: "2024-01-22T11:00:00Z",
         completed_at: "2024-01-22T11:00:00Z",
-        blockedBy: [],
-        blocks: [],
-        children: [],
-      },
+      }),
     ];
 
     const descendants = collectDescendants(tasks, "root");
@@ -818,50 +693,23 @@ describe("hierarchical issue body round-trip", () => {
     const parsed = parseHierarchicalIssueBody(rendered);
 
     const subtask = parsed.subtasks.find((s) => s.id === "withcommit");
-    expect(subtask?.metadata?.commit).toEqual({
-      sha: "abc123def456",
-      message: "feat: Add feature",
-      branch: "main",
-      url: "https://github.com/owner/repo/commit/abc123def456",
-      timestamp: "2024-01-22T11:00:00Z",
-    });
+    expect(subtask?.metadata?.commit).toEqual(commitMetadata);
   });
 
   it("round-trips subtask with multi-line result", () => {
     const multiLineResult = "Step 1: Done\nStep 2: Done\nStep 3: Done";
-    const tasks: Task[] = [
-      {
-        id: "root",
-        parent_id: null,
-        description: "Root",
-        context: "Root",
-        priority: 1,
-        completed: false,
-        result: null,
-        metadata: null,
-        created_at: "2024-01-22T10:00:00Z",
-        updated_at: "2024-01-22T10:00:00Z",
-        completed_at: null,
-        blockedBy: [],
-        blocks: [],
-        children: ["multiline"],
-      },
-      {
+    const tasks = [
+      createTestTask({ id: "root", description: "Root", context: "Root", children: ["multiline"] }),
+      createTestTask({
         id: "multiline",
         parent_id: "root",
         description: "Multi-line result task",
         context: "Context",
-        priority: 1,
         completed: true,
         result: multiLineResult,
-        metadata: null,
-        created_at: "2024-01-22T10:00:00Z",
         updated_at: "2024-01-22T11:00:00Z",
         completed_at: "2024-01-22T11:00:00Z",
-        blockedBy: [],
-        blocks: [],
-        children: [],
-      },
+      }),
     ];
 
     const descendants = collectDescendants(tasks, "root");
@@ -873,24 +721,9 @@ describe("hierarchical issue body round-trip", () => {
   });
 
   it("round-trips all timestamp fields", () => {
-    const tasks: Task[] = [
-      {
-        id: "root",
-        parent_id: null,
-        description: "Root",
-        context: "Root",
-        priority: 1,
-        completed: false,
-        result: null,
-        metadata: null,
-        created_at: "2024-01-22T10:00:00Z",
-        updated_at: "2024-01-22T10:00:00Z",
-        completed_at: null,
-        blockedBy: [],
-        blocks: [],
-        children: ["timestamps"],
-      },
-      {
+    const tasks = [
+      createTestTask({ id: "root", description: "Root", context: "Root", children: ["timestamps"] }),
+      createTestTask({
         id: "timestamps",
         parent_id: "root",
         description: "Timestamp task",
@@ -898,14 +731,10 @@ describe("hierarchical issue body round-trip", () => {
         priority: 3,
         completed: true,
         result: "Completed",
-        metadata: null,
         created_at: "2024-01-22T08:00:00Z",
         updated_at: "2024-01-22T12:30:00Z",
         completed_at: "2024-01-22T12:30:00Z",
-        blockedBy: [],
-        blocks: [],
-        children: [],
-      },
+      }),
     ];
 
     const descendants = collectDescendants(tasks, "root");
@@ -921,82 +750,26 @@ describe("hierarchical issue body round-trip", () => {
   });
 
   it("preserves depth ordering in rendered output", () => {
-    const tasks: Task[] = [
-      {
-        id: "root",
-        parent_id: null,
-        description: "Root",
-        context: "Root",
-        priority: 1,
-        completed: false,
-        result: null,
-        metadata: null,
-        created_at: "2024-01-22T10:00:00Z",
-        updated_at: "2024-01-22T10:00:00Z",
-        completed_at: null,
-        blockedBy: [],
-        blocks: [],
-        children: ["a", "b"],
-      },
-      {
+    const tasks = [
+      createTestTask({ id: "root", description: "Root", context: "Root", children: ["a", "b"] }),
+      createTestTask({
         id: "a",
         parent_id: "root",
         description: "A",
         context: "A context",
-        priority: 1,
-        completed: false,
-        result: null,
-        metadata: null,
-        created_at: "2024-01-22T10:00:00Z",
-        updated_at: "2024-01-22T10:00:00Z",
-        completed_at: null,
-        blockedBy: [],
-        blocks: [],
         children: ["a1"],
-      },
-      {
-        id: "a1",
-        parent_id: "a",
-        description: "A1",
-        context: "A1 context",
-        priority: 1,
-        completed: false,
-        result: null,
-        metadata: null,
-        created_at: "2024-01-22T10:00:00Z",
-        updated_at: "2024-01-22T10:00:00Z",
-        completed_at: null,
-        blockedBy: [],
-        blocks: [],
-        children: [],
-      },
-      {
-        id: "b",
-        parent_id: "root",
-        description: "B",
-        context: "B context",
-        priority: 2,
-        completed: false,
-        result: null,
-        metadata: null,
-        created_at: "2024-01-22T10:00:00Z",
-        updated_at: "2024-01-22T10:00:00Z",
-        completed_at: null,
-        blockedBy: [],
-        blocks: [],
-        children: [],
-      },
+      }),
+      createTestTask({ id: "a1", parent_id: "a", description: "A1", context: "A1 context" }),
+      createTestTask({ id: "b", parent_id: "root", description: "B", context: "B context", priority: 2 }),
     ];
 
     const descendants = collectDescendants(tasks, "root");
     const rendered = renderHierarchicalIssueBody("Root", descendants);
 
-    // Verify Task Tree section has proper indentation
     expect(rendered).toContain("- [ ] **A**");
     expect(rendered).toContain("  - [ ] **A1**");
     expect(rendered).toContain("- [ ] **B**");
 
-    // Verify depth-first order is preserved
     const parsed = parseHierarchicalIssueBody(rendered);
     const ids = parsed.subtasks.map((s) => s.id);
     expect(ids).toEqual(["a", "a1", "b"]);
