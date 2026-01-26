@@ -6,26 +6,36 @@ import Terminal from '../components/Terminal.astro';
 <Base title="Install" description="Install dex for Claude Code and CLI">
   <h1>Installation</h1>
 
-  <h2>Claude Code</h2>
-  <p>Install the dex plugin from the Claude Code marketplace:</p>
+  <h2>Quick Start</h2>
+  <p>Install dex for Claude Code, OpenCode, Codex, or Cursor:</p>
+  <Terminal title="Terminal" showCopy={true}>
+    <pre class="cli-output"><span class="cli-dim">$</span> npx skills dcramer/dex</pre>
+  </Terminal>
+
+  <h2>Configure Your Project</h2>
+  <p>Add dex instructions to your project's <code>AGENTS.md</code> or <code>CLAUDE.md</code> file so Claude and other AI agents know to use it for task management:</p>
+  <Terminal title="AGENTS.md" showCopy={true}>
+    <pre class="cli-output">## Task Management
+Use `/dex` to break down complex work, track progress across sessions, and coordinate multi-step implementations.</pre>
+  </Terminal>
+  <p>Place this file in your project root and commit it to version control so your team shares the same context.</p>
+
+  <h2>Alternative Installation Methods</h2>
+
+  <h3>Claude Code Marketplace</h3>
+  <p>Install directly from the Claude Code marketplace:</p>
   <Terminal title="Terminal" showCopy={true}>
     <pre class="cli-output"><span class="cli-dim">$</span> claude plugin marketplace add dcramer/dex
 <span class="cli-dim">$</span> claude plugin install dex@dex</pre>
   </Terminal>
   <p>The <code>/dex</code> skill will be available immediately.</p>
 
-  <h2>Using add-skill</h2>
-  <p>If you use <a href="https://add-skill.org/">add-skill</a> for installing agent skills:</p>
-  <Terminal title="Terminal" showCopy={true}>
-    <pre class="cli-output"><span class="cli-dim">$</span> npx add-skill dcramer/dex</pre>
-  </Terminal>
-
-  <h2>CLI Only</h2>
-  <p>Install the CLI globally for standalone use or faster execution:</p>
+  <h3>Global CLI Install</h3>
+  <p>Install the CLI globally for direct command-line use or faster execution:</p>
   <Terminal title="Terminal" showCopy={true}>
     <pre class="cli-output"><span class="cli-dim">$</span> npm install -g @zeeg/dex</pre>
   </Terminal>
-  <p>This is optional if using Claude Code, which runs via <code>npx</code> by default.</p>
+  <p>Optional for agent users (faster than <code>npx</code>). Required for CLI-only usage.</p>
 
   <h2>Shell Completions</h2>
   <p>Enable tab completion for dex commands and task IDs.</p>
