@@ -16,6 +16,7 @@ command -v dex &>/dev/null && echo "use: dex" || echo "use: npx @zeeg/dex"
 ## Core Principle: Tickets, Not Todos
 
 Dex tasks are **tickets** - structured artifacts with comprehensive context:
+
 - **Description**: One-line summary (issue title)
 - **Context**: Full background, requirements, approach (issue body)
 - **Result**: Implementation details, decisions, outcomes (PR description)
@@ -29,23 +30,25 @@ Think: "Would someone understand the what, why, and how from this task alone?"
 ## When to Use dex
 
 **Use dex when:**
+
 - Breaking down complexity into subtasks
 - Work spans multiple sessions
 - Context needs to persist for handoffs
 - Recording decisions for future reference
 
 **Skip dex when:**
+
 - Work is a single atomic action
 - Everything fits in one session with no follow-up
 - Overhead exceeds value
 
 ## dex vs Claude Code's TaskCreate
 
-| | dex | Claude Code TaskCreate |
-|---|---|---|
-| **Persistence** | Files in `.dex/` | Session-only |
-| **Context** | Rich (description + context + result) | Basic |
-| **Hierarchy** | 3-level (epic → task → subtask) | Flat |
+|                 | dex                                   | Claude Code TaskCreate |
+| --------------- | ------------------------------------- | ---------------------- |
+| **Persistence** | Files in `.dex/`                      | Session-only           |
+| **Context**     | Rich (description + context + result) | Basic                  |
+| **Hierarchy**   | 3-level (epic → task → subtask)       | Flat                   |
 
 Use **dex** for persistent work. Use **TaskCreate** for ephemeral in-session tracking only.
 
@@ -84,31 +87,49 @@ dex delete <id>
 
 For full CLI reference including blockers, see [cli-reference.md](cli-reference.md).
 
-## Starting Work on a Task
+## Understanding Task Context
 
-When picking up a task, **check if the context is sufficient**:
-- Do I know **what** needs to be done specifically?
-- Do I understand **why** this is needed?
-- Is the **approach** clear?
-- Do I know when it's **done**?
+Tasks have two text fields:
 
-If any answer is "no," **suggest entering plan mode** to flesh out details before starting:
+- **Description**: Brief one-line summary (shown in `dex list`)
+- **Context**: Full details - requirements, approach, acceptance criteria (shown with `--full`)
 
+When you run `dex show <id>`, the context may be truncated. The CLI will hint at `--full` if there's more content.
+
+### Gathering Context
+
+When picking up a task, gather all relevant context:
+
+```bash
+dex show <id> --full              # Full task details
+dex show <parent-id> --full       # Parent context (if applicable)
+dex show <blocker-id> --full      # What blockers accomplished
 ```
-This task doesn't have enough context to start implementation confidently.
-I'd recommend entering plan mode to work through the requirements.
-```
 
-**Proceed anyway when:**
+Before starting, verify you can answer:
+
+- **What** needs to be done specifically?
+- **Why** is this needed?
+- **How** should it be implemented?
+- **When** is it done (acceptance criteria)?
+
+If any answer is unclear:
+
+1. Check parent task or completed blockers for more details
+2. Suggest entering plan mode to flesh out requirements before starting
+
+**Proceed without full context when:**
+
 - Task is trivial/atomic (e.g., "Add .gitignore entry")
-- Conversation context makes the task clear
-- Description itself is complete
+- Conversation already provides the missing context
+- Description itself is sufficiently detailed
 
 ## Task Hierarchies
 
 Three levels: **Epic** (large initiative) → **Task** (significant work) → **Subtask** (atomic step).
 
 **Choosing the right level:**
+
 - Small feature (1-2 files) → Single task
 - Medium feature (3-7 steps) → Task with subtasks
 - Large initiative (5+ tasks) → Epic with tasks
@@ -123,6 +144,7 @@ For detailed hierarchy guidance, see [hierarchies.md](hierarchies.md).
 ## Recording Results
 
 Complete tasks **immediately after implementing AND verifying**:
+
 - Capture decisions while fresh
 - Note deviations from plan
 - Document verification performed
