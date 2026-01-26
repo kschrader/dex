@@ -24,21 +24,21 @@ const base = import.meta.env.BASE_URL.replace(/\/$/, '');
 
   <section class="section">
     <h2>Quick Start</h2>
-    <p>Install the dex plugin from the Claude Code marketplace:</p>
-    <Terminal title="Terminal">
-      <pre class="cli-output"><span class="cli-dim">$</span> claude plugin marketplace add dcramer/dex
-<span class="cli-dim">$</span> claude plugin install dex@dex</pre>
+    <p>Install dex with add-skill (works with Claude Code, OpenCode, Codex, and Cursor):</p>
+    <Terminal title="Terminal" showCopy={true}>
+      <pre class="cli-output"><span class="cli-dim">$</span> npx add-skill dcramer/dex</pre>
     </Terminal>
-    <p>Then use <code>/dex</code> to manage tasks.</p>
+    <p>Then use <code>/dex</code> to manage tasks. See the <a href={`${base}/install`}>install guide</a> for other installation methods.</p>
   </section>
 
   <section class="section scenarios">
+    <h2>Works Great with Your Favorite Agent</h2>
     <div class="scenario">
       <div class="scenario-prompt">
         <span class="prompt-label">You say:</span>
         <p>"Migrate our API from Express to Hono. Use dex to track it."</p>
       </div>
-      <Terminal title="Terminal">
+      <Terminal title="Terminal" showCopy={false}>
         <pre class="cli-output"><span class="cli-dim">$</span> dex create -d "Migrate auth middleware" --context "Current auth
 uses passport.js with JWT strategy in src/middleware/auth.ts.
 Hono equivalent is hono/jwt. Must preserve req.user pattern
@@ -58,7 +58,7 @@ that 12 route handlers depend on."
         <span class="prompt-label">Next session:</span>
         <p>"Continue working on the Hono migration."</p>
       </div>
-      <Terminal title="Terminal">
+      <Terminal title="Terminal" showCopy={false}>
         <pre class="cli-output"><span class="cli-dim">$</span> dex list
 <span class="cli-yellow">[ ]</span> <span class="cli-bold">p7n4j9q2</span>: Migrate auth middleware
 <span class="cli-yellow">[ ]</span> <span class="cli-bold">w5t2v8b3</span> <span class="cli-red">[B: p7n4j9q2]</span>: Migrate route handlers to Hono
@@ -78,7 +78,7 @@ that 12 route handlers depend on."
         <span class="prompt-label">From a plan:</span>
         <p>"/dex-plan" after finishing plan mode</p>
       </div>
-      <Terminal title="Terminal">
+      <Terminal title="Terminal" showCopy={false}>
         <pre class="cli-output"><span class="cli-dim">$</span> dex plan ~/.claude/plans/auth-system.md
 <span class="cli-green">Created</span> task <span class="cli-bold">k9m3x7p1</span>
 <span class="cli-yellow">[ ]</span> <span class="cli-bold">k9m3x7p1</span>: Add JWT Authentication
@@ -101,7 +101,7 @@ Analyzed plan structure: Found 4 implementation steps
         <span class="prompt-label">Debugging:</span>
         <p>"Investigate why auto-sync with GitHub isn't working. Use Dex to track the fix."</p>
       </div>
-      <Terminal title="Terminal">
+      <Terminal title="Terminal" showCopy={false}>
         <pre class="cli-output"><span class="cli-dim">$</span> dex create -d "Fix auto-sync not loading project config" --context "In
 src/index.ts, createSyncService() calls loadConfig() without the
 storage path. Project config (.dex/config.toml) is never loaded.
