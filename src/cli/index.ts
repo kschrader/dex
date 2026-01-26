@@ -19,6 +19,7 @@ import { doctorCommand } from "./doctor.js";
 import { statusCommand } from "./status.js";
 import { configCommand } from "./config.js";
 import { dirCommand } from "./dir.js";
+import { archiveCommand } from "./archive.js";
 
 export type { CliOptions } from "./utils.js";
 
@@ -93,6 +94,8 @@ export async function runCli(
       return await importCommand(args.slice(1), options);
     case "doctor":
       return await doctorCommand(args.slice(1), options);
+    case "archive":
+      return await archiveCommand(args.slice(1), options);
     case "status":
       return await statusCommand(args.slice(1), options);
     case "completion":

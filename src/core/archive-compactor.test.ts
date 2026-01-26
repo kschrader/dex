@@ -47,13 +47,13 @@ describe("compactTask", () => {
     expect(archived.id).toBe("task-1");
     expect(archived.parent_id).toBeNull();
     expect(archived.name).toBe("My task");
+    expect(archived.description).toBe("Lots of description here");
     expect(archived.result).toBe("Done successfully");
     expect(archived.completed_at).toBe("2024-01-15T10:00:00.000Z");
     expect(archived.archived_at).toBeDefined();
     expect(archived.archived_children).toEqual([]);
 
     // Stripped fields should not exist
-    expect("description" in archived).toBe(false);
     expect("priority" in archived).toBe(false);
     expect("blockedBy" in archived).toBe(false);
     expect("blocks" in archived).toBe(false);
@@ -83,11 +83,13 @@ describe("compactTask", () => {
     expect(archived.archived_children[0]).toEqual({
       id: "child-1",
       name: "First child",
+      description: "Some description",
       result: "Done",
     });
     expect(archived.archived_children[1]).toEqual({
       id: "child-2",
       name: "Second child",
+      description: "Some description",
       result: null,
     });
   });

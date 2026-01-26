@@ -181,12 +181,13 @@ export const ListTasksInputSchema = z.object({
 export type ListTasksInput = z.infer<typeof ListTasksInputSchema>;
 
 // Archived task schema - compacted version of Task for long-term storage
-// Drops: description (details), blockedBy, blocks, children, created_at, updated_at, priority
-// Keeps: id, parent_id, name, completed_at, archived_at, result, metadata.github
+// Drops: blockedBy, blocks, children, created_at, updated_at, priority
+// Keeps: id, parent_id, name, description, completed_at, archived_at, result, metadata.github
 // Adds: archived_children for rolled-up subtasks
 export const ArchivedChildSchema = z.object({
   id: z.string().min(1),
   name: z.string().min(1),
+  description: z.string().default(""),
   result: z.string().nullable().default(null),
 });
 
@@ -196,6 +197,7 @@ export const ArchivedTaskSchema = z.object({
   id: z.string().min(1, "Task ID is required"),
   parent_id: z.string().min(1).nullable().default(null),
   name: z.string().min(1, "Name is required"),
+  description: z.string().default(""),
   result: z.string().nullable().default(null),
   completed_at: z.string().datetime().nullable().default(null),
   archived_at: z.string().datetime(),

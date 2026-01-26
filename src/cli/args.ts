@@ -23,6 +23,7 @@ export const COMMANDS = [
   "delete",
   "rm",
   "remove",
+  "archive",
   "plan",
   "sync",
   "import",

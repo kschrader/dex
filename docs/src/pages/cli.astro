@@ -157,6 +157,20 @@ dex edit abc123 --remove-blocker xyz789`}
   </div>
 
   <div class="command-card">
+    <h3>dex archive</h3>
+    <div class="synopsis">dex archive &lt;id&gt;</div>
+    <p>Archive a completed task and its descendants to reduce storage size. Archived tasks are compacted and moved to <code>archive.jsonl</code>.</p>
+    <p><strong>Requirements:</strong></p>
+    <ul>
+      <li>Task and all descendants must be completed</li>
+      <li>Task must not have any incomplete ancestors</li>
+    </ul>
+    <Terminal title="Terminal">
+      <Code code="dex archive abc123" lang="bash" theme="vitesse-black" />
+    </Terminal>
+  </div>
+
+  <div class="command-card">
     <h3>dex plan</h3>
     <div class="synopsis">dex plan &lt;markdown-file&gt; [options]</div>
     <p>Create a task from a markdown planning document. Automatically creates subtasks when the document contains distinct implementation steps.</p>

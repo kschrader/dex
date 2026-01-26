@@ -26,8 +26,8 @@ export interface CollectedArchiveTasks {
 /**
  * Convert a full Task to a compacted ArchivedTask.
  *
- * Strips: description (details), blockedBy, blocks, children, created_at, updated_at, priority
- * Preserves: id, parent_id, name, completed_at, result, metadata.github, metadata.commit
+ * Strips: blockedBy, blocks, children, created_at, updated_at, priority
+ * Preserves: id, parent_id, name, description, completed_at, result, metadata.github, metadata.commit
  * Adds: archived_at, archived_children (rolled up from children)
  *
  * @param task The task to compact
@@ -38,6 +38,7 @@ export function compactTask(task: Task, children: Task[] = []): ArchivedTask {
   const archivedChildren: ArchivedChild[] = children.map((child) => ({
     id: child.id,
     name: child.name,
+    description: child.description,
     result: child.result,
   }));
 
@@ -54,6 +55,7 @@ export function compactTask(task: Task, children: Task[] = []): ArchivedTask {
     id: task.id,
     parent_id: task.parent_id,
     name: task.name,
+    description: task.description,
     result: task.result,
     completed_at: task.completed_at,
     archived_at: new Date().toISOString(),

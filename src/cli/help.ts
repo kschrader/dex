@@ -33,6 +33,7 @@ ${colors.bold}COMMANDS:${colors.reset}
   delete <id>                      Remove task (prompts if has subtasks)
   delete <id> -f                   Force delete without confirmation
   rm, remove                       Aliases for delete command
+  archive <id>                     Archive completed task to reduce storage
   plan <file>                      Create task from plan markdown file
   completion <shell>               Generate shell completion script
 

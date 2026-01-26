@@ -24,6 +24,7 @@ describe("ArchiveStorage", () => {
     id: "test-id",
     parent_id: null,
     name: "Test task",
+    description: "",
     result: null,
     completed_at: null,
     archived_at: new Date().toISOString(),
@@ -98,8 +99,8 @@ describe("ArchiveStorage", () => {
       const task = createArchivedTask({
         id: "parent",
         archived_children: [
-          { id: "child-1", name: "Child 1", result: "Done" },
-          { id: "child-2", name: "Child 2", result: null },
+          { id: "child-1", name: "Child 1", description: "", result: "Done" },
+          { id: "child-2", name: "Child 2", description: "", result: null },
         ],
       });
 
@@ -235,6 +236,7 @@ describe("ArchiveStorage", () => {
             {
               id: "child",
               name: "Add login page",
+              description: "",
               result: "Done",
             },
           ],
@@ -354,6 +356,7 @@ describe("ArchiveStorage", () => {
         id: "full-task",
         parent_id: "parent-123",
         name: "Complete task",
+        description: "Task details",
         result: "Successfully completed",
         completed_at: "2024-01-15T10:00:00.000Z",
         archived_at: "2024-01-20T10:00:00.000Z",
@@ -365,7 +368,7 @@ describe("ArchiveStorage", () => {
           },
         },
         archived_children: [
-          { id: "child-1", name: "Subtask 1", result: "Done" },
+          { id: "child-1", name: "Subtask 1", description: "", result: "Done" },
         ],
       };
 
