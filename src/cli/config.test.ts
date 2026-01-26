@@ -1,23 +1,27 @@
-import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import * as fs from "node:fs";
 import * as path from "node:path";
 import * as os from "node:os";
 import { execSync } from "node:child_process";
 import { configCommand } from "./config.js";
 import { captureOutput, CapturedOutput } from "./test-helpers.js";
+import {
+  describe,
+  it,
+  expect,
+  beforeEach,
+  afterEach,
+  vi,
+  testEnv,
+} from "../test-utils/test-env.js";
 
 describe("config command", () => {
   let output: CapturedOutput;
   let mockExit: ReturnType<typeof vi.spyOn>;
-  let tempDir: string;
   let tempGitDir: string;
   let originalCwd: string;
 
   beforeEach(() => {
     originalCwd = process.cwd();
-
-    // Create temp dir for global config
-    tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "dex-config-test-"));
 
     // Create temp git repo for project config tests
     tempGitDir = fs.mkdtempSync(path.join(os.tmpdir(), "dex-config-git-"));
@@ -34,17 +38,21 @@ describe("config command", () => {
       throw new Error("process.exit called");
     }) as () => never);
 
-    // Override config path by setting DEX_HOME
-    process.env.DEX_HOME = tempDir;
+    // Clean up any existing global config from previous tests
+    if (fs.existsSync(testEnv.globalConfigPath)) {
+      fs.unlinkSync(testEnv.globalConfigPath);
+    }
   });
 
   afterEach(() => {
     process.chdir(originalCwd);
     output.restore();
     mockExit.mockRestore();
-    delete process.env.DEX_HOME;
 
-    fs.rmSync(tempDir, { recursive: true, force: true });
+    // Clean up global config
+    if (fs.existsSync(testEnv.globalConfigPath)) {
+      fs.unlinkSync(testEnv.globalConfigPath);
+    }
     fs.rmSync(tempGitDir, { recursive: true, force: true });
   });
 
@@ -70,7 +78,7 @@ describe("config command", () => {
     it("returns value for set key", async () => {
       // Create config file with a value
       fs.writeFileSync(
-        path.join(tempDir, "dex.toml"),
+        testEnv.globalConfigPath,
         "[sync.github]\nenabled = true\n",
       );
 
@@ -97,9 +105,8 @@ describe("config command", () => {
       expect(out).toContain("MY_TOKEN");
 
       // Verify file was created
-      const configPath = path.join(tempDir, "dex.toml");
-      expect(fs.existsSync(configPath)).toBe(true);
-      const content = fs.readFileSync(configPath, "utf-8");
+      expect(fs.existsSync(testEnv.globalConfigPath)).toBe(true);
+      const content = fs.readFileSync(testEnv.globalConfigPath, "utf-8");
       expect(content).toContain("MY_TOKEN");
     });
 
@@ -109,8 +116,7 @@ describe("config command", () => {
       expect(out).toContain("Set");
       expect(out).toContain("true");
 
-      const configPath = path.join(tempDir, "dex.toml");
-      const content = fs.readFileSync(configPath, "utf-8");
+      const content = fs.readFileSync(testEnv.globalConfigPath, "utf-8");
       expect(content).toContain("enabled = true");
     });
 
@@ -158,7 +164,7 @@ describe("config command", () => {
     it("removes a config key", async () => {
       // First set a value
       fs.writeFileSync(
-        path.join(tempDir, "dex.toml"),
+        testEnv.globalConfigPath,
         '[sync.github]\nenabled = true\nlabel_prefix = "dex"\n',
       );
 
@@ -167,13 +173,13 @@ describe("config command", () => {
       expect(out).toContain("Unset");
 
       // Verify the key was removed
-      const content = fs.readFileSync(path.join(tempDir, "dex.toml"), "utf-8");
+      const content = fs.readFileSync(testEnv.globalConfigPath, "utf-8");
       expect(content).not.toContain("label_prefix");
       expect(content).toContain("enabled"); // other key still there
     });
 
     it("reports when key was not set", async () => {
-      fs.writeFileSync(path.join(tempDir, "dex.toml"), "[sync.github]\n");
+      fs.writeFileSync(testEnv.globalConfigPath, "[sync.github]\n");
 
       await configCommand(["--unset", "sync.github.label_prefix"]);
       const out = output.stdout.join("\n");
@@ -184,7 +190,7 @@ describe("config command", () => {
   describe("--list", () => {
     it("lists all set config values", async () => {
       fs.writeFileSync(
-        path.join(tempDir, "dex.toml"),
+        testEnv.globalConfigPath,
         '[storage]\nengine = "file"\n\n[sync.github]\nenabled = true\n',
       );
 
@@ -198,7 +204,7 @@ describe("config command", () => {
 
     it("shows local config values with source", async () => {
       fs.writeFileSync(
-        path.join(tempDir, "dex.toml"),
+        testEnv.globalConfigPath,
         "[sync.github]\nenabled = false\n",
       );
       fs.writeFileSync(
@@ -225,8 +231,7 @@ describe("config command", () => {
       expect(content).toContain("enabled = true");
 
       // Global config should not exist
-      const globalConfig = path.join(tempDir, "dex.toml");
-      expect(fs.existsSync(globalConfig)).toBe(false);
+      expect(fs.existsSync(testEnv.globalConfigPath)).toBe(false);
     });
 
     it("fails without storage path", async () => {
@@ -253,7 +258,7 @@ describe("config command", () => {
   describe("precedence", () => {
     it("local config overrides global config", async () => {
       fs.writeFileSync(
-        path.join(tempDir, "dex.toml"),
+        testEnv.globalConfigPath,
         "[sync.github]\nenabled = false\n",
       );
       fs.writeFileSync(
@@ -270,7 +275,7 @@ describe("config command", () => {
 
     it("falls back to global when local is not set", async () => {
       fs.writeFileSync(
-        path.join(tempDir, "dex.toml"),
+        testEnv.globalConfigPath,
         '[sync.github]\nlabel_prefix = "global-prefix"\n',
       );
       fs.writeFileSync(
@@ -290,7 +295,7 @@ describe("config command", () => {
     it("creates nested structure for deep keys", async () => {
       await configCommand(["sync.github.auto.on_change=true"]);
 
-      const content = fs.readFileSync(path.join(tempDir, "dex.toml"), "utf-8");
+      const content = fs.readFileSync(testEnv.globalConfigPath, "utf-8");
       expect(content).toContain("[sync.github.auto]");
       expect(content).toContain("on_change = true");
     });

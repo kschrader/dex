@@ -1,73 +1,53 @@
-import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import * as fs from "node:fs";
 import * as path from "node:path";
 import * as os from "node:os";
 import { execSync } from "node:child_process";
 import { loadConfig, getConfigPath, getProjectConfigPath } from "./config.js";
+import {
+  describe,
+  it,
+  expect,
+  beforeEach,
+  afterEach,
+  testEnv,
+} from "../test-utils/test-env.js";
 
 describe("Config", () => {
   describe("getConfigPath", () => {
-    it("returns ~/.config/dex/dex.toml by default", () => {
+    it("returns path within DEX_HOME", () => {
       const configPath = getConfigPath();
-      const expected = path.join(os.homedir(), ".config", "dex", "dex.toml");
-      expect(configPath).toBe(expected);
+      expect(configPath).toBe(path.join(testEnv.dexHome, "dex.toml"));
     });
 
-    it("respects XDG_CONFIG_HOME if set", () => {
-      const originalXdg = process.env.XDG_CONFIG_HOME;
-      process.env.XDG_CONFIG_HOME = "/tmp/custom-config";
+    it("uses XDG_CONFIG_HOME when DEX_HOME is not set", () => {
+      const originalDexHome = process.env.DEX_HOME;
+      delete process.env.DEX_HOME;
 
-      const configPath = getConfigPath();
-      expect(configPath).toBe("/tmp/custom-config/dex/dex.toml");
-
-      // Restore
-      if (originalXdg !== undefined) {
-        process.env.XDG_CONFIG_HOME = originalXdg;
-      } else {
-        delete process.env.XDG_CONFIG_HOME;
+      try {
+        const configPath = getConfigPath();
+        expect(configPath).toBe(
+          path.join(testEnv.configHome, "dex", "dex.toml"),
+        );
+      } finally {
+        process.env.DEX_HOME = originalDexHome;
       }
     });
   });
 
   describe("loadConfig", () => {
-    let tempConfigPath: string;
-    let originalXdg: string | undefined;
+    let originalCwd: string;
 
     beforeEach(() => {
-      // Save original XDG_CONFIG_HOME
-      originalXdg = process.env.XDG_CONFIG_HOME;
-
-      // Create temp config directory structure: /tmp/xxx/dex/dex.toml
-      const tempBaseDir = fs.mkdtempSync(
-        path.join(os.tmpdir(), "dex-config-test-"),
-      );
-      const tempDexDir = path.join(tempBaseDir, "dex");
-      fs.mkdirSync(tempDexDir, { recursive: true });
-      tempConfigPath = path.join(tempDexDir, "dex.toml");
-
-      // Override XDG_CONFIG_HOME to temp base directory
-      process.env.XDG_CONFIG_HOME = tempBaseDir;
+      originalCwd = process.cwd();
+      // Change to a non-git temp dir to prevent project config from interfering
+      process.chdir(testEnv.tempBase);
     });
 
     afterEach(() => {
-      // Clean up
-      if (fs.existsSync(tempConfigPath)) {
-        fs.unlinkSync(tempConfigPath);
-      }
-      const dexDir = path.dirname(tempConfigPath); // /tmp/xxx/dex
-      if (fs.existsSync(dexDir)) {
-        fs.rmdirSync(dexDir);
-      }
-      const baseDir = path.dirname(dexDir); // /tmp/xxx
-      if (fs.existsSync(baseDir)) {
-        fs.rmdirSync(baseDir);
-      }
-
-      // Restore original XDG_CONFIG_HOME
-      if (originalXdg !== undefined) {
-        process.env.XDG_CONFIG_HOME = originalXdg;
-      } else {
-        delete process.env.XDG_CONFIG_HOME;
+      process.chdir(originalCwd);
+      // Clean up any config file we created
+      if (fs.existsSync(testEnv.globalConfigPath)) {
+        fs.unlinkSync(testEnv.globalConfigPath);
       }
     });
 
@@ -80,7 +60,7 @@ describe("Config", () => {
 
     it("loads file storage config", () => {
       fs.writeFileSync(
-        tempConfigPath,
+        testEnv.globalConfigPath,
         `[storage]
 engine = "file"
 
@@ -96,13 +76,13 @@ path = "/custom/path/.dex"
     });
 
     it("throws error on malformed TOML", () => {
-      fs.writeFileSync(tempConfigPath, "invalid toml [[[");
+      fs.writeFileSync(testEnv.globalConfigPath, "invalid toml [[[");
 
       expect(() => loadConfig()).toThrow("Failed to parse config file");
     });
 
     it("handles missing storage section", () => {
-      fs.writeFileSync(tempConfigPath, "# Empty config\n");
+      fs.writeFileSync(testEnv.globalConfigPath, "# Empty config\n");
 
       const config = loadConfig();
 
@@ -125,8 +105,12 @@ path = "/custom/path/.dex"
 
     afterEach(() => {
       process.chdir(originalCwd);
-      // Clean up temp directory
       fs.rmSync(tempGitDir, { recursive: true, force: true });
+
+      // Clean up any global config we created
+      if (fs.existsSync(testEnv.globalConfigPath)) {
+        fs.unlinkSync(testEnv.globalConfigPath);
+      }
     });
 
     it("returns .dex/config.toml at git root", () => {
@@ -170,11 +154,10 @@ path = "/custom/path/.dex"
     it("project config has precedence over global config", () => {
       // Write global config
       fs.writeFileSync(
-        getConfigPath(),
+        testEnv.globalConfigPath,
         `[sync.github]
 enabled = false
 `,
-        { flag: "w" },
       );
 
       // Write project config
@@ -187,16 +170,10 @@ enabled = true
 `,
       );
 
-      try {
-        const config = loadConfig();
+      const config = loadConfig();
 
-        // Project config should override global
-        expect(config.sync?.github?.enabled).toBe(true);
-      } finally {
-        // Clean up
-        fs.unlinkSync(getConfigPath());
-        fs.unlinkSync(projectConfigPath);
-      }
+      // Project config should override global
+      expect(config.sync?.github?.enabled).toBe(true);
     });
   });
 });

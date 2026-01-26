@@ -1,12 +1,13 @@
-import { defineConfig } from 'vitest/config';
+import { defineConfig } from "vitest/config";
 
 export default defineConfig({
   test: {
-    exclude: ['**/node_modules/**', '**/dist/**'],
+    setupFiles: ["./vitest.setup.ts"],
+    exclude: ["**/node_modules/**", "**/dist/**"],
     coverage: {
-      provider: 'v8',
-      reporter: ['text', 'html', 'lcov'],
-      exclude: ['**/test-helpers.ts', '**/*.test.ts', '**/dist/**'],
+      provider: "v8",
+      reporter: ["text", "html", "lcov"],
+      exclude: ["**/test-helpers.ts", "**/*.test.ts", "**/dist/**"],
       thresholds: {
         lines: 65,
         functions: 65,
