@@ -1,10 +1,11 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { Task, TaskStore, TaskStoreSchema, TaskSchema } from "../types.js";
+import { Task, TaskStore, TaskSchema } from "../types.js";
 import { DataCorruptionError, StorageError } from "../errors.js";
 import { StorageEngine } from "./storage-engine.js";
 import { getProjectKey } from "./project-key.js";
 import { getDexHome, type StorageMode } from "./config.js";
+import { migrateFromSingleFile } from "./migrations.js";
 
 function findGitRoot(startDir: string): string | null {
   let currentDir: string;
@@ -72,56 +73,13 @@ export class FileStorage implements StorageEngine {
     return path.join(this.storagePath, "tasks");
   }
 
-  private get oldFormatPath(): string {
-    return path.join(this.storagePath, "tasks.json");
-  }
-
   private ensureDirectory(): void {
     fs.mkdirSync(this.tasksDir, { recursive: true });
   }
 
-  private migrateFromOldFormat(): void {
-    const oldPath = this.oldFormatPath;
-    if (!fs.existsSync(oldPath)) {
-      return;
-    }
-
-    let content: string;
-    try {
-      content = fs.readFileSync(oldPath, "utf-8");
-    } catch {
-      return;
-    }
-
-    if (!content.trim()) {
-      fs.unlinkSync(oldPath);
-      return;
-    }
-
-    let data: unknown;
-    try {
-      data = JSON.parse(content);
-    } catch {
-      // Can't migrate corrupted file, leave it
-      return;
-    }
-
-    const result = TaskStoreSchema.safeParse(data);
-    if (!result.success) {
-      // Can't migrate invalid schema, leave it
-      return;
-    }
-
-    // Write tasks to new format
-    this.write(result.data);
-
-    // Remove old file after successful migration
-    fs.unlinkSync(oldPath);
-  }
-
   read(): TaskStore {
     // Check for old format and migrate if needed
-    this.migrateFromOldFormat();
+    migrateFromSingleFile(this.storagePath, (store) => this.write(store));
 
     if (!fs.existsSync(this.tasksDir)) {
       return { tasks: [] };
@@ -145,7 +103,11 @@ export class FileStorage implements StorageEngine {
       }
 
       if (!content.trim()) {
-        continue;
+        throw new DataCorruptionError(
+          filePath,
+          undefined,
+          "File is empty"
+        );
       }
 
       let data: unknown;
