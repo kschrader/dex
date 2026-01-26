@@ -42,6 +42,18 @@ export interface SyncConfig {
 }
 
 /**
+ * Archive configuration
+ */
+export interface ArchiveConfig {
+  /** Enable automatic archiving (default: false) */
+  auto?: boolean;
+  /** Minimum age in days before auto-archiving (default: 90) */
+  age_days?: number;
+  /** Number of recent completed tasks to keep (default: 50) */
+  keep_recent?: number;
+}
+
+/**
  * Storage engine configuration
  */
 export interface StorageConfig {
@@ -65,6 +77,8 @@ export interface Config {
   storage: StorageConfig;
   /** Sync configuration */
   sync?: SyncConfig;
+  /** Archive configuration */
+  archive?: ArchiveConfig;
 }
 
 /**
@@ -139,6 +153,7 @@ function parseConfigFile(configPath: string): Partial<Config> | null {
     return {
       storage: parsed.storage,
       sync: parsed.sync,
+      archive: parsed.archive,
     };
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
@@ -170,6 +185,22 @@ function mergeSyncConfig(
 }
 
 /**
+ * Merge archive configuration, with b taking precedence over a.
+ */
+function mergeArchiveConfig(
+  a: ArchiveConfig | undefined,
+  b: ArchiveConfig | undefined,
+): ArchiveConfig | undefined {
+  if (b === undefined) return a;
+  if (a === undefined) return b;
+
+  return {
+    ...a,
+    ...b,
+  };
+}
+
+/**
  * Deep merge two config objects, with b taking precedence over a.
  */
 function mergeConfig(a: Config, b: Partial<Config> | null): Config {
@@ -181,6 +212,7 @@ function mergeConfig(a: Config, b: Partial<Config> | null): Config {
       file: b.storage?.file ?? a.storage.file,
     },
     sync: mergeSyncConfig(a.sync, b.sync),
+    archive: mergeArchiveConfig(a.archive, b.archive),
   };
 }
 

@@ -73,11 +73,15 @@ export function createStorageEngine(
   cliStoragePath?: string,
   cliConfigPath?: string,
 ): StorageEngine {
-  if (cliStoragePath) {
-    return new JsonlStorage(cliStoragePath);
-  }
-
   const config = loadConfig({ configPath: cliConfigPath });
+
+  if (cliStoragePath) {
+    // Even with explicit storage path, load archive config
+    return new JsonlStorage({
+      path: cliStoragePath,
+      archiveConfig: config.archive,
+    });
+  }
 
   if (config.storage.engine !== "file") {
     throw new Error(
@@ -89,6 +93,7 @@ export function createStorageEngine(
   return new JsonlStorage({
     path: config.storage.file?.path,
     mode: config.storage.file?.mode,
+    archiveConfig: config.archive,
   });
 }
 

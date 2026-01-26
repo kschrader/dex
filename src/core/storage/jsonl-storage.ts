@@ -3,24 +3,30 @@ import * as path from "node:path";
 import { Task, TaskStore, TaskSchema } from "../../types.js";
 import { DataCorruptionError, StorageError } from "../../errors.js";
 import { StorageEngine } from "./engine.js";
-import { type StorageMode } from "../config.js";
+import { type StorageMode, type ArchiveConfig } from "../config.js";
 import { getStoragePath } from "./paths.js";
+import { performAutoArchive } from "../auto-archive.js";
 
 export interface JsonlStorageOptions {
   /** Explicit storage path (overrides mode) */
   path?: string;
   /** Storage mode: "in-repo" (default) or "centralized" */
   mode?: StorageMode;
+  /** Archive configuration for auto-archiving */
+  archiveConfig?: ArchiveConfig;
 }
 
 export class JsonlStorage implements StorageEngine {
   private storagePath: string;
+  private archiveConfig?: ArchiveConfig;
 
   constructor(options?: string | JsonlStorageOptions) {
     this.storagePath =
       typeof options === "string"
         ? options
         : (options?.path ?? getStoragePath(options?.mode));
+    this.archiveConfig =
+      typeof options === "object" ? options?.archiveConfig : undefined;
   }
 
   private get tasksFile(): string {
@@ -199,9 +205,13 @@ export class JsonlStorage implements StorageEngine {
   }
 
   /**
-   * Async write implementation (wraps synchronous write)
+   * Async write implementation (wraps synchronous write).
+   * Also performs auto-archiving if enabled.
    */
   async writeAsync(store: TaskStore): Promise<void> {
+    // Perform auto-archive before writing (mutates store if tasks are archived)
+    performAutoArchive(store, this.storagePath, this.archiveConfig);
+
     this.write(store);
   }
 
