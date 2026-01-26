@@ -7,7 +7,7 @@ _dex_completion() {
     local cur prev words cword
     _init_completion || return
 
-    local commands="init create list ls show edit update complete done delete rm remove plan help mcp completion"
+    local commands="init config create list ls show edit update complete done delete rm remove plan help mcp completion"
 
     # Get task IDs for commands that need them
     _dex_task_ids() {
@@ -77,6 +77,9 @@ _dex_completion() {
                 ;;
             completion)
                 flags="--help -h"
+                ;;
+            config)
+                flags="--global -g --local -l --unset --list --help -h"
                 ;;
         esac
         COMPREPLY=( \$(compgen -W "\${flags}" -- "\${cur}") )

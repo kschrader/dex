@@ -9,6 +9,7 @@ ${colors.bold}USAGE:${colors.reset}
 
 ${colors.bold}COMMANDS:${colors.reset}
   init                             Create config file (~/.config/dex/dex.toml)
+  config <key>[=<value>]           Get or set config values
   mcp                              Start MCP server (stdio)
   status                           Show dashboard overview (default)
   create -d "..." --context "..."  Create task

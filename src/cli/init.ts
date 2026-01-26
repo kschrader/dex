@@ -103,9 +103,7 @@ ${colors.bold}DESCRIPTION:${colors.reset}
   // Check if config already exists
   if (fs.existsSync(configPath)) {
     console.error(`${colors.red}Error${colors.reset}: Config file already exists at ${configPath}`);
-    console.error(
-      `Use ${colors.cyan}dex config edit${colors.reset} to modify it or delete it first.`
-    );
+    console.error(`Edit the file directly or delete it to reinitialize.`);
     process.exit(1);
   }
 

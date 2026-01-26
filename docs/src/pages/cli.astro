@@ -205,6 +205,60 @@ dex doctor --fix       # Check and fix issues`}
     </Terminal>
   </div>
 
+  <h2>Configuration</h2>
+
+  <div class="command-card">
+    <h3>dex init</h3>
+    <div class="synopsis">dex init [options]</div>
+    <p>Initialize dex configuration. Creates a config file and optionally sets up shell completions.</p>
+    <ul>
+      <li><code>-y, --yes</code> — Accept all defaults (skip prompts)</li>
+      <li><code>--config-dir &lt;path&gt;</code> — Override config directory</li>
+    </ul>
+    <Terminal title="Terminal">
+      <Code
+        code={`dex init              # Interactive setup
+dex init -y           # Accept all defaults`}
+        lang="bash"
+        theme="vitesse-black"
+      />
+    </Terminal>
+  </div>
+
+  <div class="command-card">
+    <h3>dex config</h3>
+    <div class="synopsis">dex config [options] &lt;key&gt;[=&lt;value&gt;]</div>
+    <p>Get or set configuration values (similar to <code>git config</code>).</p>
+    <ul>
+      <li><code>-g, --global</code> — Use global config (~/.config/dex/dex.toml)</li>
+      <li><code>-l, --local</code> — Use project config (.dex/config.toml)</li>
+      <li><code>--unset &lt;key&gt;</code> — Remove a config key</li>
+      <li><code>--list</code> — List all set config values</li>
+    </ul>
+    <p><strong>Config keys:</strong></p>
+    <ul>
+      <li><code>storage.engine</code> — file | github-issues | github-projects</li>
+      <li><code>storage.file.path</code> — Custom storage directory</li>
+      <li><code>storage.file.mode</code> — in-repo | centralized</li>
+      <li><code>sync.github.enabled</code> — Enable GitHub sync (boolean)</li>
+      <li><code>sync.github.token_env</code> — Environment variable for GitHub token</li>
+      <li><code>sync.github.label_prefix</code> — Label prefix for dex tasks</li>
+      <li><code>sync.github.auto.on_change</code> — Sync on mutations (boolean)</li>
+      <li><code>sync.github.auto.max_age</code> — Max age before stale (e.g., 30m, 1h)</li>
+    </ul>
+    <Terminal title="Terminal">
+      <Code
+        code={`dex config sync.github.enabled           # Get value
+dex config sync.github.enabled=true      # Set value
+dex config --local sync.github.enabled=true
+dex config --unset sync.github.label_prefix
+dex config --list                        # Show all values`}
+        lang="bash"
+        theme="vitesse-black"
+      />
+    </Terminal>
+  </div>
+
   <h2>Other</h2>
 
   <div class="command-card">

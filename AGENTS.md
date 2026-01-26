@@ -37,3 +37,8 @@ pnpm build                      # Rebuild after changes
 pnpm dev                        # Watch mode
 pnpm run unlink                 # Cleanup
 ```
+
+## Documentation
+When adding or modifying CLI commands, update:
+- `src/cli/help.ts` — Built-in help text
+- `docs/src/pages/cli.astro` — CLI reference documentation

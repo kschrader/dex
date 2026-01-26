@@ -13,6 +13,7 @@ import { syncCommand } from "./sync.js";
 import { importCommand } from "./import.js";
 import { doctorCommand } from "./doctor.js";
 import { statusCommand } from "./status.js";
+import { configCommand } from "./config.js";
 
 export type { CliOptions } from "./utils.js";
 
@@ -22,6 +23,8 @@ export async function runCli(args: string[], options: CliOptions): Promise<void>
   switch (command) {
     case "init":
       return await initCommand(args.slice(1));
+    case "config":
+      return await configCommand(args.slice(1), { storagePath: options.storage.getIdentifier() });
     case "create":
     case "add":
       return await createCommand(args.slice(1), options);

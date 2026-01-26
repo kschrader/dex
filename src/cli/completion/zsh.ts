@@ -9,6 +9,7 @@ _dex() {
     local -a commands
     commands=(
         'init:Create config file'
+        'config:Get or set config values'
         'create:Create a new task'
         'list:List tasks'
         'ls:List tasks (alias)'
@@ -103,6 +104,14 @@ _dex() {
                 completion)
                     _arguments \\
                         '1:shell:(bash zsh fish)' \\
+                        '(-h --help)'{-h,--help}'[Show help]'
+                    ;;
+                config)
+                    _arguments \\
+                        '(-g --global)'{-g,--global}'[Use global config]' \\
+                        '(-l --local)'{-l,--local}'[Use project config]' \\
+                        '--unset[Remove config key]' \\
+                        '--list[List all config values]' \\
                         '(-h --help)'{-h,--help}'[Show help]'
                     ;;
             esac

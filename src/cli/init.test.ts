@@ -97,7 +97,7 @@ describe("init command", () => {
 
     const err = output.stderr.join("\n");
     expect(err).toContain("Config file already exists");
-    expect(err).toContain("dex config edit");
+    expect(err).toContain("delete it to reinitialize");
   });
 
   it("detects and configures bash completion with -y flag", async () => {

@@ -44,6 +44,7 @@ end
 
 # Main commands
 complete -c dex -n __dex_needs_command -a "init" -d "Create config file"
+complete -c dex -n __dex_needs_command -a "config" -d "Get or set config values"
 complete -c dex -n __dex_needs_command -a "create" -d "Create a new task"
 complete -c dex -n __dex_needs_command -a "list" -d "List tasks"
 complete -c dex -n __dex_needs_command -a "ls" -d "List tasks (alias)"
@@ -112,5 +113,12 @@ complete -c dex -n "contains -- completion (commandline -opc)" -s h -l help -d "
 
 # plan flags
 complete -c dex -n "contains -- plan (commandline -opc)" -s h -l help -d "Show help"
+
+# config flags
+complete -c dex -n "contains -- config (commandline -opc)" -s g -l global -d "Use global config"
+complete -c dex -n "contains -- config (commandline -opc)" -s l -l local -d "Use project config"
+complete -c dex -n "contains -- config (commandline -opc)" -l unset -d "Remove config key"
+complete -c dex -n "contains -- config (commandline -opc)" -l list -d "List all config values"
+complete -c dex -n "contains -- config (commandline -opc)" -s h -l help -d "Show help"
 `;
 }
