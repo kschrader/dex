@@ -47,7 +47,6 @@ export interface CachedIssue {
   labels: string[];
 }
 
-
 export interface GitHubSyncServiceOptions {
   /** GitHub repository (inferred from git remote) */
   repo: GitHubRepo;
@@ -134,7 +133,10 @@ export class GitHubSyncService {
    * Sync all tasks to GitHub.
    * Returns array of sync results.
    */
-  async syncAll(store: TaskStore, options: SyncAllOptions = {}): Promise<SyncResult[]> {
+  async syncAll(
+    store: TaskStore,
+    options: SyncAllOptions = {},
+  ): Promise<SyncResult[]> {
     const { onProgress, skipUnchanged = true } = options;
     const results: SyncResult[] = [];
     const parentTasks = store.tasks.filter((t) => !t.parent_id);
@@ -176,7 +178,7 @@ export class GitHubSyncService {
     issueNumber: number,
     created: boolean,
     state: "open" | "closed",
-    skipped?: boolean
+    skipped?: boolean,
   ): SyncResult {
     return {
       taskId,
@@ -204,9 +206,15 @@ export class GitHubSyncService {
       currentIndex?: number;
       total?: number;
       issueCache?: Map<string, CachedIssue>;
-    } = {}
+    } = {},
   ): Promise<SyncResult | null> {
-    const { skipUnchanged = true, onProgress, currentIndex = 1, total = 1, issueCache } = options;
+    const {
+      skipUnchanged = true,
+      onProgress,
+      currentIndex = 1,
+      total = 1,
+      issueCache,
+    } = options;
 
     // Collect ALL descendants, not just immediate children
     const descendants = collectDescendants(store.tasks, parent.id);
@@ -231,9 +239,24 @@ export class GitHubSyncService {
       // Fast path: skip completed tasks that are already synced as closed.
       // The stored state check ensures tasks completed locally (but synced while open) are re-synced.
       const storedState = parent.metadata?.github?.state;
-      if (skipUnchanged && expectedState === "closed" && storedState === "closed") {
-        onProgress?.({ current: currentIndex, total, task: parent, phase: "skipped" });
-        return this.buildSyncResult(parent.id, issueNumber, false, expectedState, true);
+      if (
+        skipUnchanged &&
+        expectedState === "closed" &&
+        storedState === "closed"
+      ) {
+        onProgress?.({
+          current: currentIndex,
+          total,
+          task: parent,
+          phase: "skipped",
+        });
+        return this.buildSyncResult(
+          parent.id,
+          issueNumber,
+          false,
+          expectedState,
+          true,
+        );
       }
 
       // Check if we can skip this update by comparing with GitHub
@@ -244,21 +267,54 @@ export class GitHubSyncService {
         // Use cached data for change detection when available
         const cached = issueCache?.get(parent.id);
         const hasChanges = cached
-          ? this.hasIssueChangedFromCache(cached, parent.description, expectedBody, expectedLabels, shouldClose)
-          : await this.hasIssueChanged(issueNumber, parent.description, expectedBody, expectedLabels, shouldClose);
+          ? this.hasIssueChangedFromCache(
+              cached,
+              parent.description,
+              expectedBody,
+              expectedLabels,
+              shouldClose,
+            )
+          : await this.hasIssueChanged(
+              issueNumber,
+              parent.description,
+              expectedBody,
+              expectedLabels,
+              shouldClose,
+            );
 
         if (!hasChanges) {
-          onProgress?.({ current: currentIndex, total, task: parent, phase: "skipped" });
-          return this.buildSyncResult(parent.id, issueNumber, false, expectedState, true);
+          onProgress?.({
+            current: currentIndex,
+            total,
+            task: parent,
+            phase: "skipped",
+          });
+          return this.buildSyncResult(
+            parent.id,
+            issueNumber,
+            false,
+            expectedState,
+            true,
+          );
         }
       }
 
-      onProgress?.({ current: currentIndex, total, task: parent, phase: "updating" });
+      onProgress?.({
+        current: currentIndex,
+        total,
+        task: parent,
+        phase: "updating",
+      });
 
       await this.updateIssue(parent, descendants, issueNumber, shouldClose);
       return this.buildSyncResult(parent.id, issueNumber, false, expectedState);
     } else {
-      onProgress?.({ current: currentIndex, total, task: parent, phase: "creating" });
+      onProgress?.({
+        current: currentIndex,
+        total,
+        task: parent,
+        phase: "creating",
+      });
 
       const github = await this.createIssue(parent, descendants, shouldClose);
       return { taskId: parent.id, github, created: true };
@@ -274,7 +330,7 @@ export class GitHubSyncService {
     expectedTitle: string,
     expectedBody: string,
     expectedLabels: string[],
-    shouldClose: boolean
+    shouldClose: boolean,
   ): boolean {
     const expectedState = shouldClose ? "closed" : "open";
     const sortedLabels = [...issue.labels].sort();
@@ -297,7 +353,7 @@ export class GitHubSyncService {
     expectedTitle: string,
     expectedBody: string,
     expectedLabels: string[],
-    shouldClose: boolean
+    shouldClose: boolean,
   ): Promise<boolean> {
     try {
       const { data: issue } = await this.octokit.issues.get({
@@ -311,11 +367,16 @@ export class GitHubSyncService {
         .filter((l) => l.startsWith(this.labelPrefix));
 
       return this.issueNeedsUpdate(
-        { title: issue.title, body: issue.body || "", state: issue.state, labels },
+        {
+          title: issue.title,
+          body: issue.body || "",
+          state: issue.state,
+          labels,
+        },
         expectedTitle,
         expectedBody,
         expectedLabels,
-        shouldClose
+        shouldClose,
       );
     } catch {
       // If we can't fetch the issue, assume it needs updating
@@ -333,14 +394,19 @@ export class GitHubSyncService {
     expectedTitle: string,
     expectedBody: string,
     expectedLabels: string[],
-    shouldClose: boolean
+    shouldClose: boolean,
   ): boolean {
     return this.issueNeedsUpdate(
-      { title: cached.title, body: cached.body, state: cached.state, labels: cached.labels },
+      {
+        title: cached.title,
+        body: cached.body,
+        state: cached.state,
+        labels: cached.labels,
+      },
       expectedTitle,
       expectedBody,
       expectedLabels,
-      shouldClose
+      shouldClose,
     );
   }
 
@@ -352,7 +418,7 @@ export class GitHubSyncService {
   private async createIssue(
     parent: Task,
     descendants: HierarchicalTask[],
-    shouldClose: boolean
+    shouldClose: boolean,
   ): Promise<GithubMetadata> {
     const body = this.renderBody(parent, descendants);
 
@@ -399,7 +465,7 @@ export class GitHubSyncService {
     parent: Task,
     descendants: HierarchicalTask[],
     issueNumber: number,
-    shouldClose: boolean
+    shouldClose: boolean,
   ): Promise<void> {
     const body = this.renderBody(parent, descendants);
 
@@ -418,10 +484,7 @@ export class GitHubSyncService {
    * Render the issue body with hierarchical task tree.
    * Includes root task metadata encoded in HTML comments for round-trip support.
    */
-  private renderBody(
-    task: Task,
-    descendants: HierarchicalTask[]
-  ): string {
+  private renderBody(task: Task, descendants: HierarchicalTask[]): string {
     // Build root task metadata comments
     const rootMeta: string[] = [
       `<!-- dex:task:id:${task.id} -->`,
@@ -434,7 +497,9 @@ export class GitHubSyncService {
 
     // Add result if present (base64 encoded for multi-line support)
     if (task.result) {
-      rootMeta.push(`<!-- dex:task:result:${encodeMetadataValue(task.result)} -->`);
+      rootMeta.push(
+        `<!-- dex:task:result:${encodeMetadataValue(task.result)} -->`,
+      );
     }
 
     // Add commit metadata if present
@@ -442,7 +507,9 @@ export class GitHubSyncService {
       const commit = task.metadata.commit;
       rootMeta.push(`<!-- dex:task:commit_sha:${commit.sha} -->`);
       if (commit.message) {
-        rootMeta.push(`<!-- dex:task:commit_message:${encodeMetadataValue(commit.message)} -->`);
+        rootMeta.push(
+          `<!-- dex:task:commit_message:${encodeMetadataValue(commit.message)} -->`,
+        );
       }
       if (commit.branch) {
         rootMeta.push(`<!-- dex:task:commit_branch:${commit.branch} -->`);
@@ -471,7 +538,8 @@ export class GitHubSyncService {
   }
 
   /**
-   * Check if storage path is gitignored.
+   * Check if task storage is gitignored.
+   * Checks the tasks directory specifically since that's where task files live.
    * Result is cached on first call to avoid repeated subprocess calls.
    */
   private isStorageGitignored(): boolean {
@@ -479,8 +547,9 @@ export class GitHubSyncService {
       return this.gitignoreCache;
     }
     try {
+      // Check the tasks directory specifically - it may be gitignored even if .dex is not
       // git check-ignore returns 0 if ignored, 1 if not ignored
-      execSync(`git check-ignore -q ${this.storagePath}`, {
+      execSync(`git check-ignore -q ${this.storagePath}/tasks/`, {
         stdio: ["pipe", "pipe", "pipe"],
       });
       this.gitignoreCache = true;
@@ -515,7 +584,7 @@ export class GitHubSyncService {
     try {
       const result = execSync(
         `git show origin/HEAD:${this.storagePath}/tasks/${taskId}.json 2>/dev/null`,
-        { encoding: "utf-8", stdio: ["pipe", "pipe", "pipe"] }
+        { encoding: "utf-8", stdio: ["pipe", "pipe", "pipe"] },
       );
       const task = JSON.parse(result);
       return task.completed === true;
@@ -532,13 +601,16 @@ export class GitHubSyncService {
    */
   async findIssueByTaskId(taskId: string): Promise<number | null> {
     try {
-      const issues = await this.octokit.paginate(this.octokit.issues.listForRepo, {
-        owner: this.owner,
-        repo: this.repo,
-        labels: this.labelPrefix,
-        state: "all",
-        per_page: 100,
-      });
+      const issues = await this.octokit.paginate(
+        this.octokit.issues.listForRepo,
+        {
+          owner: this.owner,
+          repo: this.repo,
+          labels: this.labelPrefix,
+          state: "all",
+          per_page: 100,
+        },
+      );
 
       for (const issue of issues) {
         if (issue.pull_request) continue;
@@ -559,13 +631,16 @@ export class GitHubSyncService {
   async fetchAllDexIssues(): Promise<Map<string, CachedIssue>> {
     const result = new Map<string, CachedIssue>();
 
-    const issues = await this.octokit.paginate(this.octokit.issues.listForRepo, {
-      owner: this.owner,
-      repo: this.repo,
-      labels: this.labelPrefix,
-      state: "all",
-      per_page: 100,
-    });
+    const issues = await this.octokit.paginate(
+      this.octokit.issues.listForRepo,
+      {
+        owner: this.owner,
+        repo: this.repo,
+        labels: this.labelPrefix,
+        state: "all",
+        per_page: 100,
+      },
+    );
 
     for (const issue of issues) {
       if (issue.pull_request) continue;
@@ -615,7 +690,8 @@ export function getGitHubIssueNumber(task: Task): number | null {
     return task.metadata.github.issueNumber;
   }
   // Legacy format (from older imports)
-  const legacyNumber = (task.metadata as Record<string, unknown> | undefined)?.github_issue_number;
+  const legacyNumber = (task.metadata as Record<string, unknown> | undefined)
+    ?.github_issue_number;
   if (typeof legacyNumber === "number") {
     return legacyNumber;
   }
