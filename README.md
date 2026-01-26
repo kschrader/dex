@@ -12,7 +12,7 @@ Task tracking for AI agents. Persistent memory for complex, multi-session work.
 
 **Built for agent coordination.** Agents break down work, track progress, and record results that persist across sessions.
 
-**Git-friendly storage.** One task per file enables collaboration, versioning, and conflict-free workflows.
+**Git-friendly storage.** JSONL format (one task per line) enables collaboration, versioning, and conflict-free merges.
 
 ## Quick Start
 
