@@ -5,4 +5,5 @@ export {
   FileStorageOptions,
   TaskStorage,
 } from "./file-storage.js";
+export { JsonlStorage, JsonlStorageOptions } from "./jsonl-storage.js";
 export { migrateFromSingleFile } from "./migrations.js";
