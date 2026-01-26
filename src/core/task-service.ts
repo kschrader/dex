@@ -12,6 +12,21 @@ import {
   ListTasksInput,
 } from "../types.js";
 import { NotFoundError, ValidationError } from "../errors.js";
+import {
+  syncParentChild,
+  syncAddBlocker,
+  syncRemoveBlocker,
+  cleanupTaskReferences,
+  wouldCreateBlockingCycle,
+  isBlocked,
+  hasIncompleteChildren,
+  isReady,
+  collectDescendants,
+  isDescendant,
+  collectAncestors,
+  getDepthFromParent,
+  getMaxDescendantDepth,
+} from "./task-relationships.js";
 
 const generateId = customAlphabet("0123456789abcdefghijklmnopqrstuvwxyz", 8);
 
@@ -97,166 +112,6 @@ export class TaskService {
     }
   }
 
-  // ============ Bidirectional Sync Helpers ============
-
-  /**
-   * Sync parent-child relationship (bidirectional).
-   * Updates: parent.children[] ↔ child.parent_id
-   */
-  private syncParentChild(
-    store: TaskStore,
-    childId: string,
-    oldParentId: string | null,
-    newParentId: string | null
-  ): void {
-    // Remove from old parent's children[]
-    if (oldParentId) {
-      const oldParent = store.tasks.find((t) => t.id === oldParentId);
-      if (oldParent) {
-        oldParent.children = oldParent.children.filter((id) => id !== childId);
-      }
-    }
-
-    // Add to new parent's children[]
-    if (newParentId) {
-      const newParent = store.tasks.find((t) => t.id === newParentId);
-      if (!newParent) throw new NotFoundError("Task", newParentId, "The specified parent task does not exist");
-      if (!newParent.children.includes(childId)) {
-        newParent.children.push(childId);
-      }
-    }
-  }
-
-  /**
-   * Add blocking relationship (bidirectional).
-   * Updates: blocker.blocks[] ↔ blocked.blockedBy[]
-   */
-  private syncAddBlocker(store: TaskStore, blockerId: string, blockedId: string): void {
-    // Validate blocker exists
-    const blocker = store.tasks.find((t) => t.id === blockerId);
-    if (!blocker) throw new NotFoundError("Task", blockerId, "The specified blocker task does not exist");
-
-    // Update blocker's blocks[] (add blockedId)
-    if (!blocker.blocks.includes(blockedId)) {
-      blocker.blocks.push(blockedId);
-    }
-
-    // Update blocked's blockedBy[] (add blockerId)
-    const blocked = store.tasks.find((t) => t.id === blockedId);
-    if (blocked && !blocked.blockedBy.includes(blockerId)) {
-      blocked.blockedBy.push(blockerId);
-    }
-  }
-
-  /**
-   * Remove blocking relationship (bidirectional).
-   */
-  private syncRemoveBlocker(store: TaskStore, blockerId: string, blockedId: string): void {
-    // Update blocker's blocks[] (remove blockedId)
-    const blocker = store.tasks.find((t) => t.id === blockerId);
-    if (blocker) {
-      blocker.blocks = blocker.blocks.filter((id) => id !== blockedId);
-    }
-
-    // Update blocked's blockedBy[] (remove blockerId)
-    const blocked = store.tasks.find((t) => t.id === blockedId);
-    if (blocked) {
-      blocked.blockedBy = blocked.blockedBy.filter((id) => id !== blockerId);
-    }
-  }
-
-  /**
-   * Clean up all references to a deleted task.
-   */
-  private cleanupTaskReferences(store: TaskStore, taskId: string): void {
-    for (const task of store.tasks) {
-      task.children = task.children.filter((id) => id !== taskId);
-      task.blockedBy = task.blockedBy.filter((id) => id !== taskId);
-      task.blocks = task.blocks.filter((id) => id !== taskId);
-    }
-  }
-
-  /**
-   * Check if adding blocker→blocked would create a cycle.
-   * A cycle exists if 'blocked' is already in blocker's dependency chain.
-   * Checks both blockedBy and blocks directions for robustness against data inconsistencies.
-   */
-  private wouldCreateBlockingCycle(
-    tasks: Task[],
-    blockerId: string,
-    blockedId: string
-  ): boolean {
-    // Check if blockedId is already upstream of blockerId (via blockedBy chains)
-    const visited = new Set<string>();
-    const stack = [blockerId];
-
-    while (stack.length > 0) {
-      const current = stack.pop()!;
-      if (current === blockedId) return true; // Cycle found!
-      if (visited.has(current)) continue;
-      visited.add(current);
-
-      const task = tasks.find((t) => t.id === current);
-      if (task) {
-        // Follow blockedBy: tasks that must complete before this one
-        stack.push(...task.blockedBy);
-      }
-    }
-
-    // Also check via blocks direction: if blockedId already blocks something
-    // that transitively blocks blockerId
-    const blockedTask = tasks.find((t) => t.id === blockedId);
-    if (blockedTask) {
-      const visitedBlocks = new Set<string>();
-      const blocksStack = [...blockedTask.blocks];
-
-      while (blocksStack.length > 0) {
-        const current = blocksStack.pop()!;
-        if (current === blockerId) return true; // Cycle found!
-        if (visitedBlocks.has(current)) continue;
-        visitedBlocks.add(current);
-
-        const task = tasks.find((t) => t.id === current);
-        if (task) {
-          // Follow blocks: tasks this one must complete before
-          blocksStack.push(...task.blocks);
-        }
-      }
-    }
-
-    return false;
-  }
-
-  /**
-   * Check if a task is blocked (has any incomplete tasks in blockedBy).
-   */
-  isBlocked(tasks: Task[], task: Task): boolean {
-    return task.blockedBy.some((blockerId) => {
-      const blocker = tasks.find((t) => t.id === blockerId);
-      return blocker && !blocker.completed;
-    });
-  }
-
-  /**
-   * Check if a task has any incomplete children.
-   */
-  private hasIncompleteChildren(tasks: Task[], task: Task): boolean {
-    return task.children.some((childId) => {
-      const child = tasks.find((t) => t.id === childId);
-      return child && !child.completed;
-    });
-  }
-
-  /**
-   * Check if a task is ready (pending with all blockers completed and no incomplete children).
-   */
-  isReady(tasks: Task[], task: Task): boolean {
-    if (task.completed) return false;
-    if (this.isBlocked(tasks, task)) return false;
-    if (this.hasIncompleteChildren(tasks, task)) return false;
-    return true;
-  }
-
   // ============ CRUD Methods ============
 
   async create(input: CreateTaskInput): Promise<Task> {
@@ -286,7 +141,7 @@ export class TaskService {
         throw new NotFoundError("Task", input.parent_id, "The specified parent task does not exist");
       }
       // Validate depth: maximum 3 levels (epic → task → subtask)
-      const newDepth = this.getDepthFromParent(store.tasks, input.parent_id) + 1;
+      const newDepth = getDepthFromParent(store.tasks, input.parent_id) + 1;
       if (newDepth > 3) {
         throw new ValidationError(
           "Cannot create subtask: maximum depth (3 levels) reached",
@@ -331,12 +186,12 @@ export class TaskService {
 
     // Sync parent-child relationship
     if (parentId) {
-      this.syncParentChild(store, task.id, null, parentId);
+      syncParentChild(store, task.id, null, parentId);
     }
 
     // Sync blocking relationships
     for (const blockerId of blockedBy) {
-      this.syncAddBlocker(store, blockerId, task.id);
+      syncAddBlocker(store, blockerId, task.id);
     }
 
     await this.storage.writeAsync(store);
@@ -379,7 +234,7 @@ export class TaskService {
           throw new NotFoundError("Task", input.parent_id, "The specified parent task does not exist");
         }
         // Check for cycles: new parent can't be a descendant
-        if (this.isDescendant(store.tasks, input.parent_id, input.id)) {
+        if (isDescendant(store.tasks, input.parent_id, input.id)) {
           throw new ValidationError(
             "Cannot set parent: would create a cycle",
             "The selected parent is already a subtask of this task"
@@ -387,8 +242,8 @@ export class TaskService {
         }
         // Validate depth: maximum 3 levels (epic → task → subtask)
         // Need to check that this task + its descendants won't exceed depth limit
-        const newDepth = this.getDepthFromParent(store.tasks, input.parent_id) + 1;
-        const maxDescendantDepth = this.getMaxDescendantDepth(store.tasks, input.id);
+        const newDepth = getDepthFromParent(store.tasks, input.parent_id) + 1;
+        const maxDescendantDepth = getMaxDescendantDepth(store.tasks, input.id);
         if (newDepth + maxDescendantDepth > 3) {
           throw new ValidationError(
             "Cannot move task: would exceed maximum depth (3 levels)",
@@ -400,7 +255,7 @@ export class TaskService {
 
       // Sync parent-child relationship if parent changed
       if (oldParentId !== input.parent_id) {
-        this.syncParentChild(store, task.id, oldParentId, input.parent_id);
+        syncParentChild(store, task.id, oldParentId, input.parent_id);
       }
     }
     if (input.priority !== undefined) task.priority = input.priority;
@@ -436,7 +291,7 @@ export class TaskService {
         }
 
         // Check for cycles
-        if (this.wouldCreateBlockingCycle(store.tasks, blockerId, input.id)) {
+        if (wouldCreateBlockingCycle(store.tasks, blockerId, input.id)) {
           throw new ValidationError(
             `Cannot add blocker ${blockerId}: would create a cycle`,
             "The specified task is already blocked by this task (directly or indirectly)"
@@ -444,14 +299,14 @@ export class TaskService {
         }
 
         // Sync the relationship
-        this.syncAddBlocker(store, blockerId, input.id);
+        syncAddBlocker(store, blockerId, input.id);
       }
     }
 
     // Handle remove_blocked_by
     if (input.remove_blocked_by && input.remove_blocked_by.length > 0) {
       for (const blockerId of input.remove_blocked_by) {
-        this.syncRemoveBlocker(store, blockerId, input.id);
+        syncRemoveBlocker(store, blockerId, input.id);
       }
     }
 
@@ -483,11 +338,11 @@ export class TaskService {
 
     // Cascade delete all descendants
     const toDelete = new Set<string>([id]);
-    this.collectDescendants(store.tasks, id, toDelete);
+    collectDescendants(store.tasks, id, toDelete);
 
     // Clean up references to all deleted tasks
     for (const taskId of toDelete) {
-      this.cleanupTaskReferences(store, taskId);
+      cleanupTaskReferences(store, taskId);
     }
 
     store.tasks = store.tasks.filter((t) => !toDelete.has(t.id));
@@ -500,40 +355,13 @@ export class TaskService {
     return store.tasks.filter((t) => t.parent_id === id);
   }
 
-  private collectDescendants(tasks: Task[], parentId: string, result: Set<string>): void {
-    for (const task of tasks) {
-      if (task.parent_id === parentId && !result.has(task.id)) {
-        result.add(task.id);
-        this.collectDescendants(tasks, task.id, result);
-      }
-    }
-  }
-
-  private isDescendant(tasks: Task[], potentialDescendant: string, ancestorId: string): boolean {
-    const task = tasks.find((t) => t.id === potentialDescendant);
-    if (!task || !task.parent_id) return false;
-    if (task.parent_id === ancestorId) return true;
-    return this.isDescendant(tasks, task.parent_id, ancestorId);
-  }
-
   /**
    * Get the ancestors of a task, from root to immediate parent.
    * Returns an empty array for root-level tasks.
    */
   async getAncestors(id: string): Promise<Task[]> {
     const store = await this.storage.readAsync();
-    return this.collectAncestors(store.tasks, id);
-  }
-
-  private collectAncestors(tasks: Task[], id: string): Task[] {
-    const task = tasks.find((t) => t.id === id);
-    if (!task || !task.parent_id) return [];
-
-    const parent = tasks.find((t) => t.id === task.parent_id);
-    if (!parent) return [];
-
-    // Recursively get ancestors of the parent, then append parent
-    return [...this.collectAncestors(tasks, parent.id), parent];
+    return collectAncestors(store.tasks, id);
   }
 
   /**
@@ -543,25 +371,6 @@ export class TaskService {
   async getDepth(id: string): Promise<number> {
     const ancestors = await this.getAncestors(id);
     return ancestors.length;
-  }
-
-  /**
-   * Calculate depth from a parent ID (for validation during creation).
-   * Returns the depth a new child would have if created under this parent.
-   */
-  private getDepthFromParent(tasks: Task[], parentId: string): number {
-    const ancestors = this.collectAncestors(tasks, parentId);
-    return ancestors.length + 1; // +1 because the new task will be one level below parent
-  }
-
-  /**
-   * Get the maximum depth of descendants relative to a task.
-   * Returns 0 if the task has no children, 1 if it has children but no grandchildren, etc.
-   */
-  private getMaxDescendantDepth(tasks: Task[], taskId: string): number {
-    const children = tasks.filter((t) => t.parent_id === taskId);
-    if (children.length === 0) return 0;
-    return 1 + Math.max(...children.map((c) => this.getMaxDescendantDepth(tasks, c.id)));
   }
 
   async get(id: string): Promise<Task | null> {
@@ -590,12 +399,12 @@ export class TaskService {
 
     // Filter by blocked status: tasks that have incomplete blockers
     if (input.blocked === true) {
-      tasks = tasks.filter((t) => this.isBlocked(store.tasks, t));
+      tasks = tasks.filter((t) => isBlocked(store.tasks, t));
     }
 
     // Filter by ready status: pending tasks with all blockers completed (or none)
     if (input.ready === true) {
-      tasks = tasks.filter((t) => this.isReady(store.tasks, t));
+      tasks = tasks.filter((t) => isReady(store.tasks, t));
     }
 
     return tasks.toSorted((a, b) => a.priority - b.priority);
@@ -606,7 +415,7 @@ export class TaskService {
 
     // Collect all descendants, not just immediate children
     const descendants = new Set<string>();
-    this.collectDescendants(store.tasks, id, descendants);
+    collectDescendants(store.tasks, id, descendants);
 
     const pendingDescendants = store.tasks.filter(
       (t) => descendants.has(t.id) && !t.completed

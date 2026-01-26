@@ -1,14 +1,17 @@
 import { execSync } from "node:child_process";
 import { Octokit } from "@octokit/rest";
 import { GithubMetadata, Task, TaskStore } from "../types.js";
-import { GitHubSyncConfig } from "./config.js";
-import { getGitHubRepo, GitHubRepo } from "./git-remote.js";
+import { GitHubRepo } from "./git-remote.js";
 import {
   collectDescendants,
   renderHierarchicalIssueBody,
   HierarchicalTask,
   encodeMetadataValue,
 } from "./subtask-markdown.js";
+
+// Re-export for backwards compatibility
+export { getGitHubToken } from "./github-token.js";
+export { createGitHubSyncService, createGitHubSyncServiceOrThrow } from "./github-sync-factory.js";
 
 /**
  * Result of syncing a task to GitHub.
@@ -48,33 +51,6 @@ export interface CachedIssue {
   labels: string[];
 }
 
-/**
- * Get GitHub token from environment variable or gh CLI.
- * @param tokenEnv Environment variable name to check first (default: GITHUB_TOKEN)
- * @returns Token string or null if not found
- */
-export function getGitHubToken(tokenEnv: string = "GITHUB_TOKEN"): string | null {
-  // First try environment variable
-  const envToken = process.env[tokenEnv];
-  if (envToken) {
-    return envToken;
-  }
-
-  // Fall back to gh CLI
-  try {
-    const token = execSync("gh auth token", {
-      encoding: "utf-8",
-      stdio: ["pipe", "pipe", "pipe"],
-    }).trim();
-    if (token) {
-      return token;
-    }
-  } catch {
-    // gh CLI not available or not authenticated
-  }
-
-  return null;
-}
 
 export interface GitHubSyncServiceOptions {
   /** GitHub repository (inferred from git remote) */
@@ -650,76 +626,3 @@ export function getGitHubIssueNumber(task: Task): number | null {
   return null;
 }
 
-/**
- * Create a GitHubSyncService for auto-sync if enabled in config.
- * Returns null if auto-sync is disabled, no git remote, or no token.
- *
- * @param config Sync config from dex.toml
- * @param storagePath Path to task storage (default: ".dex")
- */
-export function createGitHubSyncService(
-  config: GitHubSyncConfig | undefined,
-  storagePath?: string
-): GitHubSyncService | null {
-  if (!config?.enabled) {
-    return null;
-  }
-
-  const repo = getGitHubRepo();
-  if (!repo) {
-    console.warn("GitHub sync enabled but no GitHub remote found. Sync disabled.");
-    return null;
-  }
-
-  const tokenEnv = config.token_env || "GITHUB_TOKEN";
-  const token = getGitHubToken(tokenEnv);
-
-  if (!token) {
-    console.warn(`GitHub sync enabled but no token found (checked ${tokenEnv} and gh CLI). Sync disabled.`);
-    return null;
-  }
-
-  return new GitHubSyncService({
-    repo,
-    token,
-    labelPrefix: config.label_prefix,
-    storagePath,
-  });
-}
-
-/**
- * Create a GitHubSyncService for manual sync/import commands.
- * Throws descriptive errors if requirements are not met.
- *
- * @param config Optional sync config for label_prefix and token_env
- * @param storagePath Path to task storage (default: ".dex")
- */
-export function createGitHubSyncServiceOrThrow(
-  config?: GitHubSyncConfig,
-  storagePath?: string
-): GitHubSyncService {
-  const repo = getGitHubRepo();
-  if (!repo) {
-    throw new Error(
-      "Cannot determine GitHub repository.\n" +
-      "This directory is not in a git repository with a GitHub remote."
-    );
-  }
-
-  const tokenEnv = config?.token_env || "GITHUB_TOKEN";
-  const token = getGitHubToken(tokenEnv);
-
-  if (!token) {
-    throw new Error(
-      `GitHub token not found.\n` +
-      `Set ${tokenEnv} environment variable or authenticate with: gh auth login`
-    );
-  }
-
-  return new GitHubSyncService({
-    repo,
-    token,
-    labelPrefix: config?.label_prefix,
-    storagePath,
-  });
-}
