@@ -6,10 +6,10 @@ import { TaskService } from "../core/task-service.js";
 import { StorageEngine } from "../core/storage-engine.js";
 import { GitHubSyncService } from "../core/github-sync.js";
 import { GitHubSyncConfig } from "../core/config.js";
-import { CreateTaskArgsSchema, handleCreateTask } from "../tools/create-task.js";
-import { UpdateTaskArgsSchema, handleUpdateTask } from "../tools/update-task.js";
-import { ListTasksArgsSchema, handleListTasks } from "../tools/list-tasks.js";
-import { errorResponse, McpToolResponse } from "../tools/response.js";
+import { CreateTaskArgsSchema, handleCreateTask } from "./tools/create-task.js";
+import { UpdateTaskArgsSchema, handleUpdateTask } from "./tools/update-task.js";
+import { ListTasksArgsSchema, handleListTasks } from "./tools/list-tasks.js";
+import { errorResponse, McpToolResponse } from "./tools/response.js";
 import { ValidationError } from "../errors.js";
 
 function formatZodError(error: ZodError): string {

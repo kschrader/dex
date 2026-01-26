@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { jsonResponse, errorResponse } from "./response.js";
-import { DexError, NotFoundError, ValidationError } from "../errors.js";
+import { DexError, NotFoundError, ValidationError } from "../../errors.js";
 
 describe("response utilities", () => {
   describe("jsonResponse", () => {

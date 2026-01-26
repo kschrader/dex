@@ -1,4 +1,4 @@
-import { extractErrorInfo } from "../errors.js";
+import { extractErrorInfo } from "../../errors.js";
 
 export interface McpToolResponse {
   [key: string]: unknown;
