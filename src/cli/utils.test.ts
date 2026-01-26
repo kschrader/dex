@@ -1,14 +1,13 @@
 import { describe, it, expect } from "vitest";
 import {
   parseArgs,
-  formatAge,
   levenshtein,
   getSuggestion,
-  truncateText,
-  stripAnsi,
   getStringFlag,
   getBooleanFlag,
-} from "./utils.js";
+} from "./args.js";
+import { formatAge, truncateText } from "./formatting.js";
+import { stripAnsi } from "./colors.js";
 
 describe("parseArgs", () => {
   const flagDefs = {

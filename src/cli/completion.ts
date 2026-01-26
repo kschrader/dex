@@ -1,4 +1,5 @@
-import { colors, parseArgs, getBooleanFlag } from "./utils.js";
+import { colors } from "./colors.js";
+import { getBooleanFlag, parseArgs } from "./args.js";
 import { generateBashCompletion } from "./completion/bash.js";
 import { generateZshCompletion } from "./completion/zsh.js";
 import { generateFishCompletion } from "./completion/fish.js";

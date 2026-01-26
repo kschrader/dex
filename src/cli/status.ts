@@ -1,14 +1,8 @@
 import { Task } from "../types.js";
-import {
-  ASCII_BANNER,
-  CliOptions,
-  colors,
-  createService,
-  formatTask,
-  getBooleanFlag,
-  parseArgs,
-  truncateText,
-} from "./utils.js";
+import { ASCII_BANNER, CliOptions, createService } from "./utils.js";
+import { colors } from "./colors.js";
+import { getBooleanFlag, parseArgs } from "./args.js";
+import { formatTask, truncateText } from "./formatting.js";
 import { getIncompleteBlockerIds, hasIncompleteChildren } from "../core/task-relationships.js";
 
 // Limits for displayed tasks in each section

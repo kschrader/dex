@@ -2,7 +2,8 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import { parse as parseToml, stringify as stringifyToml } from "smol-toml";
 import { getConfigPath, getProjectConfigPath } from "../core/config.js";
-import { colors, parseArgs, getBooleanFlag } from "./utils.js";
+import { colors } from "./colors.js";
+import { getBooleanFlag, parseArgs } from "./args.js";
 
 /**
  * Schema definition for config values

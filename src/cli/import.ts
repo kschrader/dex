@@ -1,11 +1,6 @@
-import {
-  CliOptions,
-  colors,
-  createService,
-  formatCliError,
-  getBooleanFlag,
-  parseArgs,
-} from "./utils.js";
+import { CliOptions, createService, formatCliError } from "./utils.js";
+import { colors } from "./colors.js";
+import { getBooleanFlag, parseArgs } from "./args.js";
 import {
   getGitHubIssueNumber,
   getGitHubRepo,

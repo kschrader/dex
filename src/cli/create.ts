@@ -1,13 +1,6 @@
-import {
-  CliOptions,
-  colors,
-  createService,
-  formatCliError,
-  getBooleanFlag,
-  getStringFlag,
-  parseArgs,
-  parseIntFlag,
-} from "./utils.js";
+import { CliOptions, createService, formatCliError } from "./utils.js";
+import { colors } from "./colors.js";
+import { getBooleanFlag, getStringFlag, parseArgs, parseIntFlag } from "./args.js";
 import { formatTaskShow } from "./show.js";
 
 export async function createCommand(args: string[], options: CliOptions): Promise<void> {

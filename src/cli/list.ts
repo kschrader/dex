@@ -1,15 +1,8 @@
 import { Task } from "../types.js";
-import {
-  CliOptions,
-  colors,
-  createService,
-  formatTask,
-  formatBreadcrumb,
-  getBooleanFlag,
-  getStringFlag,
-  parseArgs,
-  parseIntFlag,
-} from "./utils.js";
+import { CliOptions, createService } from "./utils.js";
+import { colors } from "./colors.js";
+import { getBooleanFlag, getStringFlag, parseArgs, parseIntFlag } from "./args.js";
+import { formatBreadcrumb, formatTask } from "./formatting.js";
 import { getGitHubIssueNumber } from "../core/github/index.js";
 import { getIncompleteBlockerIds } from "../core/task-relationships.js";
 

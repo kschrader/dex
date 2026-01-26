@@ -1,4 +1,5 @@
-import { ASCII_BANNER, colors } from "./utils.js";
+import { ASCII_BANNER } from "./utils.js";
+import { colors } from "./colors.js";
 
 export function helpCommand(): void {
   console.log(`${colors.bold}${ASCII_BANNER}${colors.reset}

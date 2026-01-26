@@ -1,18 +1,13 @@
 import { Task } from "../types.js";
+import { CliOptions, createService, exitIfTaskNotFound } from "./utils.js";
+import { colors, stripAnsi, terminalWidth } from "./colors.js";
+import { getBooleanFlag, parseArgs } from "./args.js";
 import {
-  CliOptions,
-  colors,
-  createService,
-  exitIfTaskNotFound,
   formatAge,
-  getBooleanFlag,
-  parseArgs,
   pluralize,
-  stripAnsi,
-  terminalWidth,
   truncateText,
   wrapText,
-} from "./utils.js";
+} from "./formatting.js";
 
 // Max description length for tree display
 const SHOW_TREE_DESCRIPTION_MAX_LENGTH = 50;

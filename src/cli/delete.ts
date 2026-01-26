@@ -1,14 +1,13 @@
 import {
   CliOptions,
-  colors,
   createService,
   exitIfTaskNotFound,
   formatCliError,
-  getBooleanFlag,
-  parseArgs,
-  pluralize,
   promptConfirm,
 } from "./utils.js";
+import { colors } from "./colors.js";
+import { getBooleanFlag, parseArgs } from "./args.js";
+import { pluralize } from "./formatting.js";
 
 export async function deleteCommand(args: string[], options: CliOptions): Promise<void> {
   const { positional, flags } = parseArgs(args, {

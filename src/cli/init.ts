@@ -3,7 +3,8 @@ import * as path from "node:path";
 import * as os from "node:os";
 import * as readline from "node:readline";
 import { getConfigPath } from "../core/config.js";
-import { colors, parseArgs, getBooleanFlag } from "./utils.js";
+import { colors } from "./colors.js";
+import { getBooleanFlag, parseArgs } from "./args.js";
 
 interface ShellConfig {
   name: string;

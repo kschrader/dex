@@ -1,14 +1,7 @@
-import {
-  CliOptions,
-  colors,
-  createService,
-  formatCliError,
-  formatTask,
-  getBooleanFlag,
-  getStringFlag,
-  parseArgs,
-  parseIntFlag,
-} from "./utils.js";
+import { CliOptions, createService, formatCliError } from "./utils.js";
+import { colors } from "./colors.js";
+import { getBooleanFlag, getStringFlag, parseArgs, parseIntFlag } from "./args.js";
+import { formatTask } from "./formatting.js";
 import { parsePlanFile } from "../core/plan-parser.js";
 
 export async function planCommand(args: string[], options: CliOptions): Promise<void> {
