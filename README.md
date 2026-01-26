@@ -52,6 +52,18 @@ pnpm dev       # Watch mode - auto-rebuild on changes
 # In another terminal: test with dex commands
 ```
 
+### Testing the Claude Code Plugin
+
+To test the plugin locally without installing from the marketplace:
+
+```bash
+claude --plugin-dir plugins/dex
+```
+
+This loads the plugin from the local directory. Restart Claude Code to pick up changes.
+
+### Manual Build
+
 Or manually:
 
 ```bash

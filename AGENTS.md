@@ -42,3 +42,9 @@ pnpm run unlink                 # Cleanup
 When adding or modifying CLI commands, update:
 - `src/cli/help.ts` — Built-in help text
 - `docs/src/pages/cli.astro` — CLI reference documentation
+
+## Testing
+When adding new behavior or modifying existing functionality, review `TESTING.md` to determine if tests are needed. Key points:
+- Test error cases users will actually hit
+- Add regression tests for bugs
+- Co-locate tests with source (`foo.ts` → `foo.test.ts`)
