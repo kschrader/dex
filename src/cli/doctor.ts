@@ -170,7 +170,7 @@ ${colors.bold}EXAMPLES:${colors.reset}
       console.log(`\nFixed ${fixed} issue(s).`);
     } else if (fixable > 0 && !shouldFix) {
       console.log(
-        `\n${colors.dim}Run 'dex doctor --fix' to fix ${fixable} issue(s).${colors.reset}`,
+        `\nRun ${colors.bold}dex doctor --fix${colors.reset} to fix ${fixable} issue(s).`,
       );
     }
   }

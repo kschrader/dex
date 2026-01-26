@@ -92,7 +92,7 @@ function exitUnknownKey(key: string): never {
     `${colors.red}Error:${colors.reset} Unknown config key: ${key}`,
   );
   console.error(
-    `Run "${colors.dim}dex config --help${colors.reset}" for available keys.`,
+    `Run ${colors.cyan}dex config --help${colors.reset} for available keys.`,
   );
   process.exit(1);
 }
@@ -266,14 +266,14 @@ ${colors.bold}EXAMPLES:${colors.reset}
         `${colors.red}Error:${colors.reset} --local requires being in a dex project`,
       );
       console.error(
-        `${colors.dim}Run "dex init" to initialize a project or use --global${colors.reset}`,
+        `Run ${colors.cyan}dex init${colors.reset} to initialize a project or use ${colors.cyan}--global${colors.reset}`,
       );
       process.exit(1);
     }
     const projectPath = getProjectConfigPath();
     if (!projectPath) {
       console.error(
-        `${colors.dim}Run "dex init" to initialize a git repository or use --global${colors.reset}`,
+        `Run ${colors.cyan}dex init${colors.reset} to initialize a git repository or use ${colors.cyan}--global${colors.reset}`,
       );
       process.exit(1);
     }
@@ -318,7 +318,7 @@ ${colors.bold}EXAMPLES:${colors.reset}
     console.error(`${colors.red}Error:${colors.reset} Missing config key`);
     console.error(`Usage: dex config <key>[=<value>]`);
     console.error(
-      `Run "${colors.dim}dex config --help${colors.reset}" for available keys.`,
+      `Run ${colors.cyan}dex config --help${colors.reset} for available keys.`,
     );
     process.exit(1);
   }
@@ -394,7 +394,7 @@ ${colors.bold}EXAMPLES:${colors.reset}
             `${colors.dim}Existing tasks will NOT be automatically migrated.${colors.reset}`,
           );
           console.log(
-            `${colors.dim}Run 'dex doctor --fix' after this change to migrate tasks.${colors.reset}`,
+            `Run ${colors.bold}dex doctor --fix${colors.reset} after this change to migrate tasks.`,
           );
           console.log("");
         }

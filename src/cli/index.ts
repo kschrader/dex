@@ -112,7 +112,7 @@ export async function runCli(
         );
       }
       console.error(
-        `Run "${colors.dim}dex help${colors.reset}" for usage information.`,
+        `Run ${colors.cyan}dex help${colors.reset} for usage information.`,
       );
       process.exit(1);
   }

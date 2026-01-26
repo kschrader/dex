@@ -201,7 +201,7 @@ export function parseArgs(
     }
 
     const cmd = commandName ? `dex ${commandName}` : "dex <command>";
-    errorMsg += `\nRun '${colors.dim}${cmd} --help${colors.reset}' for usage.`;
+    errorMsg += `\nRun ${colors.cyan}${cmd} --help${colors.reset} for usage.`;
 
     console.error(errorMsg);
     process.exit(1);

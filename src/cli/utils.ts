@@ -34,16 +34,16 @@ export function createService(options: CliOptions): TaskService {
 export async function exitIfTaskNotFound(
   task: Task | null,
   id: string,
-  service: TaskService
+  service: TaskService,
 ): Promise<Task> {
   if (task) return task;
   console.error(
-    `${colors.red}Error:${colors.reset} Task ${colors.bold}${id}${colors.reset} not found`
+    `${colors.red}Error:${colors.reset} Task ${colors.bold}${id}${colors.reset} not found`,
   );
   const allTasks = await service.list({ all: true });
   if (allTasks.length > 0) {
     console.error(
-      `${colors.dim}Hint: Run "dex list --all" to see all tasks${colors.reset}`
+      `${colors.dim}Hint:${colors.reset} Run ${colors.cyan}dex list --all${colors.reset} to see all tasks`,
     );
   }
   process.exit(1);

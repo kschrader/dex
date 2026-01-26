@@ -334,7 +334,7 @@ ${colors.bold}EXAMPLES:${colors.reset}
     if (readyTasks.length > READY_LIMIT) {
       const remaining = readyTasks.length - READY_LIMIT;
       console.log(
-        `${colors.dim}... and ${remaining} more (dex list --ready)${colors.reset}`,
+        `${colors.dim}... and ${remaining} more${colors.reset} ${colors.cyan}dex list --ready${colors.reset}`,
       );
     }
   }
