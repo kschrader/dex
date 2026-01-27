@@ -3,6 +3,7 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import * as os from "node:os";
 import { ArchiveStorage } from "./archive-storage.js";
+import { createArchivedTask } from "../../cli/test-helpers.js";
 import { ArchivedTask } from "../../types.js";
 
 describe("ArchiveStorage", () => {
@@ -16,21 +17,6 @@ describe("ArchiveStorage", () => {
 
   afterEach(() => {
     fs.rmSync(tempDir, { recursive: true, force: true });
-  });
-
-  const createArchivedTask = (
-    overrides: Partial<ArchivedTask> = {},
-  ): ArchivedTask => ({
-    id: "test-id",
-    parent_id: null,
-    name: "Test task",
-    description: "",
-    result: null,
-    completed_at: null,
-    archived_at: new Date().toISOString(),
-    metadata: null,
-    archived_children: [],
-    ...overrides,
   });
 
   describe("readArchive", () => {

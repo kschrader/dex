@@ -4,9 +4,11 @@ import { runCli } from "./index.js";
 import {
   captureOutput,
   createTempStorage,
+  createArchivedTask,
   CapturedOutput,
   TASK_ID_REGEX,
 } from "./test-helpers.js";
+import { ArchiveStorage } from "../core/storage/archive-storage.js";
 
 describe("show command", () => {
   let storage: FileStorage;
@@ -301,5 +303,155 @@ describe("show command", () => {
     expect(out).toContain("GitHub Issue:");
     expect(out).toContain("#99 (owner/repo)");
     expect(out).toContain("(via parent)");
+  });
+
+  describe("archived tasks", () => {
+    it("shows archived task when not found in active tasks", async () => {
+      const archiveStorage = new ArchiveStorage({
+        path: storage.getIdentifier(),
+      });
+      archiveStorage.appendArchive([
+        createArchivedTask({
+          id: "arch1234",
+          name: "Old completed task",
+          description: "This task was done long ago",
+          result: "Finished with success",
+        }),
+      ]);
+
+      await runCli(["show", "arch1234"], { storage });
+
+      const out = output.stdout.join("\n");
+      expect(out).toContain("Old completed task");
+      expect(out).toContain("This task was done long ago");
+      expect(out).toContain("Finished with success");
+      expect(out).toContain("Archived:");
+    });
+
+    it("shows archived task with GitHub metadata", async () => {
+      const archiveStorage = new ArchiveStorage({
+        path: storage.getIdentifier(),
+      });
+      archiveStorage.appendArchive([
+        createArchivedTask({
+          id: "gh123456",
+          name: "GitHub linked task",
+          metadata: {
+            github: {
+              issueNumber: 42,
+              issueUrl: "https://github.com/owner/repo/issues/42",
+              repo: "owner/repo",
+            },
+          },
+        }),
+      ]);
+
+      await runCli(["show", "gh123456"], { storage });
+
+      const out = output.stdout.join("\n");
+      expect(out).toContain("GitHub Issue:");
+      expect(out).toContain("#42");
+      expect(out).toContain("owner/repo");
+    });
+
+    it("shows archived task with archived children", async () => {
+      const archiveStorage = new ArchiveStorage({
+        path: storage.getIdentifier(),
+      });
+      archiveStorage.appendArchive([
+        createArchivedTask({
+          id: "parent01",
+          name: "Parent task",
+          archived_children: [
+            {
+              id: "child-1",
+              name: "First subtask",
+              description: "",
+              result: "Done",
+            },
+            {
+              id: "child-2",
+              name: "Second subtask",
+              description: "",
+              result: "Also done",
+            },
+          ],
+        }),
+      ]);
+
+      await runCli(["show", "parent01"], { storage });
+
+      const out = output.stdout.join("\n");
+      expect(out).toContain("Parent task");
+      expect(out).toContain("Archived Subtasks:");
+      expect(out).toContain("First subtask");
+      expect(out).toContain("Second subtask");
+    });
+
+    it("outputs archived task as JSON with --json flag", async () => {
+      const archiveStorage = new ArchiveStorage({
+        path: storage.getIdentifier(),
+      });
+      archiveStorage.appendArchive([
+        createArchivedTask({
+          id: "json1234",
+          name: "JSON archived task",
+        }),
+      ]);
+
+      await runCli(["show", "json1234", "--json"], { storage });
+
+      const parsed = JSON.parse(output.stdout.join("\n"));
+      expect(parsed.id).toBe("json1234");
+      expect(parsed.name).toBe("JSON archived task");
+      expect(parsed.archived).toBe(true);
+      expect(parsed.archived_at).toBeDefined();
+    });
+
+    it("shows full archived task details with --full flag", async () => {
+      const archiveStorage = new ArchiveStorage({
+        path: storage.getIdentifier(),
+      });
+      archiveStorage.appendArchive([
+        createArchivedTask({
+          id: "full1234",
+          name: "Full details task",
+          description:
+            "This is a very long description that might be truncated in normal view but should show in full with the --full flag",
+        }),
+      ]);
+
+      await runCli(["show", "full1234", "--full"], { storage });
+
+      const out = output.stdout.join("\n");
+      expect(out).toContain("Full details task");
+      expect(out).toContain("should show in full");
+    });
+
+    it("prefers active task over archived task with same ID", async () => {
+      // Create active task
+      await runCli(["create", "-n", "Active version", "--description", "ctx"], {
+        storage,
+      });
+      const taskId = output.stdout.join("\n").match(TASK_ID_REGEX)?.[1];
+      output.stdout.length = 0;
+
+      // Create archived task with same ID (edge case)
+      const archiveStorage = new ArchiveStorage({
+        path: storage.getIdentifier(),
+      });
+      archiveStorage.appendArchive([
+        createArchivedTask({
+          id: taskId!,
+          name: "Archived version",
+        }),
+      ]);
+
+      await runCli(["show", taskId!], { storage });
+
+      const out = output.stdout.join("\n");
+      expect(out).toContain("Active version");
+      expect(out).not.toContain("Archived version");
+    });
   });
 });

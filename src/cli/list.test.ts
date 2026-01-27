@@ -4,8 +4,11 @@ import { runCli } from "./index.js";
 import {
   captureOutput,
   createTempStorage,
+  createArchivedTask,
   CapturedOutput,
+  TASK_ID_REGEX,
 } from "./test-helpers.js";
+import { ArchiveStorage } from "../core/storage/archive-storage.js";
 
 describe("list command", () => {
   let storage: FileStorage;
@@ -94,7 +97,7 @@ describe("list command", () => {
     await runCli(["create", "-n", "Parent task", "--description", "ctx"], {
       storage,
     });
-    const parentId = output.stdout.join("\n").match(/\b([a-z0-9]{8})\b/)?.[1];
+    const parentId = output.stdout.join("\n").match(TASK_ID_REGEX)?.[1];
     expect(parentId).toBeDefined();
 
     await runCli(
@@ -140,7 +143,7 @@ describe("list command", () => {
   it("shows full tree with 3 levels", async () => {
     // Create epic -> task -> subtask hierarchy
     await runCli(["create", "-n", "Epic", "--description", "ctx"], { storage });
-    const epicId = output.stdout.join("\n").match(/\b([a-z0-9]{8})\b/)?.[1];
+    const epicId = output.stdout.join("\n").match(TASK_ID_REGEX)?.[1];
 
     await runCli(
       [
@@ -154,7 +157,7 @@ describe("list command", () => {
       ],
       { storage },
     );
-    const taskId = output.stdout.join("\n").match(/\b([a-z0-9]{8})\b/)?.[1];
+    const taskId = output.stdout.join("\n").match(TASK_ID_REGEX)?.[1];
 
     await runCli(
       ["create", "-n", "Subtask", "--description", "ctx", "--parent", taskId!],
@@ -175,7 +178,7 @@ describe("list command", () => {
     await runCli(["create", "-n", "Task A", "--description", "ctx"], {
       storage,
     });
-    const blockerMatch = output.stdout.join("\n").match(/\b([a-z0-9]{8})\b/);
+    const blockerMatch = output.stdout.join("\n").match(TASK_ID_REGEX);
     const blockerId = blockerMatch?.[1];
     expect(blockerId).toBeDefined();
 
@@ -207,7 +210,7 @@ describe("list command", () => {
     await runCli(["create", "-n", "Task A", "--description", "ctx"], {
       storage,
     });
-    const blockerMatch = output.stdout.join("\n").match(/\b([a-z0-9]{8})\b/);
+    const blockerMatch = output.stdout.join("\n").match(TASK_ID_REGEX);
     const blockerId = blockerMatch?.[1];
 
     // Create blocked task
@@ -237,7 +240,7 @@ describe("list command", () => {
     await runCli(["create", "-n", "Task A", "--description", "ctx"], {
       storage,
     });
-    const blockerMatch = output.stdout.join("\n").match(/\b([a-z0-9]{8})\b/);
+    const blockerMatch = output.stdout.join("\n").match(TASK_ID_REGEX);
     const blockerId = blockerMatch?.[1];
 
     // Create blocked task
@@ -267,7 +270,7 @@ describe("list command", () => {
     await runCli(["create", "-n", "GitHub task", "--description", "ctx"], {
       storage,
     });
-    const taskId = output.stdout.join("\n").match(/\b([a-z0-9]{8})\b/)?.[1];
+    const taskId = output.stdout.join("\n").match(TASK_ID_REGEX)?.[1];
     expect(taskId).toBeDefined();
 
     // Add GitHub metadata via store read/write
@@ -295,7 +298,7 @@ describe("list command", () => {
     await runCli(["create", "-n", "Parent task", "--description", "ctx"], {
       storage,
     });
-    const parentId = output.stdout.join("\n").match(/\b([a-z0-9]{8})\b/)?.[1];
+    const parentId = output.stdout.join("\n").match(TASK_ID_REGEX)?.[1];
     expect(parentId).toBeDefined();
 
     // Add GitHub metadata to parent via store read/write
@@ -332,5 +335,146 @@ describe("list command", () => {
     const out = output.stdout.join("\n");
     // Both parent and subtask should show the GitHub indicator
     expect(out).toContain("[GH-456]");
+  });
+
+  describe("--archived flag", () => {
+    it("lists archived tasks with --archived flag", async () => {
+      // Add archived task directly to archive storage
+      const archiveStorage = new ArchiveStorage({
+        path: storage.getIdentifier(),
+      });
+      const archivedTask = createArchivedTask({
+        id: "arch1234",
+        name: "Old completed task",
+        result: "Was done successfully",
+      });
+      archiveStorage.appendArchive([archivedTask]);
+
+      await runCli(["list", "--archived"], { storage });
+
+      const out = output.stdout.join("\n");
+      expect(out).toContain("Old completed task");
+      expect(out).toContain("arch1234");
+    });
+
+    it("shows empty state when no archived tasks", async () => {
+      await runCli(["list", "--archived"], { storage });
+
+      const out = output.stdout.join("\n");
+      expect(out).toContain("No archived tasks");
+    });
+
+    it("filters archived tasks by query", async () => {
+      const archiveStorage = new ArchiveStorage({
+        path: storage.getIdentifier(),
+      });
+      archiveStorage.appendArchive([
+        createArchivedTask({ id: "auth1234", name: "Fix authentication bug" }),
+        createArchivedTask({ id: "feat5678", name: "Add new feature" }),
+      ]);
+
+      await runCli(["list", "--archived", "-q", "auth"], { storage });
+
+      const out = output.stdout.join("\n");
+      expect(out).toContain("Fix authentication bug");
+      expect(out).not.toContain("Add new feature");
+    });
+
+    it("outputs archived tasks as JSON with --json flag", async () => {
+      const archiveStorage = new ArchiveStorage({
+        path: storage.getIdentifier(),
+      });
+      const archivedTask = createArchivedTask({
+        id: "json1234",
+        name: "JSON archived task",
+        result: "Done",
+      });
+      archiveStorage.appendArchive([archivedTask]);
+
+      await runCli(["list", "--archived", "--json"], { storage });
+
+      const parsed = JSON.parse(output.stdout.join("\n"));
+      expect(Array.isArray(parsed)).toBe(true);
+      expect(parsed[0].name).toBe("JSON archived task");
+      expect(parsed[0].archived_at).toBeDefined();
+    });
+
+    it("does not mix active and archived tasks", async () => {
+      // Create an active task
+      await runCli(["create", "-n", "Active task", "--description", "ctx"], {
+        storage,
+      });
+      output.stdout.length = 0;
+
+      // Create an archived task
+      const archiveStorage = new ArchiveStorage({
+        path: storage.getIdentifier(),
+      });
+      archiveStorage.appendArchive([
+        createArchivedTask({ id: "arch0001", name: "Archived task" }),
+      ]);
+
+      // List active tasks (no --archived)
+      await runCli(["list"], { storage });
+      let out = output.stdout.join("\n");
+      expect(out).toContain("Active task");
+      expect(out).not.toContain("Archived task");
+
+      // List archived tasks
+      output.stdout.length = 0;
+      await runCli(["list", "--archived"], { storage });
+      out = output.stdout.join("\n");
+      expect(out).toContain("Archived task");
+      expect(out).not.toContain("Active task");
+    });
+
+    it("shows archived children count for parent tasks", async () => {
+      const archiveStorage = new ArchiveStorage({
+        path: storage.getIdentifier(),
+      });
+      archiveStorage.appendArchive([
+        createArchivedTask({
+          id: "parent01",
+          name: "Epic with children",
+          archived_children: [
+            {
+              id: "child-1",
+              name: "Subtask 1",
+              description: "",
+              result: "Done",
+            },
+            {
+              id: "child-2",
+              name: "Subtask 2",
+              description: "",
+              result: "Done",
+            },
+          ],
+        }),
+      ]);
+
+      await runCli(["list", "--archived"], { storage });
+
+      const out = output.stdout.join("\n");
+      expect(out).toContain("Epic with children");
+      // Should indicate it has children
+      expect(out).toMatch(/2\s*(subtask|children)/i);
+    });
+
+    it("includes all archived tasks with --all flag", async () => {
+      const archiveStorage = new ArchiveStorage({
+        path: storage.getIdentifier(),
+      });
+      archiveStorage.appendArchive([
+        createArchivedTask({ id: "task0001", name: "First archived" }),
+        createArchivedTask({ id: "task0002", name: "Second archived" }),
+      ]);
+
+      await runCli(["list", "--archived", "--all"], { storage });
+
+      const out = output.stdout.join("\n");
+      expect(out).toContain("First archived");
+      expect(out).toContain("Second archived");
+    });
   });
 });
