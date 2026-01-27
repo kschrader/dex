@@ -176,6 +176,7 @@ export const ListTasksInputSchema = z.object({
   all: z.boolean().optional(),
   blocked: z.boolean().optional(),
   ready: z.boolean().optional(),
+  archived: z.boolean().optional(), // If true, list only archived tasks
 });
 
 export type ListTasksInput = z.infer<typeof ListTasksInputSchema>;

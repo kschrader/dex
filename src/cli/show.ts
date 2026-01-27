@@ -2,8 +2,8 @@ import { ArchivedTask, GithubMetadata, Task } from "../types.js";
 import { CliOptions, createService, exitIfTaskNotFound } from "./utils.js";
 import { colors, stripAnsi, terminalWidth } from "./colors.js";
 import { getBooleanFlag, parseArgs } from "./args.js";
-import { formatAge, pluralize, truncateText, wrapText } from "./formatting.js";
-import { ArchiveStorage } from "../core/storage/archive-storage.js";
+import { pluralize, truncateText, wrapText } from "./formatting.js";
+import { isArchivedTask } from "../core/task-service.js";
 
 // Max name length for tree display
 const SHOW_TREE_NAME_MAX_LENGTH = 50;
@@ -340,34 +340,33 @@ ${colors.bold}EXAMPLE:${colors.reset}
   }
 
   const service = createService(options);
-  const task = await service.get(id);
 
-  // If not found in active tasks, check archive
-  if (!task) {
-    const archiveStorage = new ArchiveStorage({
-      path: options.storage.getIdentifier(),
-    });
-    const archivedTask = archiveStorage.getArchived(id);
+  // Check both active tasks and archive
+  const taskOrArchived = await service.getWithArchive(id);
 
-    if (archivedTask) {
-      // Show archived task
-      const full = getBooleanFlag(flags, "full");
-
-      if (getBooleanFlag(flags, "json")) {
-        console.log(
-          JSON.stringify({ ...archivedTask, archived: true }, null, 2),
-        );
-        return;
-      }
-
-      console.log(formatArchivedTaskShow(archivedTask, { full }));
-      return;
-    }
-
-    // Not found anywhere - use standard error handling
+  // If not found anywhere
+  if (!taskOrArchived) {
     await exitIfTaskNotFound(null, id, service);
     return;
   }
+
+  // Handle archived task
+  if (isArchivedTask(taskOrArchived)) {
+    const full = getBooleanFlag(flags, "full");
+
+    if (getBooleanFlag(flags, "json")) {
+      console.log(
+        JSON.stringify({ ...taskOrArchived, archived: true }, null, 2),
+      );
+      return;
+    }
+
+    console.log(formatArchivedTaskShow(taskOrArchived, { full }));
+    return;
+  }
+
+  // Active task
+  const task = taskOrArchived;
 
   const children = await service.getChildren(id);
   const ancestors = await service.getAncestors(id);

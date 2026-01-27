@@ -1,5 +1,9 @@
 import { customAlphabet } from "nanoid";
-import { StorageEngine, JsonlStorage } from "./storage/index.js";
+import {
+  StorageEngine,
+  JsonlStorage,
+  ArchiveStorage,
+} from "./storage/index.js";
 import { GitHubSyncService } from "./github/index.js";
 import { GitHubSyncConfig } from "./config.js";
 import { isSyncStale, updateSyncState } from "./sync-state.js";
@@ -9,6 +13,7 @@ import {
   CreateTaskInput,
   UpdateTaskInput,
   ListTasksInput,
+  ArchivedTask,
 } from "../types.js";
 import { NotFoundError, ValidationError } from "../errors.js";
 import {
@@ -27,6 +32,16 @@ import {
 } from "./task-relationships.js";
 
 const generateId = customAlphabet("0123456789abcdefghijklmnopqrstuvwxyz", 8);
+
+/**
+ * Type guard to check if a task is an ArchivedTask.
+ * ArchivedTask has archived_at field, while Task does not.
+ */
+export function isArchivedTask(
+  task: Task | ArchivedTask,
+): task is ArchivedTask {
+  return "archived_at" in task;
+}
 
 function isStorageEngine(obj: unknown): obj is StorageEngine {
   return (
@@ -47,12 +62,14 @@ function resolveStorage(
 
 export interface TaskServiceOptions {
   storage?: StorageEngine | string;
+  archiveStorage?: ArchiveStorage;
   syncService?: GitHubSyncService | null;
   syncConfig?: GitHubSyncConfig | null;
 }
 
 export class TaskService {
   private storage: StorageEngine;
+  private archiveStorage: ArchiveStorage | null;
   private syncService: GitHubSyncService | null;
   private syncConfig: GitHubSyncConfig | null;
 
@@ -60,17 +77,29 @@ export class TaskService {
     // Handle backward compatibility with old constructor signatures
     if (typeof options === "string" || options === undefined) {
       this.storage = new JsonlStorage(options);
+      this.archiveStorage = null;
       this.syncService = null;
       this.syncConfig = null;
     } else if (isStorageEngine(options)) {
       this.storage = options;
+      this.archiveStorage = null;
       this.syncService = null;
       this.syncConfig = null;
     } else {
       this.storage = resolveStorage(options.storage);
+      this.archiveStorage = options.archiveStorage ?? null;
       this.syncService = options.syncService ?? null;
       this.syncConfig = options.syncConfig ?? null;
     }
+  }
+
+  /**
+   * Get archive storage, creating a default one if not provided.
+   */
+  private getArchiveStorage(): ArchiveStorage {
+    if (this.archiveStorage) return this.archiveStorage;
+    // Create archive storage using the same path as the main storage
+    return new ArchiveStorage({ path: this.storage.getIdentifier() });
   }
 
   /**
@@ -399,6 +428,20 @@ export class TaskService {
     return store.tasks.find((t) => t.id === id) || null;
   }
 
+  /**
+   * Get a task by ID, checking archive if not found in active tasks.
+   * Returns Task, ArchivedTask, or null.
+   */
+  async getWithArchive(id: string): Promise<Task | ArchivedTask | null> {
+    // First check active tasks
+    const task = await this.get(id);
+    if (task) return task;
+
+    // Check archive
+    const archiveStorage = this.getArchiveStorage();
+    return archiveStorage.getArchived(id) ?? null;
+  }
+
   async list(input: ListTasksInput = {}): Promise<Task[]> {
     const store = await this.storage.readAsync();
     let tasks = store.tasks;
@@ -429,6 +472,43 @@ export class TaskService {
     }
 
     return tasks.toSorted((a, b) => a.priority - b.priority);
+  }
+
+  /**
+   * List archived tasks with optional query filter.
+   */
+  listArchived(query?: string): ArchivedTask[] {
+    const archiveStorage = this.getArchiveStorage();
+    if (query) {
+      return archiveStorage.searchArchive(query);
+    }
+    return archiveStorage.readArchive().tasks;
+  }
+
+  /**
+   * Search tasks by query, optionally including archived tasks.
+   * @param query Search query to match against name and description/result
+   * @param options Search options
+   * @returns Array of active tasks and optionally archived tasks
+   */
+  async search(
+    query: string,
+    options: { includeArchive?: boolean } = {},
+  ): Promise<Array<Task | ArchivedTask>> {
+    const results: Array<Task | ArchivedTask> = [];
+
+    // Search active tasks
+    const activeTasks = await this.list({ all: true, query });
+    results.push(...activeTasks);
+
+    // Search archived tasks if requested
+    if (options.includeArchive) {
+      const archiveStorage = this.getArchiveStorage();
+      const archivedTasks = archiveStorage.searchArchive(query);
+      results.push(...archivedTasks);
+    }
+
+    return results;
   }
 
   async complete(

@@ -15,7 +15,7 @@ import {
 } from "./formatting.js";
 import { getGitHubIssueNumber } from "../core/github/index.js";
 import { getIncompleteBlockerIds } from "../core/task-relationships.js";
-import { ArchiveStorage } from "../core/storage/archive-storage.js";
+import { TaskService } from "../core/task-service.js";
 
 // Max name length for list view (to keep tree readable)
 const LIST_NAME_MAX_LENGTH = 60;
@@ -152,10 +152,12 @@ ${colors.bold}EXAMPLES:${colors.reset}
     return;
   }
 
+  const service = createService(options);
+
   // Handle --archived flag: list from archive instead of active tasks
   const showArchived = getBooleanFlag(flags, "archived");
   if (showArchived) {
-    return await listArchivedTasks(positional, flags, options);
+    return await listArchivedTasks(positional, flags, service);
   }
 
   // Handle positional filter argument
@@ -174,8 +176,6 @@ ${colors.bold}EXAMPLES:${colors.reset}
   }
 
   const completedFilter = getBooleanFlag(flags, "completed") ? true : undefined;
-
-  const service = createService(options);
 
   // If parent filter specified, validate it exists
   if (parentFilter) {
@@ -340,21 +340,11 @@ function formatArchivedTask(task: ArchivedTask): string {
 async function listArchivedTasks(
   positional: string[],
   flags: Record<string, string | boolean>,
-  options: CliOptions,
+  service: TaskService,
 ): Promise<void> {
-  const archiveStorage = new ArchiveStorage({
-    path: options.storage.getIdentifier(),
-  });
-
   const query = positional[0] ?? getStringFlag(flags, "query");
 
-  let archivedTasks: ArchivedTask[];
-  if (query) {
-    archivedTasks = archiveStorage.searchArchive(query);
-  } else {
-    const store = archiveStorage.readArchive();
-    archivedTasks = store.tasks;
-  }
+  const archivedTasks = service.listArchived(query);
 
   // JSON output mode
   if (getBooleanFlag(flags, "json")) {
