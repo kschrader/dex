@@ -20,7 +20,7 @@ ${colors.bold}COMMANDS:${colors.reset}
   list, ls                         List all pending tasks (tree view)
   list --flat                      List without tree hierarchy
   list --all                       Include completed tasks
-  list --status completed          Filter by status
+  list --archived                  List archived tasks
   list --query "login"             Search name/description
   list --json                      Output as JSON (for scripts)
   show <id>                        View task details (truncated)
@@ -34,6 +34,8 @@ ${colors.bold}COMMANDS:${colors.reset}
   delete <id> -f                   Force delete without confirmation
   rm, remove                       Aliases for delete command
   archive <id>                     Archive completed task to reduce storage
+  archive --older-than 60d         Archive tasks completed >60 days ago
+  archive --completed              Archive ALL completed tasks
   plan <file>                      Create task from plan markdown file
   completion <shell>               Generate shell completion script
 

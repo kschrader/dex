@@ -24,7 +24,7 @@ describe("archive command", () => {
 
     const out = fixture.output.stdout.join("\n");
     expect(out).toContain("dex archive");
-    expect(out).toContain("Archive a completed task");
+    expect(out).toContain("Archive completed tasks");
     expect(out).toContain("REQUIREMENTS");
   });
 

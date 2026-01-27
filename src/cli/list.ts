@@ -1,4 +1,4 @@
-import { Task } from "../types.js";
+import { ArchivedTask, Task } from "../types.js";
 import { CliOptions, createService } from "./utils.js";
 import { colors } from "./colors.js";
 import {
@@ -7,9 +7,15 @@ import {
   parseArgs,
   parseIntFlag,
 } from "./args.js";
-import { formatBreadcrumb, formatTask } from "./formatting.js";
+import {
+  formatBreadcrumb,
+  formatTask,
+  pluralize,
+  truncateText,
+} from "./formatting.js";
 import { getGitHubIssueNumber } from "../core/github/index.js";
 import { getIncompleteBlockerIds } from "../core/task-relationships.js";
+import { ArchiveStorage } from "../core/storage/archive-storage.js";
 
 // Max name length for list view (to keep tree readable)
 const LIST_NAME_MAX_LENGTH = 60;
@@ -89,6 +95,7 @@ export async function listCommand(
     {
       all: { short: "a", hasValue: false },
       completed: { short: "c", hasValue: false },
+      archived: { hasValue: false },
       query: { short: "q", hasValue: true },
       flat: { short: "f", hasValue: false },
       blocked: { short: "b", hasValue: false },
@@ -111,8 +118,9 @@ ${colors.bold}ARGUMENTS:${colors.reset}
   [filter]                   Task ID (shows subtree) or search query
 
 ${colors.bold}OPTIONS:${colors.reset}
-  -a, --all                  Include completed tasks
+  -a, --all                  Include completed tasks (or archived if --archived)
   -c, --completed            Show only completed tasks
+  --archived                 List archived tasks instead of active tasks
   -b, --blocked              Show only blocked tasks (have incomplete blockers)
   -r, --ready                Show only ready tasks (pending with no blockers)
   -q, --query <text>         Search in name and description (deprecated: use positional)
@@ -126,6 +134,7 @@ ${colors.bold}INDICATORS:${colors.reset}
   [B: xyz]                   Task is blocked by task xyz
   [B: 2]                     Task is blocked by 2 tasks
   [GH-42]                    Task is linked to GitHub issue #42
+  (ARCHIVED)                 Task is archived
 
 ${colors.bold}EXAMPLES:${colors.reset}
   dex list                   # Show pending tasks as tree
@@ -133,6 +142,7 @@ ${colors.bold}EXAMPLES:${colors.reset}
   dex list "auth"            # Search for tasks containing "auth"
   dex list --all             # Include completed tasks
   dex list --completed       # Show only completed tasks
+  dex list --archived        # Show archived tasks
   dex list --ready           # Show tasks ready to work on
   dex list --blocked         # Show tasks waiting on dependencies
   dex list --issue 42        # Find task linked to GitHub issue #42
@@ -140,6 +150,12 @@ ${colors.bold}EXAMPLES:${colors.reset}
   dex list --json | jq '.'   # Output JSON for scripting
 `);
     return;
+  }
+
+  // Handle --archived flag: list from archive instead of active tasks
+  const showArchived = getBooleanFlag(flags, "archived");
+  if (showArchived) {
+    return await listArchivedTasks(positional, flags, options);
   }
 
   // Handle positional filter argument
@@ -295,5 +311,70 @@ function collectSubtreeIds(
       result.add(task.id);
       collectSubtreeIds(tasks, task.id, result);
     }
+  }
+}
+
+/**
+ * Format an archived task for display.
+ */
+function formatArchivedTask(task: ArchivedTask): string {
+  const name = truncateText(task.name, LIST_NAME_MAX_LENGTH);
+
+  const childCount = task.archived_children.length;
+  const childInfo =
+    childCount > 0
+      ? ` ${colors.dim}(${childCount} ${pluralize(childCount, "subtask")})${colors.reset}`
+      : "";
+
+  const githubIssue = task.metadata?.github?.issueNumber;
+  const githubIndicator = githubIssue
+    ? ` ${colors.blue}[GH-${githubIssue}]${colors.reset}`
+    : "";
+
+  return `${colors.green}[x]${colors.reset} ${colors.bold}${task.id}${colors.reset}${githubIndicator}: ${name}${childInfo} ${colors.dim}(ARCHIVED)${colors.reset}`;
+}
+
+/**
+ * List archived tasks from archive.jsonl.
+ */
+async function listArchivedTasks(
+  positional: string[],
+  flags: Record<string, string | boolean>,
+  options: CliOptions,
+): Promise<void> {
+  const archiveStorage = new ArchiveStorage({
+    path: options.storage.getIdentifier(),
+  });
+
+  const query = positional[0] ?? getStringFlag(flags, "query");
+
+  let archivedTasks: ArchivedTask[];
+  if (query) {
+    archivedTasks = archiveStorage.searchArchive(query);
+  } else {
+    const store = archiveStorage.readArchive();
+    archivedTasks = store.tasks;
+  }
+
+  // JSON output mode
+  if (getBooleanFlag(flags, "json")) {
+    console.log(JSON.stringify(archivedTasks, null, 2));
+    return;
+  }
+
+  if (archivedTasks.length === 0) {
+    console.log("No archived tasks found.");
+    return;
+  }
+
+  // Sort by archived_at (most recent first)
+  archivedTasks.sort((a, b) => b.archived_at.localeCompare(a.archived_at));
+
+  console.log(
+    `${colors.dim}Showing ${archivedTasks.length} archived ${pluralize(archivedTasks.length, "task")}${colors.reset}\n`,
+  );
+
+  for (const task of archivedTasks) {
+    console.log(formatArchivedTask(task));
   }
 }

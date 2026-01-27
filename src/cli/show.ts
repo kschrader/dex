@@ -1,8 +1,9 @@
-import { GithubMetadata, Task } from "../types.js";
+import { ArchivedTask, GithubMetadata, Task } from "../types.js";
 import { CliOptions, createService, exitIfTaskNotFound } from "./utils.js";
 import { colors, stripAnsi, terminalWidth } from "./colors.js";
 import { getBooleanFlag, parseArgs } from "./args.js";
 import { formatAge, pluralize, truncateText, wrapText } from "./formatting.js";
+import { ArchiveStorage } from "../core/storage/archive-storage.js";
 
 // Max name length for tree display
 const SHOW_TREE_NAME_MAX_LENGTH = 50;
@@ -339,7 +340,34 @@ ${colors.bold}EXAMPLE:${colors.reset}
   }
 
   const service = createService(options);
-  const task = await exitIfTaskNotFound(await service.get(id), id, service);
+  const task = await service.get(id);
+
+  // If not found in active tasks, check archive
+  if (!task) {
+    const archiveStorage = new ArchiveStorage({
+      path: options.storage.getIdentifier(),
+    });
+    const archivedTask = archiveStorage.getArchived(id);
+
+    if (archivedTask) {
+      // Show archived task
+      const full = getBooleanFlag(flags, "full");
+
+      if (getBooleanFlag(flags, "json")) {
+        console.log(
+          JSON.stringify({ ...archivedTask, archived: true }, null, 2),
+        );
+        return;
+      }
+
+      console.log(formatArchivedTaskShow(archivedTask, { full }));
+      return;
+    }
+
+    // Not found anywhere - use standard error handling
+    await exitIfTaskNotFound(null, id, service);
+    return;
+  }
 
   const children = await service.getChildren(id);
   const ancestors = await service.getAncestors(id);
@@ -414,4 +442,106 @@ ${colors.bold}EXAMPLE:${colors.reset}
       ancestorGithub,
     }),
   );
+}
+
+/**
+ * Format an archived task for the show view.
+ */
+function formatArchivedTaskShow(
+  task: ArchivedTask,
+  options: { full?: boolean } = {},
+): string {
+  const { full = false } = options;
+  let wasTruncated = false;
+  const lines: string[] = [];
+
+  // Header with ARCHIVED badge
+  lines.push(
+    `${colors.green}[x]${colors.reset} ${colors.bold}${task.id}${colors.reset}: ${task.name} ${colors.yellow}(ARCHIVED)${colors.reset}`,
+  );
+  lines.push("");
+
+  // Description section
+  lines.push(`${colors.bold}Description:${colors.reset}`);
+  const descriptionText = task.description || "(no description)";
+  const description = full
+    ? { text: descriptionText, truncated: false }
+    : truncateIfNeeded(descriptionText, SHOW_TEXT_MAX_LENGTH);
+  wasTruncated ||= description.truncated;
+  lines.push(wrapText(description.text, terminalWidth, "  "));
+
+  // Result section
+  if (task.result) {
+    lines.push("");
+    lines.push(`${colors.bold}Result:${colors.reset}`);
+    const result = full
+      ? { text: task.result, truncated: false }
+      : truncateIfNeeded(task.result, SHOW_TEXT_MAX_LENGTH);
+    wasTruncated ||= result.truncated;
+    lines.push(
+      wrapText(
+        `${colors.green}${result.text}${colors.reset}`,
+        terminalWidth,
+        "  ",
+      ),
+    );
+  }
+
+  // GitHub Issue section
+  if (task.metadata?.github) {
+    const github = task.metadata.github;
+    lines.push("");
+    lines.push(`${colors.bold}GitHub Issue:${colors.reset}`);
+    lines.push(
+      `  ${colors.cyan}#${github.issueNumber} (${github.repo})${colors.reset}`,
+    );
+    lines.push(`  ${colors.dim}${github.issueUrl}${colors.reset}`);
+  }
+
+  // Commit section
+  if (task.metadata?.commit) {
+    const commit = task.metadata.commit;
+    lines.push("");
+    lines.push(`${colors.bold}Commit:${colors.reset}`);
+    lines.push(`  SHA:    ${colors.cyan}${commit.sha}${colors.reset}`);
+    if (commit.message) {
+      lines.push(`  Message: ${commit.message}`);
+    }
+  }
+
+  // Archived children section
+  if (task.archived_children.length > 0) {
+    lines.push("");
+    lines.push(
+      `${colors.bold}Archived Subtasks:${colors.reset} ${task.archived_children.length}`,
+    );
+    for (const child of task.archived_children) {
+      lines.push(
+        `  ${colors.green}[x]${colors.reset} ${colors.dim}${child.id}${colors.reset}: ${truncateText(child.name, 50)}`,
+      );
+    }
+  }
+
+  // Metadata section
+  lines.push("");
+  const labelWidth = 10;
+  if (task.completed_at) {
+    lines.push(
+      `${"Completed:".padEnd(labelWidth)} ${colors.dim}${task.completed_at}${colors.reset}`,
+    );
+  }
+  lines.push(
+    `${"Archived:".padEnd(labelWidth)} ${colors.dim}${task.archived_at}${colors.reset}`,
+  );
+
+  // More Information section
+  if (wasTruncated) {
+    lines.push("");
+    lines.push(`${colors.bold}More Information:${colors.reset}`);
+    lines.push(
+      `  ${colors.dim}•${colors.reset} View full content: ${colors.cyan}dex show ${task.id} --full${colors.reset}`,
+    );
+  }
+
+  return lines.join("\n");
 }
