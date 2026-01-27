@@ -7,7 +7,11 @@ import Terminal from '../components/Terminal.astro';
   <h1>Installation</h1>
 
   <h2>Quick Start</h2>
-  <p>Install dex for Claude Code, OpenCode, Codex, or Cursor:</p>
+  <p>Install dex globally:</p>
+  <Terminal title="Terminal" showCopy={true}>
+    <pre class="cli-output"><span class="cli-dim">$</span> npm install -g @zeeg/dex</pre>
+  </Terminal>
+  <p>Or use the skills installer for Claude Code, OpenCode, Codex, or Cursor:</p>
   <Terminal title="Terminal" showCopy={true}>
     <pre class="cli-output"><span class="cli-dim">$</span> npx skills dcramer/dex</pre>
   </Terminal>
@@ -29,13 +33,6 @@ Use `/dex` to break down complex work, track progress across sessions, and coord
 <span class="cli-dim">$</span> claude plugin install dex@dex</pre>
   </Terminal>
   <p>The <code>/dex</code> skill will be available immediately.</p>
-
-  <h3>Global CLI Install</h3>
-  <p>Install the CLI globally for direct command-line use or faster execution:</p>
-  <Terminal title="Terminal" showCopy={true}>
-    <pre class="cli-output"><span class="cli-dim">$</span> npm install -g @zeeg/dex</pre>
-  </Terminal>
-  <p>Optional for agent users (faster than <code>npx</code>). Required for CLI-only usage.</p>
 
   <h2>Shell Completions</h2>
   <p>Enable tab completion for dex commands and task IDs.</p>
