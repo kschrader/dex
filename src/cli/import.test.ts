@@ -1,16 +1,15 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { FileStorage } from "../core/storage/index.js";
 import { runCli } from "./index.js";
+import type { CapturedOutput, GitHubMock } from "./test-helpers.js";
 import {
   captureOutput,
   createTempStorage,
-  CapturedOutput,
   setupGitHubMock,
   cleanupGitHubMock,
   createIssueFixture,
   createFullDexIssueBody,
   createLegacyIssueBody,
-  GitHubMock,
 } from "./test-helpers.js";
 
 // Mock git remote detection to return a consistent repo

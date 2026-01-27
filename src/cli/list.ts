@@ -1,5 +1,6 @@
-import { ArchivedTask, Task } from "../types.js";
-import { CliOptions, createService } from "./utils.js";
+import type { ArchivedTask, Task } from "../types.js";
+import type { CliOptions } from "./utils.js";
+import { createService } from "./utils.js";
 import { colors } from "./colors.js";
 import {
   getBooleanFlag,

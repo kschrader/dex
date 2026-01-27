@@ -1,7 +1,8 @@
 import { z } from "zod";
 import { TaskService } from "../../core/task-service.js";
-import { CreateTaskInput } from "../../types.js";
-import { jsonResponse, McpToolResponse } from "./response.js";
+import type { CreateTaskInput } from "../../types.js";
+import type { McpToolResponse } from "./response.js";
+import { jsonResponse } from "./response.js";
 
 // Maximum content length (50KB) to prevent excessive file sizes
 const MAX_CONTENT_LENGTH = 50 * 1024;

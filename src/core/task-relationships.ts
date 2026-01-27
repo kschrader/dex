@@ -1,4 +1,4 @@
-import { Task, TaskStore } from "../types.js";
+import type { Task, TaskStore } from "../types.js";
 import { NotFoundError } from "../errors.js";
 
 /**
@@ -9,7 +9,7 @@ export function syncParentChild(
   store: TaskStore,
   childId: string,
   oldParentId: string | null,
-  newParentId: string | null
+  newParentId: string | null,
 ): void {
   // Remove from old parent's children[]
   if (oldParentId) {
@@ -22,7 +22,12 @@ export function syncParentChild(
   // Add to new parent's children[]
   if (newParentId) {
     const newParent = store.tasks.find((t) => t.id === newParentId);
-    if (!newParent) throw new NotFoundError("Task", newParentId, "The specified parent task does not exist");
+    if (!newParent)
+      throw new NotFoundError(
+        "Task",
+        newParentId,
+        "The specified parent task does not exist",
+      );
     if (!newParent.children.includes(childId)) {
       newParent.children.push(childId);
     }
@@ -33,10 +38,19 @@ export function syncParentChild(
  * Add blocking relationship (bidirectional).
  * Updates: blocker.blocks[] ↔ blocked.blockedBy[]
  */
-export function syncAddBlocker(store: TaskStore, blockerId: string, blockedId: string): void {
+export function syncAddBlocker(
+  store: TaskStore,
+  blockerId: string,
+  blockedId: string,
+): void {
   // Validate blocker exists
   const blocker = store.tasks.find((t) => t.id === blockerId);
-  if (!blocker) throw new NotFoundError("Task", blockerId, "The specified blocker task does not exist");
+  if (!blocker)
+    throw new NotFoundError(
+      "Task",
+      blockerId,
+      "The specified blocker task does not exist",
+    );
 
   // Update blocker's blocks[] (add blockedId)
   if (!blocker.blocks.includes(blockedId)) {
@@ -53,7 +67,11 @@ export function syncAddBlocker(store: TaskStore, blockerId: string, blockedId: s
 /**
  * Remove blocking relationship (bidirectional).
  */
-export function syncRemoveBlocker(store: TaskStore, blockerId: string, blockedId: string): void {
+export function syncRemoveBlocker(
+  store: TaskStore,
+  blockerId: string,
+  blockedId: string,
+): void {
   // Update blocker's blocks[] (remove blockedId)
   const blocker = store.tasks.find((t) => t.id === blockerId);
   if (blocker) {
@@ -86,7 +104,7 @@ export function cleanupTaskReferences(store: TaskStore, taskId: string): void {
 export function wouldCreateBlockingCycle(
   tasks: Task[],
   blockerId: string,
-  blockedId: string
+  blockedId: string,
 ): boolean {
   // Check if blockedId is already upstream of blockerId (via blockedBy chains)
   const visited = new Set<string>();
@@ -169,7 +187,11 @@ export function isReady(tasks: Task[], task: Task): boolean {
 /**
  * Collect all descendant IDs of a task recursively into a Set.
  */
-export function collectDescendantIds(tasks: Task[], parentId: string, result: Set<string>): void {
+export function collectDescendantIds(
+  tasks: Task[],
+  parentId: string,
+  result: Set<string>,
+): void {
   for (const task of tasks) {
     if (task.parent_id === parentId && !result.has(task.id)) {
       result.add(task.id);
@@ -181,7 +203,11 @@ export function collectDescendantIds(tasks: Task[], parentId: string, result: Se
 /**
  * Check if potentialDescendant is a descendant of ancestorId.
  */
-export function isDescendant(tasks: Task[], potentialDescendant: string, ancestorId: string): boolean {
+export function isDescendant(
+  tasks: Task[],
+  potentialDescendant: string,
+  ancestorId: string,
+): boolean {
   const task = tasks.find((t) => t.id === potentialDescendant);
   if (!task || !task.parent_id) return false;
   if (task.parent_id === ancestorId) return true;
@@ -218,5 +244,7 @@ export function getDepthFromParent(tasks: Task[], parentId: string): number {
 export function getMaxDescendantDepth(tasks: Task[], taskId: string): number {
   const children = tasks.filter((t) => t.parent_id === taskId);
   if (children.length === 0) return 0;
-  return 1 + Math.max(...children.map((c) => getMaxDescendantDepth(tasks, c.id)));
+  return (
+    1 + Math.max(...children.map((c) => getMaxDescendantDepth(tasks, c.id)))
+  );
 }

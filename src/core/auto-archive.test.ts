@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import * as fs from "node:fs";
 import * as path from "node:path";
 import { performAutoArchive, DEFAULT_ARCHIVE_CONFIG } from "./auto-archive.js";
-import { Task, TaskStore } from "../types.js";
+import type { Task, TaskStore } from "../types.js";
 import { ArchiveStorage } from "./storage/archive-storage.js";
 
 // Mock fs module for log file operations

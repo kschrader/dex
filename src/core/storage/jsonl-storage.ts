@@ -1,8 +1,9 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { Task, TaskStore, TaskSchema } from "../../types.js";
+import type { Task, TaskStore } from "../../types.js";
+import { TaskSchema } from "../../types.js";
 import { DataCorruptionError, StorageError } from "../../errors.js";
-import { StorageEngine } from "./engine.js";
+import type { StorageEngine } from "./engine.js";
 import { type StorageMode, type ArchiveConfig } from "../config.js";
 import { getStoragePath } from "./paths.js";
 import { performAutoArchive } from "../auto-archive.js";

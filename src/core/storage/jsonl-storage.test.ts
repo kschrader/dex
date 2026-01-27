@@ -3,7 +3,7 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import * as os from "node:os";
 import { JsonlStorage } from "./jsonl-storage.js";
-import { Task, TaskStore } from "../../types.js";
+import type { Task, TaskStore } from "../../types.js";
 import { DataCorruptionError, StorageError } from "../../errors.js";
 
 function createTask(overrides: Partial<Task> = {}): Task {

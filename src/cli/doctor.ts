@@ -1,7 +1,8 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
 import { parse as parseToml, stringify as stringifyToml } from "smol-toml";
-import { CliOptions, createService } from "./utils.js";
+import type { CliOptions } from "./utils.js";
+import { createService } from "./utils.js";
 import { colors } from "./colors.js";
 import { getBooleanFlag, parseArgs } from "./args.js";
 import {

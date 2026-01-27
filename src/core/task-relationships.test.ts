@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { Task, TaskStore } from "../types.js";
+import type { Task, TaskStore } from "../types.js";
 import {
   syncParentChild,
   syncAddBlocker,

@@ -1,4 +1,4 @@
-import { Task } from "../types.js";
+import type { Task } from "../types.js";
 import { collectAncestors } from "../core/task-relationships.js";
 import { colors } from "./colors.js";
 import { formatTask, truncateText } from "./formatting.js";

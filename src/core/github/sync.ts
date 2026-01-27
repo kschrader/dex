@@ -1,10 +1,10 @@
 import { Octokit } from "@octokit/rest";
-import { GithubMetadata, Task, TaskStore } from "../../types.js";
-import { GitHubRepo } from "./remote.js";
+import type { GithubMetadata, Task, TaskStore } from "../../types.js";
+import type { GitHubRepo } from "./remote.js";
+import type { HierarchicalTask } from "./issue-markdown.js";
 import {
   collectDescendants,
   renderHierarchicalIssueBody,
-  HierarchicalTask,
   encodeMetadataValue,
 } from "./issue-markdown.js";
 import { isCommitOnRemote } from "../git-utils.js";

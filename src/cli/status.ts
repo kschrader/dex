@@ -1,5 +1,6 @@
-import { Task } from "../types.js";
-import { ASCII_BANNER, CliOptions, createService } from "./utils.js";
+import type { Task } from "../types.js";
+import type { CliOptions } from "./utils.js";
+import { ASCII_BANNER, createService } from "./utils.js";
 import { colors } from "./colors.js";
 import { getBooleanFlag, parseArgs } from "./args.js";
 import { printGroupedTasks } from "./tree-display.js";

@@ -1,4 +1,5 @@
 import { describe, it, expect } from "vitest";
+import type { EmbeddedSubtask } from "./issue-markdown.js";
 import {
   parseSubtaskId,
   createSubtaskId,
@@ -13,9 +14,8 @@ import {
   parseHierarchicalIssueBody,
   renderHierarchicalIssueBody,
   collectDescendants,
-  EmbeddedSubtask,
 } from "./issue-markdown.js";
-import { Task } from "../../types.js";
+import type { Task } from "../../types.js";
 
 const DEFAULT_TIMESTAMP = "2024-01-22T10:00:00Z";
 

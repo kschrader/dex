@@ -1,7 +1,8 @@
 import { z } from "zod";
 import { TaskService } from "../../core/task-service.js";
-import { ListTasksInput } from "../../types.js";
-import { jsonResponse, McpToolResponse } from "./response.js";
+import type { ListTasksInput } from "../../types.js";
+import type { McpToolResponse } from "./response.js";
+import { jsonResponse } from "./response.js";
 
 export const ListTasksArgsSchema = z.object({
   completed: z

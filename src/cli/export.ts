@@ -1,9 +1,5 @@
-import {
-  CliOptions,
-  createService,
-  findRootTask,
-  formatCliError,
-} from "./utils.js";
+import type { CliOptions } from "./utils.js";
+import { createService, findRootTask, formatCliError } from "./utils.js";
 import { colors } from "./colors.js";
 import { getBooleanFlag, parseArgs } from "./args.js";
 import {

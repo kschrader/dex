@@ -1,17 +1,18 @@
-import { CliOptions, createService, formatCliError } from "./utils.js";
+import type { CliOptions } from "./utils.js";
+import { createService, formatCliError } from "./utils.js";
 import { colors } from "./colors.js";
 import { getBooleanFlag, parseArgs } from "./args.js";
+import type { GitHubRepo } from "../core/github/index.js";
 import {
   getGitHubIssueNumber,
   getGitHubRepo,
   parseGitHubIssueRef,
-  GitHubRepo,
   parseHierarchicalIssueBody,
   parseRootTaskMetadata,
   getGitHubToken,
 } from "../core/github/index.js";
 import { loadConfig } from "../core/config.js";
-import { Task } from "../types.js";
+import type { Task } from "../types.js";
 import { Octokit } from "@octokit/rest";
 
 export async function importCommand(

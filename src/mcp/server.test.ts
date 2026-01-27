@@ -1,10 +1,10 @@
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
-import { Task } from "../types.js";
+import type { Task } from "../types.js";
+import type { McpTestContext } from "./test-helpers.js";
 import {
   createMcpTestContext,
   parseToolResponse,
   isErrorResult,
-  McpTestContext,
 } from "./test-helpers.js";
 
 describe("MCP Server", () => {

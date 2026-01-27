@@ -1,18 +1,13 @@
-import {
-  CliOptions,
-  createService,
-  findRootTask,
-  formatCliError,
-} from "./utils.js";
+import type { CliOptions } from "./utils.js";
+import { createService, findRootTask, formatCliError } from "./utils.js";
 import { colors } from "./colors.js";
 import { getBooleanFlag, parseArgs } from "./args.js";
 import { truncateText } from "./formatting.js";
+import type { SyncProgress, SyncResult } from "../core/github/index.js";
 import {
   createGitHubSyncServiceOrThrow,
   getGitHubIssueNumber,
   GitHubSyncService,
-  SyncProgress,
-  SyncResult,
 } from "../core/github/index.js";
 import { loadConfig } from "../core/config.js";
 import { updateSyncState } from "../core/sync-state.js";

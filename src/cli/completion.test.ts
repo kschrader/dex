@@ -1,7 +1,8 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { FileStorage } from "../core/storage/index.js";
 import { runCli } from "./index.js";
-import { captureOutput, createTempStorage, CapturedOutput } from "./test-helpers.js";
+import type { CapturedOutput } from "./test-helpers.js";
+import { captureOutput, createTempStorage } from "./test-helpers.js";
 
 describe("completion command", () => {
   let storage: FileStorage;
@@ -138,7 +139,9 @@ describe("completion command", () => {
     });
 
     it("fails for unsupported shell type", async () => {
-      await expect(runCli(["completion", "powershell"], { storage })).rejects.toThrow("process.exit");
+      await expect(
+        runCli(["completion", "powershell"], { storage }),
+      ).rejects.toThrow("process.exit");
 
       const err = getStderr();
       expect(err).toContain("Unsupported shell: powershell");
@@ -146,7 +149,9 @@ describe("completion command", () => {
     });
 
     it("fails for invalid shell name", async () => {
-      await expect(runCli(["completion", "notashell"], { storage })).rejects.toThrow("process.exit");
+      await expect(
+        runCli(["completion", "notashell"], { storage }),
+      ).rejects.toThrow("process.exit");
       expect(getStderr()).toContain("Unsupported shell: notashell");
     });
   });

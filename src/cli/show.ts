@@ -1,5 +1,6 @@
-import { ArchivedTask, GithubMetadata, Task } from "../types.js";
-import { CliOptions, createService, exitIfTaskNotFound } from "./utils.js";
+import type { ArchivedTask, GithubMetadata, Task } from "../types.js";
+import type { CliOptions } from "./utils.js";
+import { createService, exitIfTaskNotFound } from "./utils.js";
 import { colors, stripAnsi, terminalWidth } from "./colors.js";
 import { getBooleanFlag, parseArgs } from "./args.js";
 import { pluralize, truncateText, wrapText } from "./formatting.js";

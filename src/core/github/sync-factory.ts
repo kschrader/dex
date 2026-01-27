@@ -1,5 +1,5 @@
 import { GitHubSyncService } from "./sync.js";
-import { GitHubSyncConfig } from "../config.js";
+import type { GitHubSyncConfig } from "../config.js";
 import { getGitHubRepo } from "./remote.js";
 import { getGitHubToken } from "./token.js";
 
@@ -12,7 +12,7 @@ import { getGitHubToken } from "./token.js";
  */
 export function createGitHubSyncService(
   config: GitHubSyncConfig | undefined,
-  storagePath?: string
+  storagePath?: string,
 ): GitHubSyncService | null {
   if (!config?.enabled) {
     return null;
@@ -20,7 +20,9 @@ export function createGitHubSyncService(
 
   const repo = getGitHubRepo();
   if (!repo) {
-    console.warn("GitHub sync enabled but no GitHub remote found. Sync disabled.");
+    console.warn(
+      "GitHub sync enabled but no GitHub remote found. Sync disabled.",
+    );
     return null;
   }
 
@@ -28,7 +30,9 @@ export function createGitHubSyncService(
   const token = getGitHubToken(tokenEnv);
 
   if (!token) {
-    console.warn(`GitHub sync enabled but no token found (checked ${tokenEnv} and gh CLI). Sync disabled.`);
+    console.warn(
+      `GitHub sync enabled but no token found (checked ${tokenEnv} and gh CLI). Sync disabled.`,
+    );
     return null;
   }
 
@@ -49,13 +53,13 @@ export function createGitHubSyncService(
  */
 export function createGitHubSyncServiceOrThrow(
   config?: GitHubSyncConfig,
-  storagePath?: string
+  storagePath?: string,
 ): GitHubSyncService {
   const repo = getGitHubRepo();
   if (!repo) {
     throw new Error(
       "Cannot determine GitHub repository.\n" +
-      "This directory is not in a git repository with a GitHub remote."
+        "This directory is not in a git repository with a GitHub remote.",
     );
   }
 
@@ -65,7 +69,7 @@ export function createGitHubSyncServiceOrThrow(
   if (!token) {
     throw new Error(
       `GitHub token not found.\n` +
-      `Set ${tokenEnv} environment variable or authenticate with: gh auth login`
+        `Set ${tokenEnv} environment variable or authenticate with: gh auth login`,
     );
   }
 

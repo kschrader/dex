@@ -1,12 +1,12 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { ArchivedTask, Task, TaskStore } from "../types.js";
-import { ArchiveConfig } from "./config.js";
+import type { ArchivedTask, Task, TaskStore } from "../types.js";
+import type { ArchiveConfig } from "./config.js";
+import type { AutoArchiveConfig } from "./archive-compactor.js";
 import {
   findAutoArchivableTasks,
   collectArchivableTasks,
   compactTask,
-  AutoArchiveConfig,
 } from "./archive-compactor.js";
 import { ArchiveStorage } from "./storage/archive-storage.js";
 import { cleanupTaskReferences } from "./task-relationships.js";

@@ -6,7 +6,7 @@ import {
   findAutoArchivableTasks,
   DEFAULT_AUTO_ARCHIVE_CONFIG,
 } from "./archive-compactor.js";
-import { Task } from "../types.js";
+import type { Task } from "../types.js";
 
 const createTask = (overrides: Partial<Task> = {}): Task => ({
   id: "test-id",

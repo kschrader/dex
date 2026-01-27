@@ -1,4 +1,4 @@
-import { Task } from "../types.js";
+import type { Task } from "../types.js";
 import { colors, stripAnsi } from "./colors.js";
 
 export interface FormatTaskOptions {

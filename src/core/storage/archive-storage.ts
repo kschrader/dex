@@ -1,6 +1,7 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { ArchivedTask, ArchivedTaskSchema, ArchiveStore } from "../../types.js";
+import type { ArchivedTask, ArchiveStore } from "../../types.js";
+import { ArchivedTaskSchema } from "../../types.js";
 import { DataCorruptionError, StorageError } from "../../errors.js";
 import { type StorageMode } from "../config.js";
 import { getStoragePath } from "./paths.js";

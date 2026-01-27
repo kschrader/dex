@@ -1,7 +1,8 @@
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import { FileStorage } from "../core/storage/index.js";
 import { runCli } from "./index.js";
-import { captureOutput, createTempStorage, CapturedOutput } from "./test-helpers.js";
+import type { CapturedOutput } from "./test-helpers.js";
+import { captureOutput, createTempStorage } from "./test-helpers.js";
 
 describe("help command", () => {
   let storage: FileStorage;

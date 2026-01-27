@@ -1,4 +1,5 @@
-import { CliOptions, createService, formatCliError } from "./utils.js";
+import type { CliOptions } from "./utils.js";
+import { createService, formatCliError } from "./utils.js";
 import { colors } from "./colors.js";
 import {
   getBooleanFlag,

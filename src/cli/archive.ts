@@ -1,20 +1,16 @@
-import {
-  CliOptions,
-  createService,
-  exitIfTaskNotFound,
-  formatCliError,
-} from "./utils.js";
+import type { CliOptions } from "./utils.js";
+import { createService, exitIfTaskNotFound, formatCliError } from "./utils.js";
 import { colors } from "./colors.js";
 import { getBooleanFlag, getStringFlag, parseArgs } from "./args.js";
 import { pluralize } from "./formatting.js";
+import type { CollectedArchiveTasks } from "../core/archive-compactor.js";
 import {
-  CollectedArchiveTasks,
   collectArchivableTasks,
   compactTask,
 } from "../core/archive-compactor.js";
 import { ArchiveStorage } from "../core/storage/archive-storage.js";
 import { cleanupTaskReferences } from "../core/task-relationships.js";
-import { ArchivedTask, Task, TaskStore } from "../types.js";
+import type { ArchivedTask, Task, TaskStore } from "../types.js";
 
 export async function archiveCommand(
   args: string[],

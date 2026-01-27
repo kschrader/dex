@@ -1,6 +1,6 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { CliOptions } from "./utils.js";
+import type { CliOptions } from "./utils.js";
 import { colors } from "./colors.js";
 import { getSuggestion } from "./args.js";
 import { createCommand } from "./create.js";

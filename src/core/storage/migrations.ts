@@ -7,7 +7,8 @@
 
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { TaskStore, TaskStoreSchema } from "../../types.js";
+import type { TaskStore } from "../../types.js";
+import { TaskStoreSchema } from "../../types.js";
 
 /**
  * Migrate from old single-file format (tasks.json) to per-task files.
@@ -15,7 +16,7 @@ import { TaskStore, TaskStoreSchema } from "../../types.js";
  */
 export function migrateFromSingleFile(
   storagePath: string,
-  writeStore: (store: TaskStore) => void
+  writeStore: (store: TaskStore) => void,
 ): boolean {
   const oldPath = path.join(storagePath, "tasks.json");
 

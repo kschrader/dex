@@ -8,7 +8,7 @@ import * as os from "node:os";
 import { execSync } from "node:child_process";
 import { FileStorage } from "../core/storage/index.js";
 
-import { ArchivedTask } from "../types.js";
+import type { ArchivedTask } from "../types.js";
 
 // Re-export shared test utilities from test-utils
 export {

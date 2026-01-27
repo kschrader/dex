@@ -1,5 +1,7 @@
-import { loadConfig, GitHubSyncConfig } from "./core/config.js";
-import { StorageEngine, JsonlStorage } from "./core/storage/index.js";
+import type { GitHubSyncConfig } from "./core/config.js";
+import { loadConfig } from "./core/config.js";
+import type { StorageEngine } from "./core/storage/index.js";
+import { JsonlStorage } from "./core/storage/index.js";
 import {
   createGitHubSyncService,
   GitHubSyncService,

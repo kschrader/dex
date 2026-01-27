@@ -1,5 +1,5 @@
+import type { CliOptions } from "./utils.js";
 import {
-  CliOptions,
   createService,
   exitIfTaskNotFound,
   formatCliError,
@@ -9,11 +9,18 @@ import { colors } from "./colors.js";
 import { getBooleanFlag, parseArgs } from "./args.js";
 import { pluralize } from "./formatting.js";
 
-export async function deleteCommand(args: string[], options: CliOptions): Promise<void> {
-  const { positional, flags } = parseArgs(args, {
-    force: { short: "f", hasValue: false },
-    help: { short: "h", hasValue: false },
-  }, "delete");
+export async function deleteCommand(
+  args: string[],
+  options: CliOptions,
+): Promise<void> {
+  const { positional, flags } = parseArgs(
+    args,
+    {
+      force: { short: "f", hasValue: false },
+      help: { short: "h", hasValue: false },
+    },
+    "delete",
+  );
 
   if (getBooleanFlag(flags, "help")) {
     console.log(`${colors.bold}dex delete${colors.reset} - Delete a task
@@ -67,9 +74,13 @@ ${colors.bold}EXAMPLES:${colors.reset}
   try {
     await service.delete(id);
     if (children.length > 0) {
-      console.log(`${colors.green}Deleted${colors.reset} task ${colors.bold}${id}${colors.reset} and ${children.length} ${pluralize(children.length, "subtask")}`);
+      console.log(
+        `${colors.green}Deleted${colors.reset} task ${colors.bold}${id}${colors.reset} and ${children.length} ${pluralize(children.length, "subtask")}`,
+      );
     } else {
-      console.log(`${colors.green}Deleted${colors.reset} task ${colors.bold}${id}${colors.reset}`);
+      console.log(
+        `${colors.green}Deleted${colors.reset} task ${colors.bold}${id}${colors.reset}`,
+      );
     }
   } catch (err) {
     console.error(formatCliError(err));

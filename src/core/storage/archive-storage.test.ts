@@ -4,7 +4,7 @@ import * as path from "node:path";
 import * as os from "node:os";
 import { ArchiveStorage } from "./archive-storage.js";
 import { createArchivedTask } from "../../cli/test-helpers.js";
-import { ArchivedTask } from "../../types.js";
+import type { ArchivedTask } from "../../types.js";
 
 describe("ArchiveStorage", () => {
   let tempDir: string;

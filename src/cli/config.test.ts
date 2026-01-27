@@ -3,7 +3,8 @@ import * as path from "node:path";
 import * as os from "node:os";
 import { execSync } from "node:child_process";
 import { configCommand } from "./config.js";
-import { captureOutput, CapturedOutput } from "./test-helpers.js";
+import type { CapturedOutput } from "./test-helpers.js";
+import { captureOutput } from "./test-helpers.js";
 import {
   describe,
   it,

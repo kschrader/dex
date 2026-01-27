@@ -1,13 +1,10 @@
 import { customAlphabet } from "nanoid";
-import {
-  StorageEngine,
-  JsonlStorage,
-  ArchiveStorage,
-} from "./storage/index.js";
+import type { StorageEngine } from "./storage/index.js";
+import { JsonlStorage, ArchiveStorage } from "./storage/index.js";
 import { GitHubSyncService } from "./github/index.js";
-import { GitHubSyncConfig } from "./config.js";
+import type { GitHubSyncConfig } from "./config.js";
 import { isSyncStale, updateSyncState } from "./sync-state.js";
-import {
+import type {
   Task,
   TaskStore,
   CreateTaskInput,

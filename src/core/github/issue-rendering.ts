@@ -1,10 +1,6 @@
-import { Task, CommitMetadata } from "../../types.js";
-import {
-  encodeMetadataValue,
-  EmbeddedSubtask,
-  HierarchicalTask,
-  SUBTASKS_HEADER,
-} from "./issue-parsing.js";
+import type { Task, CommitMetadata } from "../../types.js";
+import type { EmbeddedSubtask, HierarchicalTask } from "./issue-parsing.js";
+import { encodeMetadataValue, SUBTASKS_HEADER } from "./issue-parsing.js";
 
 /**
  * Create a compound subtask ID from parent ID and index.

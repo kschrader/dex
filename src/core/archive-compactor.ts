@@ -1,4 +1,4 @@
-import { Task, ArchivedTask, ArchivedChild } from "../types.js";
+import type { Task, ArchivedTask, ArchivedChild } from "../types.js";
 import {
   collectDescendantIds,
   collectAncestors,

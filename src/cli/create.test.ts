@@ -1,10 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import { runCli } from "./index.js";
-import {
-  createCliTestFixture,
-  createTaskAndGetId,
-  CliTestFixture,
-} from "./test-helpers.js";
+import type { CliTestFixture } from "./test-helpers.js";
+import { createCliTestFixture, createTaskAndGetId } from "./test-helpers.js";
 
 describe("create command", () => {
   let fixture: CliTestFixture;

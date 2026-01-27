@@ -1,15 +1,16 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
-import { Transport } from "@modelcontextprotocol/sdk/shared/transport.js";
+import type { Transport } from "@modelcontextprotocol/sdk/shared/transport.js";
 import { ZodError, ZodType } from "zod";
 import { TaskService } from "../core/task-service.js";
-import { StorageEngine } from "../core/storage/index.js";
+import type { StorageEngine } from "../core/storage/index.js";
 import { GitHubSyncService } from "../core/github/index.js";
-import { GitHubSyncConfig } from "../core/config.js";
+import type { GitHubSyncConfig } from "../core/config.js";
 import { CreateTaskArgsSchema, handleCreateTask } from "./tools/create-task.js";
 import { UpdateTaskArgsSchema, handleUpdateTask } from "./tools/update-task.js";
 import { ListTasksArgsSchema, handleListTasks } from "./tools/list-tasks.js";
-import { errorResponse, McpToolResponse } from "./tools/response.js";
+import type { McpToolResponse } from "./tools/response.js";
+import { errorResponse } from "./tools/response.js";
 import { ValidationError } from "../errors.js";
 
 function formatZodError(error: ZodError): string {
@@ -21,7 +22,7 @@ function formatZodError(error: ZodError): string {
 function wrapHandler<T>(
   schema: ZodType<T>,
   handler: (args: T, service: TaskService) => Promise<McpToolResponse>,
-  service: TaskService
+  service: TaskService,
 ): (args: unknown) => Promise<McpToolResponse> {
   return async (args) => {
     try {
@@ -29,7 +30,9 @@ function wrapHandler<T>(
       return await handler(parsed, service);
     } catch (err) {
       if (err instanceof ZodError) {
-        return errorResponse(new ValidationError(`Validation error: ${formatZodError(err)}`));
+        return errorResponse(
+          new ValidationError(`Validation error: ${formatZodError(err)}`),
+        );
       }
       return errorResponse(err);
     }
@@ -43,7 +46,7 @@ function wrapHandler<T>(
 export function createMcpServer(
   storage: StorageEngine,
   syncService?: GitHubSyncService | null,
-  syncConfig?: GitHubSyncConfig | null
+  syncConfig?: GitHubSyncConfig | null,
 ): McpServer {
   const service = new TaskService({ storage, syncService, syncConfig });
   const server = new McpServer({
@@ -55,21 +58,21 @@ export function createMcpServer(
     "create_task",
     "Create a task ticket with comprehensive context like a GitHub Issue. Explain what needs to be done and why, the requirements and constraints, your implementation approach, and how you'll know it's complete. Use this for complex work that needs coordination across sessions or when context should persist. Break large work into subtasks for better tracking.",
     CreateTaskArgsSchema.shape,
-    wrapHandler(CreateTaskArgsSchema, handleCreateTask, service)
+    wrapHandler(CreateTaskArgsSchema, handleCreateTask, service),
   );
 
   server.tool(
     "update_task",
     "Update task fields, mark complete with result, or delete. When completing, provide comprehensive result: what was implemented, key decisions made, trade-offs considered, any follow-ups needed. Think PR description: explain the resolution at a high level without reading code.",
     UpdateTaskArgsSchema.shape,
-    wrapHandler(UpdateTaskArgsSchema, handleUpdateTask, service)
+    wrapHandler(UpdateTaskArgsSchema, handleUpdateTask, service),
   );
 
   server.tool(
     "list_tasks",
     "List and search tasks. Use to review context, find related work, or understand current state. Filter by status, search content. By default shows only pending tasks.",
     ListTasksArgsSchema.shape,
-    wrapHandler(ListTasksArgsSchema, handleListTasks, service)
+    wrapHandler(ListTasksArgsSchema, handleListTasks, service),
   );
 
   return server;
@@ -83,7 +86,7 @@ export async function startMcpServer(
   storage: StorageEngine,
   syncService?: GitHubSyncService | null,
   syncConfig?: GitHubSyncConfig | null,
-  transport?: Transport
+  transport?: Transport,
 ): Promise<void> {
   const server = createMcpServer(storage, syncService, syncConfig);
   await server.connect(transport ?? new StdioServerTransport());

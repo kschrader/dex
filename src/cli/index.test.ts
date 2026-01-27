@@ -1,7 +1,8 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { FileStorage } from "../core/storage/index.js";
 import { runCli } from "./index.js";
-import { captureOutput, createTempStorage, CapturedOutput } from "./test-helpers.js";
+import type { CapturedOutput } from "./test-helpers.js";
+import { captureOutput, createTempStorage } from "./test-helpers.js";
 
 describe("runCli", () => {
   let storage: FileStorage;
@@ -32,7 +33,9 @@ describe("runCli", () => {
   });
 
   it("shows error and suggests similar command for typos", async () => {
-    await expect(runCli(["craete"], { storage })).rejects.toThrow("process.exit");
+    await expect(runCli(["craete"], { storage })).rejects.toThrow(
+      "process.exit",
+    );
 
     const err = output.stderr.join("\n");
     expect(err).toContain("Unknown command");

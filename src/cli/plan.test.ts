@@ -4,7 +4,8 @@ import * as path from "path";
 import * as os from "os";
 import { FileStorage } from "../core/storage/index.js";
 import { runCli } from "./index.js";
-import { captureOutput, CapturedOutput } from "./test-helpers.js";
+import type { CapturedOutput } from "./test-helpers.js";
+import { captureOutput } from "./test-helpers.js";
 
 describe("plan command", () => {
   let storage: FileStorage;

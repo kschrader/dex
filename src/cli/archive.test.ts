@@ -1,11 +1,8 @@
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import * as path from "node:path";
 import { runCli } from "./index.js";
-import {
-  createCliTestFixture,
-  createTaskAndGetId,
-  CliTestFixture,
-} from "./test-helpers.js";
+import type { CliTestFixture } from "./test-helpers.js";
+import { createCliTestFixture, createTaskAndGetId } from "./test-helpers.js";
 import { ArchiveStorage } from "../core/storage/archive-storage.js";
 
 describe("archive command", () => {

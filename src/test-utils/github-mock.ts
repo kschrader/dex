@@ -4,7 +4,7 @@
  */
 
 import nock from "nock";
-import { Task, TaskStore } from "../types.js";
+import type { Task, TaskStore } from "../types.js";
 
 // ============ GitHub API Mocking ============
 

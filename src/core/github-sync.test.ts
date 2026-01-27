@@ -5,14 +5,14 @@ import {
   createGitHubSyncService,
   createGitHubSyncServiceOrThrow,
 } from "./github/index.js";
-import { TaskStore } from "../types.js";
+import type { TaskStore } from "../types.js";
+import type { GitHubMock } from "../test-utils/github-mock.js";
 import {
   setupGitHubMock,
   cleanupGitHubMock,
   createIssueFixture,
   createTask,
   createStore,
-  GitHubMock,
 } from "../test-utils/github-mock.js";
 
 // Mock git remote detection
