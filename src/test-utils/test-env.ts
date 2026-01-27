@@ -108,15 +108,14 @@ export function cleanupTestEnv(): void {
 }
 
 /**
- * Get the test environment. Throws if not initialized.
+ * Get the test environment. Auto-initializes if not already done.
+ * This allows tests to run with any test runner (Vitest, Bun, etc).
  */
 function getTestEnv(): TestEnv {
   if (!_testEnv) {
-    throw new Error(
-      "Test environment not initialized. This should be set up by vitest.setup.ts",
-    );
+    initTestEnv();
   }
-  return _testEnv;
+  return _testEnv!;
 }
 
 /**
