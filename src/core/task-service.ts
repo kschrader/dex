@@ -501,11 +501,7 @@ export class TaskService {
    * List archived tasks with optional query filter.
    */
   listArchived(query?: string): ArchivedTask[] {
-    const archiveStorage = this.getArchiveStorage();
-    if (query) {
-      return archiveStorage.searchArchive(query);
-    }
-    return archiveStorage.readArchive().tasks;
+    return this.getArchiveStorage().list(query);
   }
 
   /**
@@ -526,8 +522,7 @@ export class TaskService {
 
     // Search archived tasks if requested
     if (options.includeArchive) {
-      const archiveStorage = this.getArchiveStorage();
-      const archivedTasks = archiveStorage.searchArchive(query);
+      const archivedTasks = this.getArchiveStorage().list(query);
       results.push(...archivedTasks);
     }
 

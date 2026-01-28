@@ -202,7 +202,7 @@ describe("ArchiveStorage", () => {
     });
   });
 
-  describe("searchArchive", () => {
+  describe("list", () => {
     beforeEach(() => {
       const tasks = [
         createArchivedTask({
@@ -231,33 +231,54 @@ describe("ArchiveStorage", () => {
       storage.writeArchive({ tasks });
     });
 
-    it("searches by description", () => {
-      const results = storage.searchArchive("auth");
+    it("returns all tasks when no query provided", () => {
+      const results = storage.list();
+      expect(results).toHaveLength(3);
+    });
+
+    it("returns all tasks with undefined query", () => {
+      const results = storage.list(undefined);
+      expect(results).toHaveLength(3);
+    });
+
+    it("searches by name", () => {
+      const results = storage.list("auth");
       expect(results).toHaveLength(1);
       expect(results[0].id).toBe("auth");
     });
 
     it("searches by result", () => {
-      const results = storage.searchArchive("JWT");
+      const results = storage.list("JWT");
       expect(results).toHaveLength(1);
       expect(results[0].id).toBe("auth");
     });
 
     it("searches in archived children", () => {
-      const results = storage.searchArchive("login");
+      const results = storage.list("login");
       expect(results).toHaveLength(1);
       expect(results[0].id).toBe("parent");
     });
 
     it("is case insensitive", () => {
-      const results = storage.searchArchive("DASHBOARD");
+      const results = storage.list("DASHBOARD");
       expect(results).toHaveLength(1);
       expect(results[0].id).toBe("ui");
     });
 
     it("returns empty array when no matches", () => {
-      const results = storage.searchArchive("nonexistent");
+      const results = storage.list("nonexistent");
       expect(results).toHaveLength(0);
+    });
+  });
+
+  describe("searchArchive (deprecated)", () => {
+    it("delegates to list()", () => {
+      const task = createArchivedTask({ id: "test", name: "Test task" });
+      storage.writeArchive({ tasks: [task] });
+
+      const results = storage.searchArchive("test");
+      expect(results).toHaveLength(1);
+      expect(results[0].id).toBe("test");
     });
   });
 

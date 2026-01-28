@@ -158,12 +158,18 @@ export class ArchiveStorage {
   }
 
   /**
-   * Search archived tasks by name or result
+   * List archived tasks with optional search filter.
+   * @param query Optional search query to filter by name or result
+   * @returns Filtered or all archived tasks
    */
-  searchArchive(query: string): ArchivedTask[] {
+  list(query?: string): ArchivedTask[] {
     const store = this.readArchive();
-    const lowerQuery = query.toLowerCase();
 
+    if (!query) {
+      return store.tasks;
+    }
+
+    const lowerQuery = query.toLowerCase();
     return store.tasks.filter((task) => {
       if (task.name.toLowerCase().includes(lowerQuery)) return true;
       if (task.result?.toLowerCase().includes(lowerQuery)) return true;
@@ -174,6 +180,14 @@ export class ArchiveStorage {
           child.result?.toLowerCase().includes(lowerQuery),
       );
     });
+  }
+
+  /**
+   * Search archived tasks by name or result
+   * @deprecated Use list(query) instead
+   */
+  searchArchive(query: string): ArchivedTask[] {
+    return this.list(query);
   }
 
   /**
