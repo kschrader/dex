@@ -7,9 +7,9 @@ import { findGitRoot, getDexHome, type StorageMode } from "./storage/paths.js";
 export { getDexHome, type StorageMode } from "./storage/paths.js";
 
 /**
- * Auto-sync configuration for GitHub.
+ * Base auto-sync configuration for all integrations.
  */
-export interface GitHubSyncAuto {
+export interface IntegrationSyncAuto {
   /** Sync immediately on mutations (default: true) */
   on_change?: boolean;
   /** Max age before sync is considered stale (e.g., "1h", "30m", "1d") */
@@ -17,18 +17,24 @@ export interface GitHubSyncAuto {
 }
 
 /**
+ * Base sync configuration for all integrations.
+ */
+export interface IntegrationSyncConfig {
+  /** Enable automatic sync on task create/update (default: false) */
+  enabled?: boolean;
+  /** Auto-sync settings */
+  auto?: IntegrationSyncAuto;
+}
+
+/**
  * GitHub sync configuration.
  * Note: owner/repo are always inferred from git remote, not configured.
  */
-export interface GitHubSyncConfig {
-  /** Enable automatic GitHub sync on task create/update (default: false) */
-  enabled?: boolean;
+export interface GitHubSyncConfig extends IntegrationSyncConfig {
   /** Environment variable containing GitHub token (default: "GITHUB_TOKEN") */
   token_env?: string;
   /** Label prefix for dex tasks (default: "dex") */
   label_prefix?: string;
-  /** Auto-sync settings */
-  auto?: GitHubSyncAuto;
 }
 
 /**
@@ -135,6 +141,25 @@ function parseConfigFile(configPath: string): Partial<Config> | null {
 }
 
 /**
+ * Merge a single integration config, with b taking precedence over a.
+ */
+function mergeIntegrationConfig<T extends IntegrationSyncConfig>(
+  a: T | undefined,
+  b: T | undefined,
+): T | undefined {
+  if (b === undefined) return a;
+  if (a === undefined) return b;
+
+  const mergedAuto = b.auto !== undefined ? { ...a.auto, ...b.auto } : a.auto;
+
+  return {
+    ...a,
+    ...b,
+    auto: mergedAuto,
+  } as T;
+}
+
+/**
  * Merge sync configuration, with b taking precedence over a.
  */
 function mergeSyncConfig(
@@ -142,18 +167,10 @@ function mergeSyncConfig(
   b: SyncConfig | undefined,
 ): SyncConfig | undefined {
   if (b === undefined) return a;
-
-  const mergedAuto =
-    b.github?.auto !== undefined
-      ? { ...a?.github?.auto, ...b.github.auto }
-      : a?.github?.auto;
+  if (a === undefined) return b;
 
   return {
-    github: {
-      ...a?.github,
-      ...b.github,
-      auto: mergedAuto,
-    },
+    github: mergeIntegrationConfig(a.github, b.github),
   };
 }
 
