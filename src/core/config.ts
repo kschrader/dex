@@ -1,12 +1,10 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
-import * as os from "node:os";
 import { parse as parseToml } from "smol-toml";
+import { findGitRoot, getDexHome, type StorageMode } from "./storage/paths.js";
 
-/**
- * Storage mode for file-based storage
- */
-export type StorageMode = "in-repo" | "centralized";
+// Re-export path utilities for backward compatibility
+export { getDexHome, type StorageMode } from "./storage/paths.js";
 
 /**
  * Auto-sync configuration for GitHub.
@@ -94,20 +92,6 @@ const DEFAULT_CONFIG: Config = {
 };
 
 /**
- * Get the dex home directory.
- * Priority: DEX_HOME env var > XDG_CONFIG_HOME/dex > ~/.config/dex
- * @returns Path to dex home directory
- */
-export function getDexHome(): string {
-  if (process.env.DEX_HOME) {
-    return process.env.DEX_HOME;
-  }
-  const configDir =
-    process.env.XDG_CONFIG_HOME || path.join(os.homedir(), ".config");
-  return path.join(configDir, "dex");
-}
-
-/**
  * Get the global config file path
  * @returns Path to config file (~/.config/dex/dex.toml)
  */
@@ -121,22 +105,11 @@ export function getConfigPath(): string {
  * @returns Path to project config file (.dex/config.toml) or null if not in a git repo
  */
 export function getProjectConfigPath(): string | null {
-  let currentDir = process.cwd();
-
-  // Walk up to find git root
-  while (currentDir !== path.dirname(currentDir)) {
-    const gitPath = path.join(currentDir, ".git");
-    try {
-      fs.statSync(gitPath);
-      // Found git root, return .dex/config.toml path
-      return path.join(currentDir, ".dex", "config.toml");
-    } catch {
-      // .git doesn't exist, continue up
-    }
-    currentDir = path.dirname(currentDir);
+  const gitRoot = findGitRoot(process.cwd());
+  if (!gitRoot) {
+    return null;
   }
-
-  return null;
+  return path.join(gitRoot, ".dex", "config.toml");
 }
 
 /**

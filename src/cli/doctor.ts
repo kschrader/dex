@@ -11,9 +11,12 @@ import {
   loadConfig,
 } from "../core/config.js";
 import { getGitHubToken } from "../core/github/index.js";
-import { getDefaultStoragePath, findGitRoot } from "../core/storage/paths.js";
+import {
+  findGitRoot,
+  getDefaultStoragePath,
+  getDexHome,
+} from "../core/storage/paths.js";
 import { getProjectKey } from "../core/project-key.js";
-import { getDexHome } from "../core/config.js";
 
 /**
  * Default auto-sync configuration to add when missing.

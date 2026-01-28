@@ -1,7 +1,26 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
+import * as os from "node:os";
 import { getProjectKey } from "../project-key.js";
-import { getDexHome, type StorageMode } from "../config.js";
+
+/**
+ * Storage mode for file-based storage
+ */
+export type StorageMode = "in-repo" | "centralized";
+
+/**
+ * Get the dex home directory.
+ * Priority: DEX_HOME env var > XDG_CONFIG_HOME/dex > ~/.config/dex
+ * @returns Path to dex home directory
+ */
+export function getDexHome(): string {
+  if (process.env.DEX_HOME) {
+    return process.env.DEX_HOME;
+  }
+  const configDir =
+    process.env.XDG_CONFIG_HOME || path.join(os.homedir(), ".config");
+  return path.join(configDir, "dex");
+}
 
 /**
  * Find the git root directory by traversing up from startDir.

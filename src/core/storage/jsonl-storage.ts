@@ -4,8 +4,8 @@ import type { Task, TaskStore } from "../../types.js";
 import { TaskSchema } from "../../types.js";
 import { DataCorruptionError, StorageError } from "../../errors.js";
 import type { StorageEngine } from "./engine.js";
-import { type StorageMode, type ArchiveConfig } from "../config.js";
-import { getStoragePath } from "./paths.js";
+import type { ArchiveConfig } from "../config.js";
+import { getStoragePath, type StorageMode } from "./paths.js";
 import { performAutoArchive } from "../auto-archive.js";
 
 export interface JsonlStorageOptions {

@@ -5,8 +5,7 @@ import type { Task, TaskStore } from "../../types.js";
 import { TaskSchema } from "../../types.js";
 import { DataCorruptionError, StorageError } from "../../errors.js";
 import type { StorageEngine } from "./engine.js";
-import { getProjectKey } from "../project-key.js";
-import { getDexHome, type StorageMode } from "../config.js";
+import { getStoragePath, type StorageMode } from "./paths.js";
 import { migrateFromSingleFile } from "./migrations.js";
 
 /**
@@ -17,47 +16,6 @@ function expandTilde(filepath: string): string {
     return path.join(os.homedir(), filepath.slice(1));
   }
   return filepath;
-}
-
-function findGitRoot(startDir: string): string | null {
-  let currentDir: string;
-  try {
-    currentDir = fs.realpathSync(startDir);
-  } catch {
-    // If path doesn't exist or is inaccessible, fall back to input
-    currentDir = startDir;
-  }
-
-  while (currentDir !== path.dirname(currentDir)) {
-    const gitPath = path.join(currentDir, ".git");
-    try {
-      // Check if .git exists (file for worktrees, directory for regular repos)
-      fs.statSync(gitPath);
-      return currentDir;
-    } catch {
-      // .git doesn't exist at this level, continue traversing
-    }
-    currentDir = path.dirname(currentDir);
-  }
-  return null;
-}
-
-function getDefaultStoragePath(mode: StorageMode = "in-repo"): string {
-  if (mode === "centralized") {
-    const projectKey = getProjectKey();
-    return path.join(getDexHome(), "projects", projectKey);
-  }
-
-  // in-repo mode: use git root or dex home directory
-  const gitRoot = findGitRoot(process.cwd());
-  if (gitRoot) {
-    return path.join(gitRoot, ".dex");
-  }
-  return path.join(getDexHome(), "local");
-}
-
-function getStoragePath(mode?: StorageMode): string {
-  return process.env.DEX_STORAGE_PATH || getDefaultStoragePath(mode);
 }
 
 export interface FileStorageOptions {

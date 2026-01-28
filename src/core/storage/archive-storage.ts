@@ -3,8 +3,7 @@ import * as path from "node:path";
 import type { ArchivedTask, ArchiveStore } from "../../types.js";
 import { ArchivedTaskSchema } from "../../types.js";
 import { DataCorruptionError, StorageError } from "../../errors.js";
-import { type StorageMode } from "../config.js";
-import { getStoragePath } from "./paths.js";
+import { getStoragePath, type StorageMode } from "./paths.js";
 
 export interface ArchiveStorageOptions {
   /** Explicit storage path (overrides mode) */
