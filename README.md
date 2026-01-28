@@ -25,7 +25,7 @@ npm install -g @zeeg/dex
 Or use the skills installer for your AI agent (Claude Code, OpenCode, Codex, Cursor):
 
 ```bash
-npx skills dcramer/dex
+npx skills add dcramer/dex
 ```
 
 Use natural language or slash commands:

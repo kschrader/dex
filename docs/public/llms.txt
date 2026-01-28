@@ -21,13 +21,13 @@ Two steps are required:
 2. Add skills to your agent:
    ```
    # npm
-   npx skills dcramer/dex
+   npx skills add dcramer/dex
 
    # pnpm
-   pnpm dlx skills dcramer/dex
+   pnpx skills add dcramer/dex
 
    # bun
-   bunx skills dcramer/dex
+   bunx skills add dcramer/dex
    ```
 
 ## Project Configuration
