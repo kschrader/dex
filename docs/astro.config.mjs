@@ -4,7 +4,7 @@ import rehypeAutolinkHeadings from 'rehype-autolink-headings';
 import rehypeSlug from 'rehype-slug';
 
 export default defineConfig({
-  site: 'https://dex.cra.mr',
+  site: 'https://dex.rip',
   integrations: [mdx()],
   markdown: {
     shikiConfig: {
