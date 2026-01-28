@@ -55,7 +55,7 @@
     "vitest": "^4.0.18"
   },
   "simple-git-hooks": {
-    "pre-commit": "pnpm lint-staged"
+    "pre-commit": "pnpm tsc --noEmit && pnpm lint-staged"
   },
   "lint-staged": {
     "*.{js,ts,json,md}": "prettier --write"

@@ -3,7 +3,7 @@ import { runCli } from "./index.js";
 import {
   createCliTestFixture,
   createTaskAndGetId,
-  CliTestFixture,
+  type CliTestFixture,
 } from "./test-helpers.js";
 
 describe("start command", () => {

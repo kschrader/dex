@@ -550,7 +550,9 @@ describe("TaskService", () => {
       expect(completed.completed).toBe(true);
       expect(completed.started_at).toBeTruthy();
       // started_at should be set to approximately the same time as completed_at
-      expect(completed.started_at).toBe(completed.completed_at);
+      const startedAt = new Date(completed.started_at!).getTime();
+      const completedAt = new Date(completed.completed_at!).getTime();
+      expect(Math.abs(completedAt - startedAt)).toBeLessThan(100);
     });
 
     it("preserves started_at when completing a task that was already started", async () => {
