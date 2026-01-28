@@ -81,6 +81,8 @@ export interface BulkArchiveOptions {
   archiveAllCompleted?: boolean;
   /** Task IDs to exclude from bulk archive */
   exceptIds?: string[];
+  /** Preview what would be archived without making changes */
+  dryRun?: boolean;
 }
 
 export interface ArchiveResult {
@@ -726,7 +728,7 @@ export class TaskService {
   async bulkArchive(
     options: BulkArchiveOptions,
   ): Promise<ArchiveResult | null> {
-    const { olderThan, archiveAllCompleted, exceptIds = [] } = options;
+    const { olderThan, archiveAllCompleted, exceptIds = [], dryRun } = options;
 
     // Parse duration if provided
     let cutoffTime: number | undefined;
@@ -792,6 +794,24 @@ export class TaskService {
     for (const root of archivableRoots) {
       const collected = collectArchivableTasks(root.id, allTasks)!;
       archivableCollections.push(collected);
+    }
+
+    // For dry run, return preview stats without modifying storage
+    if (dryRun) {
+      const allToArchive: Task[] = [];
+      for (const collection of archivableCollections) {
+        allToArchive.push(collection.root, ...collection.descendants);
+      }
+      const originalSize = JSON.stringify(allToArchive).length;
+      // Estimate archived size (compaction typically reduces by ~50-70%)
+      const estimatedArchivedSize = Math.round(originalSize * 0.4);
+      return {
+        archivedTasks: [],
+        rootCount: archivableCollections.length,
+        totalCount: allToArchive.length,
+        originalSize,
+        archivedSize: estimatedArchivedSize,
+      };
     }
 
     return this.executeArchive(archivableCollections);
