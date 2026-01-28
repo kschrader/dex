@@ -17,8 +17,8 @@ command -v dex &>/dev/null && echo "use: dex" || echo "use: npx @zeeg/dex"
 
 Dex tasks are **tickets** - structured artifacts with comprehensive context:
 
-- **Description**: One-line summary (issue title)
-- **Context**: Full background, requirements, approach (issue body)
+- **Name**: One-line summary (issue title)
+- **Description**: Full background, requirements, approach (issue body)
 - **Result**: Implementation details, decisions, outcomes (PR description)
 
 Think: "Would someone understand the what, why, and how from this task alone?"
@@ -59,10 +59,10 @@ Use **dex** for persistent work. Use built-in task tools for ephemeral in-sessio
 ### Create a Task
 
 ```bash
-dex create -d "Short description" --context "Full implementation context"
+dex create "Short name" --description "Full implementation context"
 ```
 
-Context should include: what needs to be done, why, implementation approach, and acceptance criteria. See [examples.md](examples.md) for good/bad examples.
+Description should include: what needs to be done, why, implementation approach, and acceptance criteria. See [examples.md](examples.md) for good/bad examples.
 
 ### List and View Tasks
 
@@ -83,20 +83,20 @@ dex complete <id> --result "What was accomplished" --commit <sha>
 ### Edit and Delete
 
 ```bash
-dex edit <id> --context "Updated context"
+dex edit <id> --description "Updated description"
 dex delete <id>
 ```
 
 For full CLI reference including blockers, see [cli-reference.md](cli-reference.md).
 
-## Understanding Task Context
+## Understanding Task Fields
 
 Tasks have two text fields:
 
-- **Description**: Brief one-line summary (shown in `dex list`)
-- **Context**: Full details - requirements, approach, acceptance criteria (shown with `--full`)
+- **Name**: Brief one-line summary (shown in `dex list`)
+- **Description**: Full details - requirements, approach, acceptance criteria (shown with `--full`)
 
-When you run `dex show <id>`, the context may be truncated. The CLI will hint at `--full` if there's more content.
+When you run `dex show <id>`, the description may be truncated. The CLI will hint at `--full` if there's more content.
 
 ### Gathering Context
 
@@ -138,7 +138,7 @@ Three levels: **Epic** (large initiative) → **Task** (significant work) → **
 
 ```bash
 # Create subtask under parent
-dex create --parent <id> -d "Description" --context "..."
+dex create --parent <id> "Subtask name" --description "..."
 ```
 
 For detailed hierarchy guidance, see [hierarchies.md](hierarchies.md).
@@ -168,7 +168,7 @@ Check `dex show <id>` for GitHub issue info before committing. The "(via parent)
 ## Best Practices
 
 1. **Right-size tasks**: Completable in one focused session
-2. **Clear completion criteria**: Context should define "done"
+2. **Clear completion criteria**: Description should define "done"
 3. **Don't over-decompose**: 3-7 children per parent
 4. **Action-oriented descriptions**: Start with verbs ("Add", "Fix", "Update")
 5. **Verify before completing**: Tests passing, manual testing done
