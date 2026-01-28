@@ -2,35 +2,6 @@ import type { Task, CommitMetadata } from "../../types.js";
 import type { EmbeddedSubtask, HierarchicalTask } from "./issue-parsing.js";
 import { encodeMetadataValue, SUBTASKS_HEADER } from "./issue-parsing.js";
 
-/**
- * Create a compound subtask ID from parent ID and index.
- * @param parentId - The parent issue number
- * @param index - The local subtask index (1-based)
- * @returns The compound ID string
- */
-export function createSubtaskId(parentId: string, index: number): string {
-  return `${parentId}-${index}`;
-}
-
-/**
- * Render an issue body with embedded subtasks.
- * @param context - The parent task context
- * @param subtasks - Array of subtasks to embed
- * @returns The rendered markdown body
- */
-export function renderIssueBody(
-  context: string,
-  subtasks: EmbeddedSubtask[],
-): string {
-  if (subtasks.length === 0) {
-    return context;
-  }
-
-  const subtaskBlocks = subtasks.map(renderSubtaskBlock).join("\n\n");
-
-  return `${context}\n\n${SUBTASKS_HEADER}\n\n${subtaskBlocks}`;
-}
-
 /** Common task fields needed for rendering metadata */
 interface TaskLike {
   id: string;
@@ -45,7 +16,17 @@ interface TaskLike {
 }
 
 /**
- * Render the metadata comments, context, and result sections shared by all task blocks.
+ * Create a compound subtask ID from parent ID and index.
+ * @param parentId - The parent issue number
+ * @param index - The local subtask index (1-based)
+ * @returns The compound ID string
+ */
+export function createSubtaskId(parentId: string, index: number): string {
+  return `${parentId}-${index}`;
+}
+
+/**
+ * Render the metadata comments, description, and result sections for a task block.
  * @param task - The task to render metadata for
  * @param parentId - Optional parent ID for hierarchical tasks
  */
@@ -104,21 +85,51 @@ function renderTaskMetadataAndContent(
 }
 
 /**
- * Render a single subtask as a <details> block.
+ * Render a single task as a <details> block.
+ * @param task - The task to render
+ * @param options - Optional rendering options for hierarchy
  */
-function renderSubtaskBlock(subtask: EmbeddedSubtask): string {
-  const checkbox = subtask.completed ? "x" : " ";
+function renderTaskDetailsBlock(
+  task: TaskLike & { name: string },
+  options?: { depth?: number; parentId?: string | null },
+): string {
+  const statusIndicator = task.completed ? "✅ " : "";
+  const treePrefix = options?.depth && options.depth > 0 ? "└─ " : "";
 
   return [
     "<details>",
-    `<summary>[${checkbox}] ${subtask.name}</summary>`,
-    ...renderTaskMetadataAndContent(subtask),
+    `<summary>${statusIndicator}${treePrefix}<b>${task.name}</b></summary>`,
+    "",
+    ...renderTaskMetadataAndContent(task, options?.parentId),
     "</details>",
   ].join("\n");
 }
 
 /**
+ * Render an issue body with embedded subtasks.
+ * @param context - The parent task context
+ * @param subtasks - Array of subtasks to embed
+ * @returns The rendered markdown body
+ */
+export function renderIssueBody(
+  context: string,
+  subtasks: EmbeddedSubtask[],
+): string {
+  if (subtasks.length === 0) {
+    return context;
+  }
+
+  const subtaskBlocks = subtasks
+    .map((subtask) => renderTaskDetailsBlock(subtask))
+    .join("\n\n");
+
+  return `${context}\n\n${SUBTASKS_HEADER}\n\n${subtaskBlocks}`;
+}
+
+/**
  * Render an issue body with hierarchical task tree and details.
+ * Uses a merged format where each task is a <details> block with
+ * tree characters for nested tasks to show hierarchy.
  * @param context - The root task context
  * @param descendants - All descendant tasks with hierarchy info
  * @returns The rendered markdown body
@@ -131,44 +142,11 @@ export function renderHierarchicalIssueBody(
     return context;
   }
 
-  const lines: string[] = [context, ""];
+  const taskItems = descendants
+    .map(({ task, depth, parentId }) =>
+      renderTaskDetailsBlock(task, { depth, parentId }),
+    )
+    .join("\n\n");
 
-  // Task Tree section - quick overview with checkboxes
-  lines.push("## Task Tree");
-  lines.push("");
-  for (const { task, depth } of descendants) {
-    const indent = "  ".repeat(depth);
-    const checkbox = task.completed ? "x" : " ";
-    lines.push(`${indent}- [${checkbox}] **${task.name}** \`${task.id}\``);
-  }
-  lines.push("");
-
-  // Task Details section - expandable details for each task
-  lines.push("## Task Details");
-  lines.push("");
-  for (const { task, depth, parentId } of descendants) {
-    lines.push(renderHierarchicalTaskBlock(task, depth, parentId));
-    lines.push("");
-  }
-
-  return lines.join("\n");
-}
-
-/**
- * Render a single task as a <details> block with depth indicator.
- */
-function renderHierarchicalTaskBlock(
-  task: Task,
-  depth: number,
-  parentId: string | null,
-): string {
-  const checkbox = task.completed ? "x" : " ";
-  const depthArrow = depth > 0 ? "↳".repeat(depth) + " " : "";
-
-  return [
-    "<details>",
-    `<summary>[${checkbox}] ${depthArrow}<b>${task.name}</b> <code>${task.id}</code></summary>`,
-    ...renderTaskMetadataAndContent(task, parentId),
-    "</details>",
-  ].join("\n");
+  return `${context}\n\n## Tasks\n\n${taskItems}\n`;
 }

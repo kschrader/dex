@@ -284,7 +284,7 @@ describe("renderIssueBody", () => {
     expect(result).toContain("Parent context.");
     expect(result).toContain("## Subtasks");
     expect(result).toContain("<details>");
-    expect(result).toContain("<summary>[ ] First subtask</summary>");
+    expect(result).toContain("<summary><b>First subtask</b></summary>");
     expect(result).toContain("<!-- dex:subtask:id:9-1 -->");
     expect(result).toContain("<!-- dex:subtask:priority:5 -->");
     expect(result).toContain("<!-- dex:subtask:completed:false -->");
@@ -293,7 +293,7 @@ describe("renderIssueBody", () => {
     expect(result).toContain("</details>");
   });
 
-  it("renders completed subtask with checkbox", () => {
+  it("renders completed subtask with status indicator", () => {
     const subtask = createTestSubtask({
       name: "Done task",
       description: "Context.",
@@ -305,7 +305,7 @@ describe("renderIssueBody", () => {
 
     const result = renderIssueBody("Parent context.", [subtask]);
 
-    expect(result).toContain("<summary>[x] Done task</summary>");
+    expect(result).toContain("<summary>✅ <b>Done task</b></summary>");
     expect(result).toContain("<!-- dex:subtask:completed:true -->");
     expect(result).toContain("### Result");
     expect(result).toContain("Completed successfully.");
@@ -330,8 +330,8 @@ describe("renderIssueBody", () => {
 
     expect(result).toContain("<!-- dex:subtask:id:9-1 -->");
     expect(result).toContain("<!-- dex:subtask:id:9-2 -->");
-    expect(result).toContain("<summary>[ ] First</summary>");
-    expect(result).toContain("<summary>[x] Second</summary>");
+    expect(result).toContain("<summary><b>First</b></summary>");
+    expect(result).toContain("<summary>✅ <b>Second</b></summary>");
   });
 });
 
@@ -805,12 +805,53 @@ describe("hierarchical issue body round-trip", () => {
     const descendants = collectDescendants(tasks, "root");
     const rendered = renderHierarchicalIssueBody("Root", descendants);
 
-    expect(rendered).toContain("- [ ] **A**");
-    expect(rendered).toContain("  - [ ] **A1**");
-    expect(rendered).toContain("- [ ] **B**");
+    // Uses details blocks with tree characters for hierarchy
+    expect(rendered).toContain("<summary><b>A</b></summary>");
+    expect(rendered).toContain("<summary>└─ <b>A1</b></summary>");
+    expect(rendered).toContain("<summary><b>B</b></summary>");
 
     const parsed = parseHierarchicalIssueBody(rendered);
     const ids = parsed.subtasks.map((s) => s.id);
     expect(ids).toEqual(["a", "a1", "b"]);
+  });
+
+  it("renders details blocks with multi-line content", () => {
+    const multiLineDescription = `Steps to implement:
+1. First step
+2. Second step
+3. Third step`;
+
+    const tasks = [
+      createTestTask({
+        id: "root",
+        name: "Root",
+        description: "Root",
+        children: ["task1"],
+      }),
+      createTestTask({
+        id: "task1",
+        parent_id: "root",
+        name: "Task with multi-line description",
+        description: multiLineDescription,
+      }),
+    ];
+
+    const descendants = collectDescendants(tasks, "root");
+    const rendered = renderHierarchicalIssueBody("Root", descendants);
+
+    // Uses details blocks (no task list)
+    expect(rendered).toContain(
+      "<summary><b>Task with multi-line description</b></summary>",
+    );
+    expect(rendered).toContain("<details>");
+    expect(rendered).toContain("</details>");
+    expect(rendered).toContain("<!-- dex:subtask:id:task1 -->");
+    expect(rendered).toContain("### Description");
+    expect(rendered).toContain("1. First step");
+
+    // Verify round-trip preserves the multi-line description
+    const parsed = parseHierarchicalIssueBody(rendered);
+    const task1 = parsed.subtasks.find((s) => s.id === "task1");
+    expect(task1?.description).toBe(multiLineDescription);
   });
 });

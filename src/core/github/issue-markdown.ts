@@ -2,8 +2,7 @@
 export {
   // Constants
   SUBTASKS_HEADER,
-  TASK_TREE_HEADER,
-  TASK_DETAILS_HEADER,
+  TASKS_HEADER,
   // Encoding utilities
   encodeMetadataValue,
   decodeMetadataValue,
