@@ -22,6 +22,7 @@ import { configCommand } from "./config.js";
 import { dirCommand } from "./dir.js";
 import { archiveCommand } from "./archive.js";
 import { startCommand } from "./start.js";
+import { versionCommand } from "./version.js";
 
 export type { CliOptions } from "./utils.js";
 
@@ -110,6 +111,10 @@ export async function runCli(
     case "--help":
     case "-h":
       return helpCommand();
+    case "version":
+    case "--version":
+    case "-V":
+      return versionCommand();
     default:
       if (!command) {
         return await statusCommand([], options);

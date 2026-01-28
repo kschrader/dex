@@ -47,6 +47,8 @@ ${colors.bold}COMMANDS:${colors.reset}
   completion <shell>               Generate shell completion script
 
 ${colors.bold}GLOBAL OPTIONS:${colors.reset}
+  --version, -V                    Show version and exit
+  --help, -h                       Show this help message
   --config <path>                  Use custom config file
   --storage-path <path>            Override storage file location
 

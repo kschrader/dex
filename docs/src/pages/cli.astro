@@ -393,8 +393,25 @@ dex help complete`}
     </Terminal>
   </div>
 
+  <div class="command-card">
+    <h3>dex version</h3>
+    <div class="synopsis">dex version</div>
+    <p>Display the installed version of dex.</p>
+    <Terminal title="Terminal">
+      <Code
+        code={`dex version            # Show version
+dex --version          # Same as above
+dex -V                 # Short flag`}
+        lang="bash"
+        theme="vitesse-black"
+      />
+    </Terminal>
+  </div>
+
   <h2>Global Options</h2>
   <ul>
+    <li><code>--version, -V</code> — Show version and exit</li>
+    <li><code>--help, -h</code> — Show help message</li>
     <li><code>--storage-path &lt;path&gt;</code> — Override storage directory</li>
   </ul>
 
