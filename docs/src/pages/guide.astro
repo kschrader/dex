@@ -3,10 +3,10 @@ import Base from '../layouts/Base.astro';
 import Terminal from '../components/Terminal.astro';
 ---
 
-<Base title="Guide" description="How to use dex with Claude Code for persistent task management">
+<Base title="Guide" description="How to use dex for persistent task management">
   <h1>Guide</h1>
 
-  <p>Dex helps Claude Code act as a <strong>master coordinator</strong> for complex work—breaking down tasks, tracking progress, and preserving context across sessions.</p>
+  <p>Dex helps your AI agent act as a <strong>master coordinator</strong> for complex work—breaking down tasks, tracking progress, and preserving context across sessions.</p>
 
   <h2>The Core Idea</h2>
 
@@ -14,7 +14,7 @@ import Terminal from '../components/Terminal.astro';
 
   <p>This means:</p>
   <ul>
-    <li>You can close Claude Code and pick up exactly where you left off</li>
+    <li>You can close your session and pick up exactly where you left off</li>
     <li>Context, decisions, and progress are preserved</li>
     <li>Multiple sessions (or agents) can coordinate on the same work</li>
     <li>Task history lives alongside your code in git</li>
@@ -38,16 +38,16 @@ import Terminal from '../components/Terminal.astro';
     <li>The overhead isn't worth it</li>
   </ul>
 
-  <h2>dex vs Claude Code's TaskCreate</h2>
+  <h2>dex vs Built-in Task Tools</h2>
 
-  <p>Claude Code has built-in task tools (<code>TaskCreate</code>, <code>TaskUpdate</code>, <code>TaskList</code>). These are <strong>not</strong> the same as dex.</p>
+  <p>Some AI agents (like Claude Code) have built-in task tools (<code>TaskCreate</code>, <code>TaskUpdate</code>, <code>TaskList</code>). These are <strong>not</strong> the same as dex.</p>
 
   <table>
     <thead>
       <tr>
         <th></th>
         <th>dex</th>
-        <th>Claude Code TaskCreate</th>
+        <th>Built-in Task Tools</th>
       </tr>
     </thead>
     <tbody>
@@ -74,7 +74,7 @@ import Terminal from '../components/Terminal.astro';
     </tbody>
   </table>
 
-  <p><strong>Rule of thumb:</strong> Use dex for work that needs to persist, be handed off, or tracked across sessions. Use Claude Code's TaskCreate only for ephemeral in-session tracking (like a scratchpad).</p>
+  <p><strong>Rule of thumb:</strong> Use dex for work that needs to persist, be handed off, or tracked across sessions. Use built-in task tools only for ephemeral in-session tracking (like a scratchpad).</p>
 
   <h2>Basic Workflow</h2>
 
@@ -344,7 +344,7 @@ All 24 tests passing."</pre>
 
   <p><strong>For team visibility:</strong></p>
   <ul>
-    <li>Team members see progress without using Claude Code</li>
+    <li>Team members see progress without needing the AI agent</li>
     <li>GitHub notifications keep everyone informed</li>
   </ul>
 

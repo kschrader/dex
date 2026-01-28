@@ -16,11 +16,16 @@ Task tracking for AI agents. Persistent memory for complex, multi-session work.
 
 ## Quick Start
 
-Install the Claude Code plugin:
+Install dex globally:
 
 ```bash
-claude plugin marketplace add dcramer/dex
-claude plugin install dex@dex
+npm install -g @zeeg/dex
+```
+
+Or use the skills installer for your AI agent (Claude Code, OpenCode, Codex, Cursor):
+
+```bash
+npx skills dcramer/dex
 ```
 
 Use natural language or slash commands:
@@ -52,7 +57,7 @@ pnpm link      # Makes 'dex' command available globally
 pnpm dev       # Watch mode - auto-rebuild on changes
 ```
 
-### Testing the Claude Code Plugin
+### Testing Locally
 
 Test the plugin locally without installing from the marketplace:
 
@@ -60,7 +65,7 @@ Test the plugin locally without installing from the marketplace:
 claude --plugin-dir plugins/dex
 ```
 
-This loads the plugin from the local directory. Restart Claude Code to pick up changes.
+This loads the plugin from the local directory. Restart your AI agent to pick up changes.
 
 ### Manual Build
 

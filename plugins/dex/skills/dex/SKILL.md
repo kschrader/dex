@@ -42,15 +42,17 @@ Think: "Would someone understand the what, why, and how from this task alone?"
 - Everything fits in one session with no follow-up
 - Overhead exceeds value
 
-## dex vs Claude Code's TaskCreate
+## dex vs Built-in Task Tools
 
-|                 | dex                                   | Claude Code TaskCreate |
-| --------------- | ------------------------------------- | ---------------------- |
-| **Persistence** | Files in `.dex/`                      | Session-only           |
-| **Context**     | Rich (description + context + result) | Basic                  |
-| **Hierarchy**   | 3-level (epic → task → subtask)       | Flat                   |
+Some AI agents (like Claude Code) have built-in task tools. These are session-only and not the same as dex.
 
-Use **dex** for persistent work. Use **TaskCreate** for ephemeral in-session tracking only.
+|                 | dex                                   | Built-in Task Tools |
+| --------------- | ------------------------------------- | ------------------- |
+| **Persistence** | Files in `.dex/`                      | Session-only        |
+| **Context**     | Rich (description + context + result) | Basic               |
+| **Hierarchy**   | 3-level (epic → task → subtask)       | Flat                |
+
+Use **dex** for persistent work. Use built-in task tools for ephemeral in-session tracking only.
 
 ## Basic Workflow
 
