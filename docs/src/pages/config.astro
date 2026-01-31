@@ -129,27 +129,12 @@ max_age = "1h"`}
     />
   </Terminal>
 
-  <table>
-    <thead>
-      <tr>
-        <th>Setting</th>
-        <th>Default</th>
-        <th>Description</th>
-      </tr>
-    </thead>
-    <tbody>
-      <tr>
-        <td><code>on_change</code></td>
-        <td><code>true</code></td>
-        <td>Sync immediately after task create/update/complete</td>
-      </tr>
-      <tr>
-        <td><code>max_age</code></td>
-        <td><em>none</em></td>
-        <td>If <code>on_change=false</code>, sync on mutation only when last sync exceeds this duration</td>
-      </tr>
-    </tbody>
-  </table>
+  <dl>
+    <dt>on_change</dt>
+    <dd>Sync immediately after task create/update/complete. Default: <code>true</code></dd>
+    <dt>max_age</dt>
+    <dd>If <code>on_change=false</code>, sync on mutation only when last sync exceeds this duration. Default: <em>none</em></dd>
+  </dl>
 
   <p><strong>Common configurations:</strong></p>
   <ul>
@@ -185,37 +170,16 @@ team = "Engineering"`}
 
   <h3>Configuration Options</h3>
 
-  <table>
-    <thead>
-      <tr>
-        <th>Option</th>
-        <th>Required</th>
-        <th>Description</th>
-      </tr>
-    </thead>
-    <tbody>
-      <tr>
-        <td><code>team</code></td>
-        <td>Yes</td>
-        <td>Team name for story assignment (determines workflow)</td>
-      </tr>
-      <tr>
-        <td><code>workspace</code></td>
-        <td>No</td>
-        <td>Workspace slug (auto-detected from token)</td>
-      </tr>
-      <tr>
-        <td><code>workflow</code></td>
-        <td>No</td>
-        <td>Workflow ID (defaults to team's default workflow)</td>
-      </tr>
-      <tr>
-        <td><code>label</code></td>
-        <td>No</td>
-        <td>Label to apply to all synced stories</td>
-      </tr>
-    </tbody>
-  </table>
+  <dl>
+    <dt>team</dt>
+    <dd><strong>Required.</strong> Team name for story assignment (determines workflow)</dd>
+    <dt>workspace</dt>
+    <dd>Workspace slug (auto-detected from token)</dd>
+    <dt>workflow</dt>
+    <dd>Workflow ID (defaults to team's default workflow)</dd>
+    <dt>label</dt>
+    <dd>Label to apply to all synced stories</dd>
+  </dl>
 
   <h3>Auto-Sync</h3>
 
@@ -236,26 +200,12 @@ on_change = true`}
 
   <h2>Environment Variables</h2>
 
-  <table>
-    <thead>
-      <tr>
-        <th>Variable</th>
-        <th>Description</th>
-      </tr>
-    </thead>
-    <tbody>
-      <tr>
-        <td><code>DEX_STORAGE_PATH</code></td>
-        <td>Override storage directory</td>
-      </tr>
-      <tr>
-        <td><code>GITHUB_TOKEN</code></td>
-        <td>GitHub API token (optional if <code>gh</code> CLI is authenticated)</td>
-      </tr>
-      <tr>
-        <td><code>SHORTCUT_API_TOKEN</code></td>
-        <td>Shortcut API token for sync</td>
-      </tr>
-    </tbody>
-  </table>
+  <dl>
+    <dt>DEX_STORAGE_PATH</dt>
+    <dd>Override storage directory</dd>
+    <dt>GITHUB_TOKEN</dt>
+    <dd>GitHub API token (optional if <code>gh</code> CLI is authenticated)</dd>
+    <dt>SHORTCUT_API_TOKEN</dt>
+    <dd>Shortcut API token for sync</dd>
+  </dl>
 </Base>
