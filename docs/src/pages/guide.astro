@@ -8,6 +8,26 @@ import Terminal from '../components/Terminal.astro';
 
   <p>Dex helps your AI agent act as a <strong>master coordinator</strong> for complex work—breaking down tasks, tracking progress, and preserving context across sessions.</p>
 
+  <nav class="toc">
+    <details open>
+      <summary>On this page</summary>
+      <ul>
+        <li><a href="#the-core-idea">The Core Idea</a></li>
+        <li><a href="#when-to-use-dex">When to Use Dex</a></li>
+        <li><a href="#dex-vs-built-in-task-tools">dex vs Built-in Task Tools</a></li>
+        <li><a href="#basic-workflow">Basic Workflow</a></li>
+        <li><a href="#building-a-backlog">Building a Backlog</a></li>
+        <li><a href="#what-good-looks-like">What Good Looks Like</a></li>
+        <li><a href="#task-hierarchy">Task Hierarchy</a></li>
+        <li><a href="#dependencies">Dependencies</a></li>
+        <li><a href="#integration-with-github">Integration with GitHub</a></li>
+        <li><a href="#integration-with-shortcut">Integration with Shortcut</a></li>
+        <li><a href="#behavior-notes">Behavior Notes</a></li>
+        <li><a href="#tips-for-working-with-claude">Tips for Working with Claude</a></li>
+      </ul>
+    </details>
+  </nav>
+
   <h2>The Core Idea</h2>
 
   <p>When you tell Claude "use dex" or invoke <code>/dex</code>, you're asking it to create <strong>persistent tickets</strong> that survive beyond the current session. Unlike Claude's built-in task tracking (which disappears when the session ends), dex tasks are stored as files in your repository.</p>
@@ -323,7 +343,7 @@ All 24 tests passing."</pre>
 <span class="cli-yellow">[ ]</span> <span class="cli-bold">def456</span> <span class="cli-red">[B: abc123]</span>: Deploy to production</pre>
   </Terminal>
 
-  <h2>Syncing with GitHub</h2>
+  <h2>Integration with GitHub</h2>
 
   <p>Local dex tasks are ephemeral—working notes that evolve and get deleted as you go. When you sync to GitHub Issues, you create a <strong>permanent record</strong> of the work: what was planned, how it was broken down, and what was actually done.</p>
 
@@ -423,6 +443,89 @@ Synced 1 task(s) <span class="cli-dim">(issue now closed)</span></pre>
 
   <p><strong>Note:</strong> If <code>.dex/</code> is in your <code>.gitignore</code>, sync-on-push detection is disabled since dex can't determine push status.</p>
 
+  <h2>Integration with Shortcut</h2>
+
+  <p>Shortcut sync works similarly to GitHub sync, but with some key differences in how tasks map to Shortcut's data model.</p>
+
+  <h3>Key Differences from GitHub</h3>
+
+  <table>
+    <thead>
+      <tr>
+        <th>Feature</th>
+        <th>GitHub</th>
+        <th>Shortcut</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><strong>Subtasks</strong></td>
+        <td>Checklist items in issue body</td>
+        <td>Real sub-tasks (separate stories linked to parent)</td>
+      </tr>
+      <tr>
+        <td><strong>Blocked-by</strong></td>
+        <td>Not synced</td>
+        <td>Story links ("blocked by" relationship)</td>
+      </tr>
+      <tr>
+        <td><strong>Workflow</strong></td>
+        <td>Open/Closed</td>
+        <td>Full workflow states (e.g., "In Progress", "Done")</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h3>Enabling Shortcut Sync</h3>
+
+  <p>Configure your repository in <a href="/config#shortcut-sync">config</a>. Set <code>SHORTCUT_API_TOKEN</code> environment variable with your Shortcut API token.</p>
+
+  <Terminal>
+    <pre class="cli-output"><span class="cli-dim">$</span> export SHORTCUT_API_TOKEN=your-token-here</pre>
+  </Terminal>
+
+  <h3>What Gets Synced</h3>
+
+  <p>When you sync a task to Shortcut:</p>
+  <ul>
+    <li>Task name → Story title</li>
+    <li>Task context → Story description</li>
+    <li>Subtasks → Sub-task stories (linked to parent)</li>
+    <li>Blocked-by relationships → Story links</li>
+    <li>Completion → Story moved to "done" workflow state</li>
+  </ul>
+
+  <h3>Syncing Tasks</h3>
+
+  <p>Push local tasks to Shortcut Stories:</p>
+
+  <Terminal>
+    <pre class="cli-output"><span class="cli-dim">$</span> dex sync --shortcut
+Syncing 3 task(s) to Shortcut...
+<span class="cli-dim">[1/3]</span> <span class="cli-green">+</span> abc123: Add JWT authentication
+<span class="cli-dim">[2/3]</span> <span class="cli-yellow">↻</span> def456: Fix login redirect
+<span class="cli-dim">[3/3]</span> <span class="cli-dim">∙</span> ghi789: Add rate limiting
+Synced 3 task(s) to Shortcut
+  <span class="cli-dim">(1 created, 1 updated, 1 unchanged)</span></pre>
+  </Terminal>
+
+  <h3>Importing from Shortcut</h3>
+
+  <p>Pull Shortcut Stories into local tasks:</p>
+
+  <Terminal>
+    <pre class="cli-output"><span class="cli-dim">$</span> dex import sc#123
+Imported story sc#123 as task xyz789: "Add password reset flow"
+  <span class="cli-dim">Created 2 subtask(s)</span>
+
+<span class="cli-dim">$</span> dex import https://app.shortcut.com/workspace/story/123
+Imported story sc#123 as task xyz789: "Add password reset flow"
+
+<span class="cli-dim">$</span> dex import --all --shortcut
+Importing all stories from Shortcut...
+Imported 5 story(s)</pre>
+  </Terminal>
+
   <h2>Behavior Notes</h2>
 
   <p>A few behaviors to be aware of:</p>
@@ -448,6 +551,51 @@ Synced 1 task(s) <span class="cli-dim">(issue now closed)</span></pre>
 </Base>
 
 <style>
+  .toc {
+    margin-bottom: 2rem;
+    padding: 1rem 1.25rem;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+  }
+
+  .toc summary {
+    font-weight: 600;
+    cursor: pointer;
+    color: var(--text-primary);
+    font-size: 0.9rem;
+  }
+
+  .toc ul {
+    margin: 0.5rem 0 0 0;
+    padding-left: 1.25rem;
+    list-style: none;
+  }
+
+  .toc > details > ul {
+    padding-left: 0;
+  }
+
+  .toc li {
+    margin: 0.25rem 0;
+    line-height: 1.4;
+  }
+
+  .toc li ul {
+    margin-top: 0.25rem;
+  }
+
+  .toc a {
+    color: var(--text-secondary);
+    text-decoration: none;
+    font-size: 0.875rem;
+  }
+
+  .toc a:hover {
+    color: var(--text-primary);
+    text-decoration: underline;
+  }
+
   .cli-output {
     font-family: var(--font-mono);
     font-size: 0.875rem;

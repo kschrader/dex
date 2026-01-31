@@ -158,6 +158,82 @@ max_age = "1h"`}
     <li><strong>Manual only</strong>: <code>on_change = false</code> — only sync via <code>dex sync</code></li>
   </ul>
 
+  <h2 id="shortcut-sync">Shortcut Sync</h2>
+
+  <p>Sync tasks to Shortcut Stories. Workspace is auto-detected from your API token.</p>
+
+  <Terminal title=".dex/config.toml">
+    <Code
+      code={`[sync.shortcut]
+enabled = true
+team = "Engineering"`}
+      lang="toml"
+      theme="vitesse-black"
+    />
+  </Terminal>
+
+  <p><strong>Authentication:</strong> Set <code>SHORTCUT_API_TOKEN</code> environment variable.</p>
+
+  <p><strong>Behavior:</strong></p>
+  <ul>
+    <li>Tasks → Shortcut Stories</li>
+    <li>Subtasks → Shortcut Sub-tasks (separate stories linked to parent)</li>
+    <li>Blocked-by relationships → Story links</li>
+    <li>Completed tasks → Story moved to "done" workflow state</li>
+    <li>Sync is one-way (local → Shortcut)</li>
+  </ul>
+
+  <h3>Configuration Options</h3>
+
+  <table>
+    <thead>
+      <tr>
+        <th>Option</th>
+        <th>Required</th>
+        <th>Description</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><code>team</code></td>
+        <td>Yes</td>
+        <td>Team name for story assignment (determines workflow)</td>
+      </tr>
+      <tr>
+        <td><code>workspace</code></td>
+        <td>No</td>
+        <td>Workspace slug (auto-detected from token)</td>
+      </tr>
+      <tr>
+        <td><code>workflow</code></td>
+        <td>No</td>
+        <td>Workflow ID (defaults to team's default workflow)</td>
+      </tr>
+      <tr>
+        <td><code>label</code></td>
+        <td>No</td>
+        <td>Label to apply to all synced stories</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h3>Auto-Sync</h3>
+
+  <p>Auto-sync settings work the same as GitHub sync. See <a href="#github-sync">GitHub auto-sync settings</a> for configuration options.</p>
+
+  <Terminal title=".dex/config.toml">
+    <Code
+      code={`[sync.shortcut]
+enabled = true
+team = "Engineering"
+
+[sync.shortcut.auto]
+on_change = true`}
+      lang="toml"
+      theme="vitesse-black"
+    />
+  </Terminal>
+
   <h2>Environment Variables</h2>
 
   <table>
@@ -175,6 +251,10 @@ max_age = "1h"`}
       <tr>
         <td><code>GITHUB_TOKEN</code></td>
         <td>GitHub API token (optional if <code>gh</code> CLI is authenticated)</td>
+      </tr>
+      <tr>
+        <td><code>SHORTCUT_API_TOKEN</code></td>
+        <td>Shortcut API token for sync</td>
       </tr>
     </tbody>
   </table>
